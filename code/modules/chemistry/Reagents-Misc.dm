@@ -3763,6 +3763,18 @@ datum
 					T.grassify()
 				return
 
+			on_mob_life(var/mob/M, var/mult = 1) //Makes Kudzumen able to just barely survive off of Kudzu by counteracting the stamina drain
+				if (!M) M = holder.my_atom
+				if (istype(M, /mob/living/carbon/human) && M:mutantrace && istype(M:mutantrace, /datum/mutantrace/kudzu))
+					world.log << ("This Kudzuperson has GrassGro inside them")
+					var/datum/abilityHolder/kudzu/KAH = M.abilityHolder
+					if (KAH.points < KAH:MAX_POINTS)
+						KAH.points += 10
+				M.updatehealth()
+				..()
+				return
+
+
 		cloak_juice
 			name = "cloaked panellus extract"
 			id = "cloak_juice"
