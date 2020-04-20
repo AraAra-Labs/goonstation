@@ -88,7 +88,8 @@
 /obj/machinery/vehicle/miniputt
 	name = "MiniPutt-"
 	desc = "A little solo vehicle for scouting and exploration work."
-	icon_state = "miniputt"
+	icon = 'icons/obj/machines/8dirvehicles.dmi'
+	icon_state = "miniputt_body"
 	capacity = 1
 	var/armor_score_multiplier = 0.5
 	health = 75
