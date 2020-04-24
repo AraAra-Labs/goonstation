@@ -307,12 +307,11 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 				src.health = initial(health)
 				src.visible_message("<span style=\"color:red\">[user] repairs [src]!</span>", "<span style=\"color:red\">You repair [src].</span>")
 		else
-			switch(W.damtype)
-				if("fire")
+			switch(W.hit_type)
+				if (DAMAGE_BURN)
 					src.health -= W.force * 0.75
-				if("brute")
-					src.health -= W.force * 0.5
 				else
+					src.health -= W.force * 0.5
 			if (src.health <= 0)
 				src.explode()
 			else if (W.force && (!iscarbon(src.target) || (src.mode != SECBOT_HUNT)))
@@ -396,7 +395,7 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 							if (!stuncount && maxstuns-- <= 0)
 								target = null
 							if (stuncount > 0)
-								sleep(3)
+								sleep(0.3 SECONDS)
 
 						SPAWN_DBG(0.2 SECONDS)
 							src.icon_state = "secbot[src.on][(src.on && src.emagged == 2) ? "-spaz" : null]"
@@ -447,14 +446,14 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 					if(isabomination(H))
 						return
 */
-				if (!src.target.handcuffed && !src.arrest_type)
+				if (!src.target.hasStatus("handcuffed") && !src.arrest_type)
 					playsound(src.loc, "sound/weapons/handcuffs.ogg", 30, 1, -2)
 					mode = SECBOT_ARREST
 					src.visible_message("<span style=\"color:red\"><B>[src] is trying to put handcuffs on [src.target]!</B></span>")
 
 					SPAWN_DBG(6 SECONDS)
 						if (get_dist(src, src.target) <= 1)
-							if (!src.target || src.target.handcuffed)
+							if (!src.target || src.target.hasStatus("handcuffed"))
 								return
 
 							var/uncuffable = 0
@@ -468,7 +467,7 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 								uncuffable = 1
 
 							if(iscarbon(src.target) && !uncuffable)
-								src.target.handcuffed = new /obj/item/handcuffs(src.target)
+								src.target.handcuffs = new /obj/item/handcuffs(src.target)
 								src.target.setStatus("handcuffed", duration = INFINITE_STATUS)
 
 							var/last_target = target
@@ -506,7 +505,7 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 					src.moving = 0
 
 				if(src.target)
-					if (src.target.handcuffed)
+					if (src.target.hasStatus("handcuffed"))
 						src.anchored = 0
 						mode = SECBOT_IDLE
 						return
@@ -559,7 +558,7 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 				SPAWN_DBG(0.4 SECONDS)
 					if(mode == SECBOT_SUMMON)
 						patrol_step()
-						sleep(4)
+						sleep(0.4 SECONDS)
 						patrol_step()
 
 		return
@@ -786,7 +785,7 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 	proc/look_for_perp()
 		src.anchored = 0
 		for (var/mob/living/carbon/C in view(7,src)) //Let's find us a criminal
-			if ((C.stat) || (C.handcuffed))
+			if ((C.stat) || (C.hasStatus("handcuffed")))
 				continue
 			if ((C.name == src.oldtarget_name) && (world.time < src.last_found + 100))
 				continue
@@ -815,9 +814,9 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 
 					while (weeoo)
 						add_simple_light("secbot", list(255 * 0.9, 255 * 0.1, 255 * 0.1, 0.8 * 255))
-						sleep(3)
+						sleep(0.3 SECONDS)
 						add_simple_light("secbot", list(255 * 0.1, 255 * 0.1, 255 * 0.9, 0.8 * 255))
-						sleep(3)
+						sleep(0.3 SECONDS)
 						weeoo--
 
 					//old one in case we still want that
@@ -825,9 +824,9 @@ Report Arrests: <A href='?src=\ref[src];operation=report'>[report_arrests ? "On"
 					light.set_brightness(0.8)
 					while (weeoo)
 						light.set_color(0.9, 0.1, 0.1)
-						sleep(3)
+						sleep(0.3 SECONDS)
 						light.set_color(0.1, 0.1, 0.9)
-						sleep(3)
+						sleep(0.3 SECONDS)
 						weeoo--
 					light.set_brightness(0.4)
 					light.set_color(1, 1, 1)

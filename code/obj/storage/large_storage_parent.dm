@@ -27,6 +27,7 @@
 	var/icon_welded = "welded-closet"
 	var/open_sound = "sound/machines/click.ogg"
 	var/close_sound = "sound/machines/click.ogg"
+	var/max_capacity = 100 //Won't close past this many items.
 	var/open = 0
 	var/welded = 0
 	var/locked = 0
@@ -53,8 +54,6 @@
 		..()
 		SPAWN_DBG(1 DECI SECOND)
 			src.update_icon()
-			//I wonder what it would do for world initialization time to do this when the locker is opened instead.
-			//src.make_my_stuff()
 
 			if (!src.open)		// if closed, any item at src's loc is put in the contents
 				for (var/obj/O in src.loc)
@@ -130,7 +129,7 @@
 					shakes--
 					src.pixel_x = rand(-5,5)
 					src.pixel_y = rand(-5,5)
-					sleep(1)
+					sleep(0.1 SECONDS)
 				src.pixel_x = 0
 				src.pixel_y = 0
 				SPAWN_DBG(0.5 SECONDS)
@@ -259,11 +258,7 @@
 				user.show_text("Access Denied", "red")
 			user.unlock_medal("Rookie Thief", 1)
 			return
-/*
-		else if (issilicon(user))
-			if (get_dist(src, user) <= 1)
-				return src.attack_hand(user)
-*/
+
 		else
 			return ..()
 
@@ -300,6 +295,7 @@
 			. = 1
 
 	MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
+		var/turf/T = get_turf(src)
 		if (!in_range(user, src) || !in_range(user, O) || user.restrained() || user.getStatusDuration("paralysis") || user.sleeping || user.stat || user.lying || isAI(user))
 			return
 
@@ -346,6 +342,10 @@
 		if (!src.open)
 			src.open()
 
+		if (T.contents.len >= src.max_capacity)
+			user.show_text("[src] is too full!", "red")
+			return
+
 		if (O.loc == user)
 			user.u_equip(O)
 			O.set_loc(get_turf(user))
@@ -366,6 +366,8 @@
 						break
 					if (user.loc != staystill)
 						break
+					if (T.contents.len >= src.max_capacity)
+						break
 				for (var/obj/item/material_piece/M in view(1,user))
 					if (M.material && M.material.getProperty("radioactive") > 0)
 						user.changeStatus("radiation", (round(min(M.material.getProperty("radioactive") / 2, 20)))*10, 2)
@@ -376,6 +378,8 @@
 					if (!src.open)
 						break
 					if (user.loc != staystill)
+						break
+					if (T.contents.len >= src.max_capacity)
 						break
 				user.show_text("You finish stuffing materials into [src]!", "blue")
 				SPAWN_DBG(0.5 SECONDS)
@@ -397,6 +401,8 @@
 						break
 					if (user.loc != staystill)
 						break
+					if (T.contents.len >= src.max_capacity)
+						break
 				for (var/obj/item/reagent_containers/food/snacks/F in view(1,user))
 					if (F in user)
 						continue
@@ -407,6 +413,8 @@
 					if (!src.open)
 						break
 					if (user.loc != staystill)
+						break
+					if (T.contents.len >= src.max_capacity)
 						break
 				user.show_text("You finish stuffing produce into [src]!", "blue")
 				SPAWN_DBG(0.5 SECONDS)
@@ -506,6 +514,7 @@
 		if (!src.open)
 			return 0
 		if (!src.can_close())
+			visible_message("<span style='color:red'>[src] can't close; looks like it's too full!</span>")
 			return 0
 
 		if(entangled && !entangleLogic && !entangled.can_open())
@@ -571,7 +580,11 @@
 		return 1
 
 	proc/can_close()
-		for (var/obj/storage/S in get_turf(src))
+		var/turf/T = get_turf(src)
+		if (!T) return 0
+		if (T.contents.len > src.max_capacity)
+			return 0
+		for (var/obj/storage/S in T)
 			if (S != src)
 				return 0
 		return 1
@@ -691,14 +704,14 @@
 
 		if (src.open)
 			step_towards(usr, src)
-			sleep(10)
+			sleep(1 SECOND)
 			if (usr.loc == src.loc)
 				if (src.is_short)
 					usr.lying = 1
 				src.close()
 		else if (src.open())
 			step_towards(usr, src)
-			sleep(10)
+			sleep(1 SECOND)
 			if (usr.loc == src.loc)
 				if (src.is_short)
 					usr.lying = 1

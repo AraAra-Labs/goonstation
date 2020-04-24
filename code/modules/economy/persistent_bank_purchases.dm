@@ -8,6 +8,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	new /datum/bank_purchaseable/human_item/harmonica,\
 	new /datum/bank_purchaseable/human_item/airhorn,\
 	new /datum/bank_purchaseable/human_item/dramatichorn,\
+	new /datum/bank_purchaseable/human_item/saxophone,\
 	new /datum/bank_purchaseable/human_item/trumpet,\
 	new /datum/bank_purchaseable/human_item/fiddle,\
 	new /datum/bank_purchaseable/human_item/gold_zippo,\
@@ -27,6 +28,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	new /datum/bank_purchaseable/lizard,\
 	new /datum/bank_purchaseable/cow,\
 	new /datum/bank_purchaseable/skeleton,\
+	new /datum/bank_purchaseable/roach,\
 	new /datum/bank_purchaseable/limbless,\
 	new /datum/bank_purchaseable/corpse,\
 	new /datum/bank_purchaseable/space_diner,\
@@ -44,7 +46,8 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	new /datum/bank_purchaseable/gold_that,\
 	new /datum/bank_purchaseable/dancin_shoes,\
 
-	new /datum/bank_purchaseable/alohamaton)
+	new /datum/bank_purchaseable/alohamaton,\
+	new /datum/bank_purchaseable/ai_hat)
 
 
 /datum/bank_purchaseable
@@ -180,6 +183,11 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			name = "Dramatic Horn"
 			cost = 400
 			path = /obj/item/instrument/bikehorn/dramatic
+
+		saxophone
+			name = "Saxophone"
+			cost = 600
+			path = /obj/item/instrument/saxophone
 
 		trumpet
 			name = "Trumpet"
@@ -346,6 +354,17 @@ var/global/list/persistent_bank_purchaseables =	list(\
 					return 1
 			return 0
 
+	roach
+		name = "Roach"
+		cost = 5000
+
+		Create(var/mob/living/M)
+			if (ishuman(M))
+				var/mob/living/carbon/human/H = M
+				if (H.bioHolder)
+					H.bioHolder.AddEffect("roach")
+					return 1
+			return 0
 
 	limbless
 		name = "No Limbs"
@@ -406,7 +425,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			else
 				S = new /obj/storage/crate(get_turf(M))
 				M.set_loc(S)
-				buy_thing(S)
+				shippingmarket.receive_crate(S)
 				return 1
 
 	critter_respawn
@@ -561,3 +580,17 @@ var/global/list/persistent_bank_purchaseables =	list(\
 				A.set_color("#EE0000")
 				return 1
 			return 0
+
+	ai_hat
+		name = "AI hat"
+		cost = 1000
+
+		Create(var/mob/living/M)
+			if (isAI(M))
+				var/mob/living/silicon/ai/A = M
+				var/picked = pick(childrentypesof(/obj/item/clothing/head))
+				A.set_hat(new picked())
+				return 1
+			return 0
+
+

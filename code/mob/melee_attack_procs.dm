@@ -65,12 +65,21 @@
 
 	playsound(src.loc, 'sound/impact_sounds/Generic_Shove_1.ogg', 50, 1, -1)
 	if (src == target)
-		var/item = src.get_random_equipped_thing_name()
-		if (item)
-			var/v = pick("tidies","adjusts","brushes off", "flicks a piece of lint off", "tousles", "fixes", "readjusts","fusses with", "sweeps off")
-			src.visible_message("<span style=\"color:blue\">[src] [v] [his_or_her(src)] [item]!</span>")
+		var/obj/stool/S = (locate(/obj/stool) in src.loc)
+		if (S)
+			S.buckle_in(src,src)
+		if(istype(src.wear_mask,/obj/item/clothing/mask/moustache))
+			src.visible_message("<span style=\"color:red\"><B>[src] twirls [his_or_her(src)] moustache and laughs [pick_string("tweak_yo_self.txt", "moustache")]!</B></span>")
+		else if(istype(src.wear_mask,/obj/item/clothing/mask/clown_hat))
+			var/obj/item/clothing/mask/clown_hat/mask = src.wear_mask
+			mask.honk_nose(src)
 		else
-			src.visible_message("<span style=\"color:blue\">[src] pats themselves on the back. Feel better, [src].</span>")
+			var/item = src.get_random_equipped_thing_name()
+			if (item)
+				var/v = pick("tidies","adjusts","brushes off", "flicks a piece of lint off", "tousles", "fixes", "readjusts","fusses with", "sweeps off")
+				src.visible_message("<span style=\"color:blue\">[src] [v] [his_or_her(src)] [item]!</span>")
+			else
+				src.visible_message("<span style=\"color:blue\">[src] pats themselves on the back. Feel better, [src].</span>")
 
 	else
 		if (target.lying)
@@ -187,15 +196,53 @@
 	if(!..())
 		return
 
-	if(istype(src.wear_mask,/obj/item/clothing/mask/moustache))
-		src.visible_message("<span style=\"color:red\"><B>[src] twirls [his_or_her(src)] moustache and laughs [pick_string("tweak_yo_self.txt", "moustache")]!</B></span>")
-	else if(istype(src.wear_mask,/obj/item/clothing/mask/clown_hat))
-		var/obj/item/clothing/mask/clown_hat/mask = src.wear_mask
-		mask.honk_nose(src)
+	var/obj/stool/S = (locate(/obj/stool) in src.loc)
+	if (S)
+		S.buckle_in(src,src,1)
 	else
-		src.visible_message("<span style=\"color:red\"><B>[src] tweaks [his_or_her(src)] own nipples! That's [pick_string("tweak_yo_self.txt", "tweakadj")] [pick_string("tweak_yo_self.txt", "tweak")]!</B></span>")
+		var/obj/item/grab/block/G = new /obj/item/grab/block(src)
+		G.assailant = src
+		src.put_in_hand(G, src.hand)
+		G.affecting = src
+		src.grabbed_by += G
 
-//mbc : janky suppress final message usage right now - fix later when we generralize grabs into working with more than 1 kind of item
+		playsound(src.loc, 'sound/impact_sounds/Generic_Shove_1.ogg', 50, 1, -1)
+		src.visible_message("<span style=\"color:red\">[src] starts blocking!</span>")
+
+		src.setStatus("blocking", duration = INFINITE_STATUS)
+		block_begin(src)
+		/*
+		RIP
+		else
+			src.visible_message("<span style=\"color:red\"><B>[src] tweaks [his_or_her(src)] own nipples! That's [pick_string("tweak_yo_self.txt", "tweakadj")] [pick_string("tweak_yo_self.txt", "tweak")]!</B></span>")
+		*/
+
+/mob/living/proc/grab_block() //this is sorta an ugly but fuck it!!!!
+	if (src.grabbed_by && src.grabbed_by.len > 0)
+		return 0
+
+	.= 1
+
+	var/obj/item/I = src.equipped()
+	if (!I)
+		src.grab_self()
+	else
+		var/obj/item/grab/block/G = new /obj/item/grab/block(I)
+		G.assailant = src
+		G.affecting = src
+		src.grabbed_by += G
+		G.loc = I
+
+		I.chokehold = G
+		I.chokehold.post_item_setup()
+
+		playsound(src.loc, 'sound/impact_sounds/Generic_Shove_1.ogg', 50, 1, -1)
+		src.visible_message("<span style=\"color:red\">[src] starts blocking with [I]!</span>")
+
+		src.setStatus("blocking", duration = INFINITE_STATUS)
+		block_begin(src)
+
+
 /mob/living/proc/grab_other(var/mob/living/target, var/suppress_final_message = 0, var/obj/item/grab_item = null)
 	if(!src || !target)
 		return 0
@@ -236,7 +283,7 @@
 			return
 		else
 			var/mob/living/carbon/human/T = target
-			if (istype(T) && !T.stat && !T.getStatusDuration("weakened") && !T.getStatusDuration("stunned") && !T.getStatusDuration("paralysis") && T.a_intent == "disarm" && T.stamina > STAMINA_DEFAULT_BLOCK_COST && prob(STAMINA_GRAB_BLOCK_CHANCE) && !T.equipped())
+			if (istype(T) && T.do_block(src, null, show_msg = 0))
 				src.visible_message("<span style=\"color:red\"><B>[T] blocks [src]'s attempt to grab [him_or_her(T)]!</span>")
 				playsound(target.loc, 'sound/impact_sounds/Generic_Swing_1.ogg', 25, 1, 1)
 
@@ -265,6 +312,9 @@
 		G.loc = grab_item
 		.= G
 
+	for (var/obj/item/grab/block/G in target.equipped_list(check_for_magtractor = 0)) //being grabbed breaks a block
+		qdel(G)
+
 	playsound(target.loc, 'sound/impact_sounds/Generic_Shove_1.ogg', 50, 1, -1)
 	if (!suppress_final_message) // Melee-focused roles (resp. their limb datums) grab the target aggressively (Convair880).
 		if (grab_item)
@@ -278,6 +328,8 @@
 /mob/proc/disarm(var/mob/living/target, var/extra_damage = 0, var/suppress_flags = 0, var/damtype = DAMAGE_BLUNT, var/is_special = 0)
 	if (!src || !ismob(src) || !target || !ismob(target))
 		return
+
+	hit_twitch(target)
 
 	if (!isnum(extra_damage))
 		extra_damage = 0
@@ -372,6 +424,10 @@
 			msgs.base_attack_message = "<span style=\"color:red\"><B>[src] shoves [target] to the ground[DISARM_WITH_ITEM_TEXT]!</B></span>"
 			msgs.played_sound = 'sound/impact_sounds/Generic_Shove_1.ogg'
 			msgs.disarm_RNG_result = "shoved_down"
+			var/obj/item/I = target.equipped()
+			if (I && I.temp_flags & IS_LIMB_ITEM)
+				msgs.disarm_RNG_result = "attack_self_with_item_shoved_down"
+
 			return msgs
 
 	if (is_shove) return msgs
@@ -416,50 +472,70 @@
 
 #undef DISARM_WITH_ITEM_TEXT
 
-/mob/proc/check_block()
-	if (!stat && !getStatusDuration("weakened") && !getStatusDuration("stunned") && !getStatusDuration("paralysis") && a_intent == "disarm" && prob(STAMINA_BLOCK_CHANCE) && !equipped())
-		return 1
+/mob/proc/check_block() //am i blocking?
+	if (!stat && !getStatusDuration("weakened") && !getStatusDuration("stunned") && !getStatusDuration("paralysis"))
+		var/obj/item/I = src.equipped()
+		if (I)
+			if (istype(I,/obj/item/grab/block))
+				return I
+			else if (I.c_flags & HAS_GRAB_EQUIP)
+				for (var/obj/item/grab/block/G in I)
+					return G
 	return 0
 
-/mob/living/carbon/human/check_block()
-	if (!stat && !getStatusDuration("weakened") && !getStatusDuration("stunned") && !getStatusDuration("paralysis") && a_intent == "disarm" && stamina > STAMINA_DEFAULT_BLOCK_COST && prob(STAMINA_BLOCK_CHANCE+get_deflection())&& !equipped())
-		return 1
+/mob/proc/do_block(var/mob/attacker, var/obj/item/W, var/show_msg = 1)
+	var/obj/item/grab/block/G = check_block()
+	if (G)
+		if (G.can_block(W?.hit_type))
+			if (prob(STAMINA_BLOCK_CHANCE + get_deflection()))
+				if (show_msg)
+					if (G != src.equipped())
+						visible_message("<span style=\"color:red\"><B>[src] blocks [attacker]'s attack with [G.loc]!</span>")
+					else
+						visible_message("<span style=\"color:red\"><B>[src] blocks [attacker]'s attack!</span>")
+
+				playsound(loc, 'sound/impact_sounds/Generic_Swing_1.ogg', 50, 1, 1)
+				remove_stamina(STAMINA_DEFAULT_BLOCK_COST)
+				stamina_stun()
+				fuckup_attack_particle(attacker)
+				return 1
+			block_spark(src)
+			fuckup_attack_particle(attacker)
 	return 0
 
-
-/mob/proc/do_block(var/mob/attacker)
-	if (check_block())
-		visible_message("<span style=\"color:red\"><B>[src] blocks [attacker]'s attack!</span>")
-		playsound(loc, 'sound/impact_sounds/Generic_Swing_1.ogg', 50, 1, 1)
-
-		remove_stamina(STAMINA_DEFAULT_BLOCK_COST)
-		stamina_stun()
-		return 1
-	return 0
-
-/mob/living/carbon/human/do_block(var/mob/attacker)
+/mob/living/carbon/human/do_block(var/mob/attacker, var/obj/item/W, var/show_msg = 1)
 	if (stance == "dodge")
-		visible_message("<span style=\"color:red\"><B>[src] narrowly dodges [attacker]'s attack!</span>")
+		if (show_msg)
+			visible_message("<span style=\"color:red\"><B>[src] narrowly dodges [attacker]'s attack!</span>")
 		playsound(loc, 'sound/impact_sounds/Generic_Swing_1.ogg', 50, 1, 1)
 
 		add_stamina(STAMINA_FLIP_COST * 0.25) //Refunds some stamina if you successfully dodge.
 		stamina_stun()
+		fuckup_attack_particle(attacker)
 		return 1
-	else if (prob(src.get_total_block()))
-		visible_message("<span style=\"color:red\"><B>[src] blocks [attacker]'s attack!</span>")
+	else if (prob(src.get_passive_block()))
+		if (show_msg)
+			visible_message("<span style=\"color:red\"><B>[src] blocks [attacker]'s attack!</span>")
 		playsound(loc, 'sound/impact_sounds/Generic_Swing_1.ogg', 50, 1, 1)
+		fuckup_attack_particle(attacker)
 		return 1
+	if (stamina <= STAMINA_DEFAULT_BLOCK_COST)
+		return 0
 
 	return ..()
 
-/mob/living/carbon/human/proc/get_total_block()
+/mob/living/carbon/human/proc/get_passive_block(var/obj/item/W)
 	var/ret = 0
 	if(getStatusDuration("stonerit"))
 		ret += 20
+
 	for(var/atom in src.get_equipped_items())
 		var/obj/item/C = atom
 		ret += C.getProperty("block")
+
 	return ret
+
+
 
 /////////////////////////////////////////////////// Harm intent ////////////////////////////////////////////////////////
 
@@ -614,7 +690,7 @@
 		var/stam_power = STAMINA_HTH_DMG * stamina_damage_mult
 
 		var/armor_mod = 0
-		armor_mod = target.get_melee_protection(def_zone)
+		armor_mod = target.get_melee_protection(def_zone, DAMAGE_BLUNT)
 
 		damage -= armor_mod
 
@@ -796,7 +872,12 @@
 			msg_group = "[affecting]_attacks_[target]_with_[disarm ? "disarm" : "harm"]"
 
 		if (!(suppress & SUPPRESS_SOUND) && played_sound)
-			playsound(owner.loc, played_sound, 50, 1, -1)
+			var/obj/item/grab/block/G = target.check_block()
+			if (G && G.can_block(damage_type) && damage > 0)
+				G.play_block_sound(damage_type)
+				playsound(owner.loc, played_sound, 15, 1, -1, 1.4)
+			else
+				playsound(owner.loc, played_sound, 50, 1, -1)
 
 		if (!(suppress & SUPPRESS_BASE_MESSAGE) && base_attack_message)
 			owner.visible_message(base_attack_message)
@@ -837,7 +918,7 @@
 						target.deliver_move_trigger("bump")
 						target.drop_item_throw()
 
-					if ("attack_self_with_item")
+					if ("attack_self_with_item", "attack_self_with_item_shoved_down")
 						var/obj/item/I = target.equipped()
 						if (I)
 							var/old_zone_sel = 0
@@ -856,6 +937,10 @@
 
 							if (prob(20))
 								I.attack_self(target)
+
+							if (src.disarm_RNG_result == "attack_self_with_item_shoved_down")
+								target.changeStatus("weakened", 1 SECONDS)
+								target.force_laydown_standup()
 
 					if ("shoved_down")
 						target.deliver_move_trigger("pushdown")
@@ -897,6 +982,7 @@
 
 			if (istype(affecting))
 				affecting.take_damage((damage_type != DAMAGE_BURN ? damage : 0), (damage_type == DAMAGE_BURN ? damage : 0), 0, damage_type)
+				hit_twitch(target)
 			else if (affecting)
 				target.TakeDamage(affecting, (damage_type != DAMAGE_BURN ? damage : 0), (damage_type == DAMAGE_BURN ? damage : 0), 0, damage_type)
 			else
@@ -997,7 +1083,7 @@
 	if (!..())
 		return 0
 
-	if (src.do_block(attacker))
+	if (src.do_block(attacker, I))
 		return 0
 
 	return 1
@@ -1099,11 +1185,14 @@
 		return "<span style=\"color:red\">You drunkenly shrug off the blow!</span>"
 	return null
 
-/mob/proc/get_melee_protection(zone)
+/mob/proc/get_melee_protection(zone, damage_type = 0)
 	return 0
 
 /mob/proc/get_ranged_protection()
 	return 1
+
+/mob/proc/get_deflection()
+	.= 0
 
 ///////////////////
 /mob/proc/get_head_pierce_prot()
@@ -1147,7 +1236,7 @@
 			if (prob(20))
 				target.changeStatus("stunned", 1 SECOND)
 				step_away(target,src,15)
-				sleep(3)
+				sleep(0.3 SECONDS)
 				step_away(target,src,15)
 			else if (prob(20))				//what's this math, like 40% then with the if else? who cares
 

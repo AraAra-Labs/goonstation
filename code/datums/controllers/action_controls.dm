@@ -633,7 +633,7 @@ var/datum/action_controller/actions
 	duration = 40
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	id = "handcuffsset"
-	icon = 'icons/obj/items.dmi'
+	icon = 'icons/obj/items/items.dmi'
 	icon_state = "handcuff"
 	var/mob/living/carbon/human/target
 	var/obj/item/handcuffs/cuffs
@@ -649,7 +649,7 @@ var/datum/action_controller/actions
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
-		if(target.handcuffed)
+		if(target.hasStatus("handcuffed"))
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
@@ -670,7 +670,7 @@ var/datum/action_controller/actions
 	onEnd()
 		..()
 		var/mob/ownerMob = owner
-		if(owner && ownerMob && target && cuffs && !target.handcuffed && cuffs == ownerMob.equipped() && get_dist(owner, target) <= 1)
+		if(owner && ownerMob && target && cuffs && !target.hasStatus("handcuffed") && cuffs == ownerMob.equipped() && get_dist(owner, target) <= 1)
 
 			var/obj/item/handcuffs/cuffs2
 
@@ -693,15 +693,15 @@ var/datum/action_controller/actions
 
 			if (cuffs2 && istype(cuffs2))
 				cuffs2.set_loc(target)
-				target.handcuffed = cuffs2
+				target.handcuffs = cuffs2
 			else
 				cuffs.set_loc(target)
-				target.handcuffed = cuffs
+				target.handcuffs = cuffs
 			target.drop_from_slot(target.r_hand)
 			target.drop_from_slot(target.l_hand)
 			target.drop_juggle()
-			target.update_clothing()
 			target.setStatus("handcuffed", duration = INFINITE_STATUS)
+			target.update_clothing()
 
 			for(var/mob/O in AIviewers(ownerMob))
 				O.show_message("<span style=\"color:red\"><B>[owner] handcuffs [target]!</B></span>", 1)
@@ -710,7 +710,7 @@ var/datum/action_controller/actions
 	duration = 70
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	id = "handcuffsother"
-	icon = 'icons/obj/items.dmi'
+	icon = 'icons/obj/items/items.dmi'
 	icon_state = "handcuff"
 	var/mob/living/carbon/human/target
 
@@ -724,7 +724,7 @@ var/datum/action_controller/actions
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
-		if(!target.handcuffed)
+		if(!target.hasStatus("handcuffed"))
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
@@ -739,12 +739,9 @@ var/datum/action_controller/actions
 
 	onEnd()
 		..()
-		if(owner && target && target.handcuffed)
+		if(owner && target && target.hasStatus("handcuffed"))
 			var/mob/living/carbon/human/H = target
-			H.handcuffed:set_loc(H.loc)
-			H.handcuffed.unequipped(H)
-			H.handcuffed = null
-			H.update_clothing()
+			H.handcuffs.drop_handcuffs(H)
 			for(var/mob/O in AIviewers(H))
 				O.show_message("<span style=\"color:red\"><B>[owner] manages to remove [target]'s handcuffs!</B></span>", 1)
 
@@ -752,7 +749,7 @@ var/datum/action_controller/actions
 	duration = 600
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	id = "handcuffs"
-	icon = 'icons/obj/items.dmi'
+	icon = 'icons/obj/items/items.dmi'
 	icon_state = "handcuff"
 
 	New(var/dur)
@@ -770,14 +767,9 @@ var/datum/action_controller/actions
 
 	onEnd()
 		..()
-		if(owner != null && ishuman(owner) && owner:handcuffed)
+		if(owner != null && ishuman(owner) && owner.hasStatus("handcuffed"))
 			var/mob/living/carbon/human/H = owner
-			H.handcuffed:set_loc(H.loc)
-			H.handcuffed.unequipped(H)
-			H.handcuffed = null
-			H.update_clothing()
-			if (H.handcuffed)
-				H.handcuffed.layer = initial(H.handcuffed.layer)
+			H.handcuffs.drop_handcuffs(H)
 			for(var/mob/O in AIviewers(H))
 				O.show_message("<span style=\"color:red\"><B>[H] manages to remove the handcuffs!</B></span>", 1)
 			boutput(H, "<span style=\"color:blue\">You successfully remove your handcuffs.</span>")
@@ -872,7 +864,7 @@ var/datum/action_controller/actions
 	duration = 30 //How long does this action take in ticks.
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	id = "magpicker"
-	icon = 'icons/obj/items.dmi' //In these two vars you can define an icon you want to have on your little progress bar.
+	icon = 'icons/obj/items/items.dmi' //In these two vars you can define an icon you want to have on your little progress bar.
 	icon_state = "magtractor-small"
 
 	var/obj/item/target = null //This will contain the object we are trying to pick up.
@@ -1112,7 +1104,7 @@ var/datum/action_controller/actions
 /obj/bombtest
 	name = "large cartoon bomb"
 	desc = "It looks like it's gonna blow."
-	icon = 'icons/obj/weapons.dmi'
+	icon = 'icons/obj/items/weapons.dmi'
 	icon_state = "dumb_bomb"
 	density = 1
 

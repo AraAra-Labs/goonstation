@@ -263,7 +263,7 @@ var/obj/item/dummy/click_dummy = new
 
 /proc/can_act(var/mob/M, var/include_cuffs = 1)
 	if(!M) return 0 //Please pass the M, I need a sprinkle of it on my potatoes.
-	if(include_cuffs && M.handcuffed) return 0
+	if(include_cuffs && M.hasStatus("handcuffed")) return 0
 	if(M.getStatusDuration("stunned")) return 0
 	if(M.getStatusDuration("weakened")) return 0
 	if(M.getStatusDuration("paralysis")) return 0
@@ -362,7 +362,7 @@ var/obj/item/dummy/click_dummy = new
 		if(current.opacity)
 			return FALSE
 		for(var/atom/A in current)
-			if(A.opacity) 
+			if(A.opacity)
 				return FALSE
 		current = get_step_towards(current, target_turf)
 	return TRUE
@@ -375,8 +375,27 @@ var/obj/item/dummy/click_dummy = new
 	if(src.ears) . += src.ears
 	if(src.wear_mask) . += src.wear_mask
 
-	if(src.l_hand && src.l_hand.c_flags & EQUIPPED_WHILE_HELD) . += src.l_hand
-	if(src.r_hand && src.r_hand.c_flags & EQUIPPED_WHILE_HELD) . += src.r_hand
+	if(src.l_hand)
+		if (src.l_hand.c_flags & EQUIPPED_WHILE_HELD)
+			. += src.l_hand
+		else if (src.l_hand.c_flags & EQUIPPED_WHILE_HELD_ACTIVE && src.hand == 1)
+			. += src.l_hand
+
+		if (src.l_hand.c_flags & HAS_GRAB_EQUIP)
+			for(var/obj/item/grab/G in src.l_hand)
+				if (G.c_flags & EQUIPPED_WHILE_HELD || (G.c_flags & EQUIPPED_WHILE_HELD_ACTIVE && src.hand == 1))
+					. += G
+
+	if(src.r_hand)
+		if (src.r_hand.c_flags & EQUIPPED_WHILE_HELD)
+			. += src.r_hand
+		else if (src.r_hand.c_flags & EQUIPPED_WHILE_HELD_ACTIVE && src.hand == 0)
+			. += src.r_hand
+
+		if (src.r_hand.c_flags & HAS_GRAB_EQUIP)
+			for(var/obj/item/grab/G in src.r_hand)
+				if (G.c_flags & EQUIPPED_WHILE_HELD || (G.c_flags & EQUIPPED_WHILE_HELD_ACTIVE && src.hand == 0))
+					. += G
 
 
 /proc/get_step_towards2(var/atom/ref , var/atom/trg)

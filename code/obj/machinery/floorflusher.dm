@@ -218,10 +218,9 @@
 			var/mob/living/M = locate() in contents
 			if(M)
 				flush = 1
-				if(M.handcuffed)
+				if(M.hasStatus("handcuffed"))
 					boutput(M, "You feel your handcuffs being removed.")
-					M.handcuffed = null
-					new /obj/item/handcuffs(src)
+					M.handcuffs.drop_handcuffs(M)
 
 	// timed process
 	// charge the gas reservoir and perform flush if ready
@@ -256,9 +255,9 @@
 
 		air_contents.zero() // empty gas
 
-		sleep(10)
+		sleep(1 SECOND)
 		playsound(src, "sound/machines/disposalflush.ogg", 50, 0, 0)
-		sleep(5) // wait for animation to finish
+		sleep(0.5 SECONDS) // wait for animation to finish
 
 
 		H.start(src) // start the holder processing movement

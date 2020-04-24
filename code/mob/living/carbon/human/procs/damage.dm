@@ -512,6 +512,8 @@
 /mob/living/carbon/human/TakeDamage(zone, brute, burn, tox, damage_type, disallow_limb_loss)
 	if (src.nodamage) return
 
+	hit_twitch(src)
+
 	if (src.traitHolder && src.traitHolder.hasTrait("reversal"))
 		brute *= -1
 		burn *= -1
@@ -531,7 +533,12 @@
 
 	//if (src.bioHolder && src.bioHolder.HasEffect("resist_toxic"))
 		//tox = 0
-
+#if ASS_JAM //pausing damage in timestop
+	if (src.paused)
+		src.pausedburn = max(0, src.pausedburn + burn)
+		src.pausedbrute = max(0, src.pausedbrute + brute)
+		return
+#endif
 	brute = max(0, brute)
 	burn = max(0, burn)
 	//tox = max(0, burn)
@@ -545,8 +552,6 @@
 	if (tox)
 		tox = max(0, tox)
 		take_toxin_damage(tox)
-
-	hit_twitch(src)
 
 	if (zone == "All")
 		var/organCount = 0
@@ -585,7 +590,7 @@
 	if (a_zone in list("l_leg", "r_arm", "l_leg", "r_leg"))
 		a_zone = "chest"
 
-	armor_mod = get_melee_protection(zone)
+	armor_mod = get_melee_protection(zone, damage_type)
 	/*switch (zone)
 		if ("l_arm")
 			z_name = "left arm"

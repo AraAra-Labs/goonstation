@@ -164,48 +164,45 @@
 //	attack_particle(user,src)
 //	..()
 /proc/attack_particle(var/mob/M, var/atom/target)
-	if (!M || !target) return
+	if (!M || !target || !M.attack_particle) return
 	var/diff_x = target.x - M.x
 	var/diff_y = target.y - M.y
-	SPAWN_DBG(0)
-		if (!M || !M.attack_particle) //ZeWaka: Fix for Cannot modify null.icon.
-			return
 
-		M.attack_particle.invisibility = M.invisibility
+	M.attack_particle.invisibility = M.invisibility
 
-		if (target) //I want these to be recent, but sometimes they can be deleted during course of a spawn
-			diff_x = target.x - M.x
-			diff_y = target.y - M.y
+	if (target) //I want these to be recent, but sometimes they can be deleted during course of a spawn
+		diff_x = target.x - M.x
+		diff_y = target.y - M.y
 
-		M.last_interact_particle = world.time
+	M.last_interact_particle = world.time
 
-		var/obj/item/I = M.equipped()
-		if (I && !isgrab(I))
-			M.attack_particle.icon = I.icon
-			M.attack_particle.icon_state = I.icon_state
-		else
-			M.attack_particle.icon = 'icons/mob/mob.dmi'
-			M.attack_particle.icon_state = "[M.a_intent]"
+	var/obj/item/I = M.equipped()
+	if (I && !isgrab(I))
+		M.attack_particle.icon = I.icon
+		M.attack_particle.icon_state = I.icon_state
+	else
+		M.attack_particle.icon = 'icons/mob/mob.dmi'
+		M.attack_particle.icon_state = "[M.a_intent]"
 
-		M.attack_particle.alpha = 180
-		M.attack_particle.loc = M.loc
-		M.attack_particle.pixel_x = 0
-		M.attack_particle.pixel_y = 0
+	M.attack_particle.alpha = 180
+	M.attack_particle.loc = M.loc
+	M.attack_particle.pixel_x = 0
+	M.attack_particle.pixel_y = 0
 
-		var/matrix/start = matrix()
-		start.Scale(0.3,0.3)
-		start.Turn(rand(-80,80))
-		M.attack_particle.transform = start
-		var/matrix/t_size = matrix()
+	var/matrix/start = matrix()
+	start.Scale(0.3,0.3)
+	start.Turn(rand(-80,80))
+	M.attack_particle.transform = start
+	var/matrix/t_size = matrix()
 
-		//animate(M.attack_particle, alpha = 200, time = 1, easing = SINE_EASING)
+	//animate(M.attack_particle, alpha = 200, time = 1, easing = SINE_EASING)
 
-		//animate(M.attack_particle, pixel_x = diff_x*32, pixel_y = diff_y*32, time = 2, easing = CUBIC_EASING)
-		//animate(transform = t_size, time = 6, easing = BOUNCE_EASING,  flags = ANIMATION_PARALLEL)
+	//animate(M.attack_particle, pixel_x = diff_x*32, pixel_y = diff_y*32, time = 2, easing = CUBIC_EASING)
+	//animate(transform = t_size, time = 6, easing = BOUNCE_EASING,  flags = ANIMATION_PARALLEL)
 
-		animate(M.attack_particle, transform = t_size, time = 6, easing = BOUNCE_EASING)
-		animate(pixel_x = diff_x*32, pixel_y = diff_y*32, time = 2, easing = BOUNCE_EASING,  flags = ANIMATION_PARALLEL)
-		sleep(5)
+	animate(M.attack_particle, transform = t_size, time = 6, easing = BOUNCE_EASING)
+	animate(pixel_x = diff_x*32, pixel_y = diff_y*32, time = 2, easing = BOUNCE_EASING,  flags = ANIMATION_PARALLEL)
+	SPAWN_DBG(5)
 		//animate(M.attack_particle, alpha = 0, time = 2, flags = ANIMATION_PARALLEL)
 		M.attack_particle.alpha = 0
 
@@ -249,7 +246,7 @@
 
 		animate(M.attack_particle, transform = t_size, time = 6, easing = BOUNCE_EASING)
 		animate(pixel_x = (diff_x*32) + target.pixel_x, pixel_y = (diff_y*32)  + target.pixel_y, time = 2, easing = BOUNCE_EASING,  flags = ANIMATION_PARALLEL)
-		sleep(5)
+		sleep(0.5 SECONDS)
 		//animate(M.attack_particle, alpha = 0, time = 2, flags = ANIMATION_PARALLEL)
 		M.attack_particle.alpha = 0
 
@@ -328,7 +325,7 @@
 		t_size.Turn(rand(-40,40))
 
 		animate(M.attack_particle, pixel_x = M.get_hand_pixel_x(), pixel_y = M.get_hand_pixel_y(), time = 2, easing = LINEAR_EASING)
-		sleep(5)
+		sleep(0.5 SECONDS)
 		M.attack_particle.alpha = 0
 
 
@@ -366,9 +363,64 @@
 		t_size.Turn(rand(-40,40))
 
 		animate(M.attack_particle, pixel_x = I.pixel_x + (diff_x*32), pixel_y = I.pixel_y + (diff_y*32), time = 2, easing = LINEAR_EASING)
-		sleep(5)
+		sleep(0.5 SECONDS)
 		M.attack_particle.alpha = 0
 
+
+/proc/block_begin(var/mob/M)
+	if (!M || !M.attack_particle) return
+
+	M.attack_particle.invisibility = M.invisibility
+	M.last_interact_particle = world.time
+
+	M.attack_particle.icon = 'icons/mob/mob.dmi'
+	M.attack_particle.icon_state = "block"
+
+	M.attack_particle.alpha = 255
+	M.attack_particle.loc = M.loc
+	M.attack_particle.pixel_x = 0
+	M.attack_particle.pixel_y = 0
+
+	var/matrix/start = matrix()
+	start.Scale(0.3,0.3)
+	start.Turn(rand(-45,45))
+	M.attack_particle.transform = start
+	var/matrix/t_size = matrix()
+
+	animate(M.attack_particle, transform = t_size, time = 2, easing = BOUNCE_EASING)
+	SPAWN_DBG(5)
+		M.attack_particle.alpha = 0
+
+/proc/block_spark(var/mob/M)
+	if (!M || !M.attack_particle) return
+
+	M.attack_particle.invisibility = M.invisibility
+	M.last_interact_particle = world.time
+
+	M.attack_particle.icon = 'icons/mob/mob.dmi'
+	if (M.attack_particle.icon_state == "block_spark")
+		flick("block_spark",M.attack_particle)
+	M.attack_particle.icon_state = "block_spark"
+
+	M.attack_particle.alpha = 255
+	M.attack_particle.loc = M.loc
+	M.attack_particle.pixel_x = 0
+	M.attack_particle.pixel_y = 0
+
+	M.attack_particle.transform.Turn(rand(0,360))
+
+	SPAWN_DBG(10)
+		M.attack_particle.alpha = 0
+
+proc/fuckup_attack_particle(var/mob/M)
+	SPAWN_DBG(1)
+		if (!M || !M.attack_particle) return
+		var/r = rand(0,360)
+		var/x = cos(r)
+		var/y = sin(r)
+		x *= 22
+		y *= 22
+		animate(M.attack_particle, pixel_x = M.attack_particle.pixel_x + x , pixel_y = M.attack_particle.pixel_y + y, time = 5, easing = BOUNCE_EASING, flags = ANIMATION_END_NOW)
 
 /proc/attack_twitch(var/atom/A)
 	if (!istype(A) || istype(A, /mob/living/object))
@@ -413,52 +465,47 @@
 
 
 /proc/hit_twitch(var/atom/A)
-	if (!istype(A) || istype(A, /mob/living/object))
+	if (!A || istype(A, /mob/living/object))
 		return
-	if (ismob(A) || istype(A, /obj/critter/))
-		if (A:twitching)
-			return
-
-		A:twitching = 1
 	var/which = 0
 	if (usr)
 		which = get_dir(usr,A)
+	else
+		which = pick(alldirs)
+
 	if (!which)
 		which = pick(alldirs)
-	SPAWN_DBG(1 DECI SECOND)
-		if (A)
-			var/ipx = A.pixel_x
-			var/ipy = A.pixel_y
-			var/movepx = 0
-			var/movepy = 0
-			switch(which)
-				if (NORTH)			movepy = 3
-				if (WEST)			movepx = -3
-				if (SOUTH)			movepy = -3
-				if (EAST)			movepx = 3
-				if (NORTHEAST)
-					movepx = 2
-					movepy = 2
-				if (NORTHWEST)
-					movepx = -2
-					movepy = 2
-				if (SOUTHWEST)
-					movepx = -2
-					movepy = -2
-				if (SOUTHEAST)
-					movepx = 2
-					movepy = -2
-				else
-					return
 
-			var/x = movepx + ipx
-			var/y = movepy + ipy
+	var/ipx = A.pixel_x
+	var/ipy = A.pixel_y
+	var/movepx = 0
+	var/movepy = 0
+	switch(which)
+		if (NORTH)			movepy = 3
+		if (WEST)			movepx = -3
+		if (SOUTH)			movepy = -3
+		if (EAST)			movepx = 3
+		if (NORTHEAST)
+			movepx = 2
+			movepy = 2
+		if (NORTHWEST)
+			movepx = -2
+			movepy = 2
+			movepy = -2
+		if (SOUTHEAST)
+			movepx = 2
+			movepy = -2
+		if (SOUTHWEST)
+			movepx = -2
+			movepy = -2
+		else
+			return
 
-			animate(A, pixel_x = x, pixel_y = y, time = 1,easing = EASE_OUT)
-			animate(A, pixel_x = ipx, pixel_y = ipy, time = 1,easing = EASE_IN)
-			sleep(4)
-			if (ismob(A) || istype(A, /obj/critter/))
-				A:twitching = 0
+	var/x = movepx + ipx
+	var/y = movepy + ipy
+
+	animate(A, pixel_x = x, pixel_y = y, time = 2,easing = EASE_IN)
+	animate(A, pixel_x = ipx, pixel_y = ipy, time = 2,easing = EASE_IN)
 
 //only call this from disorient. ITS NOT YOURS DAD
 /proc/violent_twitch(var/atom/A)
@@ -475,7 +522,7 @@
 		A.pixel_x += rand(-3,3)
 		A.pixel_y += rand(-1,1)
 
-		sleep(2)
+		sleep(0.2 SECONDS)
 
 		//Look i know this check looks janky. that's because IT IS. violent_twitch is ONLY called for disorient. okay. this stops it fucking up rest animation
 		if (!A.hasStatus("weakened") && !A.hasStatus("paralysis"))
@@ -499,7 +546,7 @@
 
 			A.pixel_x = rand(-3,3)
 			A.pixel_y = rand(-2,2)
-			sleep(1)
+			sleep(0.1 SECONDS)
 
 		animate(A, pixel_x = 0, pixel_y = 0, transform = null, time = 1, easing = LINEAR_EASING)
 
@@ -595,7 +642,7 @@
 		do_loops--
 		animate(A, transform = M, pixel_z = A.pixel_z + 12, alpha = A.alpha - 17, time = 1, loop = 1, easing = LINEAR_EASING)
 		M.Scale(1.2,1.2)
-		sleep(1)
+		sleep(0.1 SECONDS)
 	A.alpha = 0
 
 /proc/animate_fading_leap_down(var/atom/A)
@@ -608,7 +655,7 @@
 		do_loops--
 		animate(A, transform = M, pixel_z = A.pixel_z - 12, alpha = A.alpha + 17, time = 1, loop = 1, easing = LINEAR_EASING)
 		M.Scale(0.8,0.8)
-		sleep(1)
+		sleep(0.1 SECONDS)
 	animate(A, transform = M, pixel_z = 0, alpha = 255, time = 1, loop = 1, easing = LINEAR_EASING)
 
 /proc/animate_shake(var/atom/A,var/amount = 5,var/x_severity = 2,var/y_severity = 2, var/return_x = 0, var/return_y = 0)
@@ -946,7 +993,7 @@
 /proc/shrink_teleport(var/atom/teleporter)
 	var/matrix/M = matrix(0.1, 0.1, MATRIX_SCALE)
 	animate(teleporter, transform = M, pixel_y = 6, time = 4, alpha = 255, easing = SINE_EASING|EASE_OUT)
-	sleep(2)
+	sleep(0.2 SECONDS)
 	animate(teleporter, transform = null, time = 9, alpha = 255, pixel_y = 0, easing = ELASTIC_EASING)
 	//HAXXX sorry - kyle
 	if (istype(teleporter, /mob/dead/observer))
@@ -971,7 +1018,7 @@
 /proc/leaving_animation(var/atom/A)
 	animate(A, transform = matrix(0.1, 1, MATRIX_SCALE), time = 5, alpha = 255, easing = QUAD_EASING)
 	animate(time = 10, pixel_y = 512, easing = CUBIC_EASING)
-	sleep(15)
+	sleep(1.5 SECONDS)
 
 /proc/heavenly_spawn(var/obj/A)
 	var/obj/heavenly_light/lightbeam = new /obj/heavenly_light
@@ -988,11 +1035,11 @@
 	animate(A,alpha=255,time=45)
 	SPAWN_DBG(45)
 		animate(A, pixel_y = 0, time = 120, easing = SINE_EASING)
-		sleep(120)
+		sleep(12 SECONDS)
 		A.anchored = was_anchored
 		A.layer = oldlayer
 		animate(lightbeam,alpha = 0, time=15)
-		sleep(15)
+		sleep(1.5 SECONDS)
 		qdel(lightbeam)
 
 /obj/heavenly_light
@@ -1006,6 +1053,7 @@ var/global/icon/scanline_icon = icon('icons/effects/scanning.dmi', "scanline")
 	var/fade_time = time / 2
 	target.filters += filter(type = "layer", blend_mode = BLEND_INSET_OVERLAY, icon = scanline_icon, color = color + "00")
 	var/filter = target.filters[target.filters.len]
+	if(!filter) return
 	animate(filter, y = -28, easing = QUAD_EASING, time = time)
 	// animate(y = 0, easing = QUAD_EASING, time = time / 2) // TODO: add multiple passes option later
 	animate(color = color + alpha_hex, time = fade_time, flags = ANIMATION_PARALLEL, easing = QUAD_EASING | EASE_IN)
@@ -1023,6 +1071,6 @@ var/global/icon/scanline_icon = icon('icons/effects/scanning.dmi', "scanline")
 			wiggle--
 			A.pixel_x = rand(-3,3)
 			A.pixel_y = rand(-3,3)
-			sleep(1)
+			sleep(0.1 SECONDS)
 		A.pixel_x = 0
 		A.pixel_y = 0

@@ -36,10 +36,9 @@
 		M.stuttering = 0
 		M.drowsyness = 0
 
-		if (M.handcuffed)
-			M.visible_message("<span style=\"color:red\"><B>[M] rips apart the handcuffs with pure brute strength!</b></span>")
-			qdel(M.handcuffed)
-			M.handcuffed = null
+		if (M.hasStatus("handcuffed"))
+			M.visible_message("<span style=\"color:red\"><B>[M] rips apart the [M.handcuffs] with pure brute strength!</b></span>")
+			M.handcuffs.destroy_handcuffs(M)
 		M.buckled = null
 
 		if (M.mutantrace)
@@ -59,7 +58,7 @@
 		M.equip_if_possible(new /obj/item/device/radio/headset(M), slot_ears)
 		M.equip_if_possible(new /obj/item/storage/backpack(M), slot_back)
 		M.equip_if_possible(new /obj/item/cloaking_device(M), slot_r_store)
-		M.equip_if_possible(new /obj/item/knife_butcher/predspear(M), slot_l_hand)
+		M.equip_if_possible(new /obj/item/knife/butcher/predspear(M), slot_l_hand)
 		M.equip_if_possible(new /obj/item/gun/energy/laser_gun/pred(M), slot_r_hand)
 
 		M.set_face_icon_dirty()

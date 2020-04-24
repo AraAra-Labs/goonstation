@@ -20,7 +20,7 @@
 /obj/stool
 	name = "stool"
 	desc = "A four-legged padded stool for crewmembers to relax on."
-	icon = 'icons/obj/chairs.dmi'
+	icon = 'icons/obj/furniture/chairs.dmi'
 	icon_state = "stool"
 	flags = FPRINT | FLUID_SUBMERGE
 	throwforce = 10
@@ -81,7 +81,17 @@
 		else
 			return ..()
 
-	proc/buckle_in(mob/living/to_buckle, var/stand = 0) //Handles the actual buckling in
+	proc/can_buckle(var/mob/M, var/mob/user)
+		.= 0
+
+	proc/buckle_in(mob/living/to_buckle, mob/living/user, var/stand = 0) //Handles the actual buckling in
+		if (!can_buckle(to_buckle,user)) return
+
+		if (to_buckle == user)
+			user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> buckles in!</span>", "<span style=\"color:blue\">You buckle yourself in.</span>")
+		else
+			user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [to_buckle].</span>")
+
 		to_buckle.setStatus("buckled", duration = INFINITE_STATUS)
 		return
 
@@ -138,7 +148,7 @@
 /obj/stool/bench
 	name = "bench"
 	desc = "It's a bench! You can sit on it!"
-	icon = 'icons/obj/bench.dmi'
+	icon = 'icons/obj/furniture/bench.dmi'
 	icon_state = "0"
 	anchored = 1
 	var/auto = 0
@@ -182,7 +192,7 @@
 /* ---------- Red ---------- */
 
 /obj/stool/bench/red
-	icon = 'icons/obj/bench_red.dmi'
+	icon = 'icons/obj/furniture/bench_red.dmi'
 	parts_type = /obj/item/furniture_parts/bench/red
 
 /obj/stool/bench/red/auto
@@ -192,7 +202,7 @@
 /* ---------- Blue ---------- */
 
 /obj/stool/bench/blue
-	icon = 'icons/obj/bench_blue.dmi'
+	icon = 'icons/obj/furniture/bench_blue.dmi'
 	parts_type = /obj/item/furniture_parts/bench/blue
 
 /obj/stool/bench/blue/auto
@@ -202,7 +212,7 @@
 /* ---------- Green ---------- */
 
 /obj/stool/bench/green
-	icon = 'icons/obj/bench_green.dmi'
+	icon = 'icons/obj/furniture/bench_green.dmi'
 	parts_type = /obj/item/furniture_parts/bench/green
 
 /obj/stool/bench/green/auto
@@ -212,7 +222,7 @@
 /* ---------- Yellow ---------- */
 
 /obj/stool/bench/yellow
-	icon = 'icons/obj/bench_yellow.dmi'
+	icon = 'icons/obj/furniture/bench_yellow.dmi'
 	parts_type = /obj/item/furniture_parts/bench/yellow
 
 /obj/stool/bench/yellow/auto
@@ -222,7 +232,7 @@
 /* ---------- Wooden ---------- */
 
 /obj/stool/bench/wooden
-	icon = 'icons/obj/bench_wood.dmi'
+	icon = 'icons/obj/furniture/bench_wood.dmi'
 	parts_type = /obj/item/furniture_parts/bench/wooden
 
 /obj/stool/bench/wooden/auto
@@ -232,7 +242,7 @@
 /* ---------- Sauna ---------- */
 
 /obj/stool/bench/sauna
-	icon = 'icons/obj/chairs.dmi'
+	icon = 'icons/obj/furniture/chairs.dmi'
 	icon_state = "saunabench"
 
 /* ============================================== */
@@ -289,35 +299,31 @@
 			src.unbuckle_mob(M, user)
 		return
 
-	proc/buckle_mob(var/mob/living/carbon/C as mob, var/mob/user as mob)
+	can_buckle(var/mob/living/carbon/C, var/mob/user)
 		if (!C || (C.loc != src.loc))
-			return // yeesh
+			return 0// yeesh
+
+		if (get_dist(src, user) > 1)
+			user.show_text("[src] is too far away!", "red")
+			return 0
+
 		if(src.buckled_guy && src.buckled_guy.buckled == src)
 			user.show_text("There's already someone buckled in [src]!", "red")
-			return
+			return 0
 
 		if (!ticker)
 			user.show_text("You can't buckle anyone in before the game starts.", "red")
-			return
+			return 0
 		if (src.security)
 			user.show_text("There's nothing you can buckle them to!", "red")
-			return
+			return 0
 		if (get_dist(src, user) > 1)
 			user.show_text("[src] is too far away!", "red")
-			return
+			return 0
 		if ((!(iscarbon(C)) || C.loc != src.loc || user.restrained() || user.stat || user.getStatusDuration("paralysis") || user.getStatusDuration("stunned") || user.getStatusDuration("weakened") ))
-			return
+			return 0
 
-		if (C == user)
-			user.visible_message("<span style=\"color:blue\"><b>[C]</b> buckles in!</span>", "<span style=\"color:blue\">You buckle yourself in.</span>")
-		else
-			user.visible_message("<span style=\"color:blue\"><b>[C]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [C].</span>")
-		buckle_in(C)
-		if (isdead(C) && C != user && emergency_shuttle && emergency_shuttle.location == SHUTTLE_LOC_STATION) // 1 should be SHUTTLE_LOC_STATION
-			var/area/shuttle/escape/station/A = get_area(C)
-			if (istype(A))
-				user.unlock_medal("Leave no man behind!", 1)
-		src.add_fingerprint(user)
+		return 1
 
 	proc/unbuckle_mob(var/mob/M as mob, var/mob/user as mob)
 		if (M.buckled && !user.restrained())
@@ -332,9 +338,17 @@
 
 			src.add_fingerprint(user)
 
-	buckle_in(mob/living/to_buckle)
+	buckle_in(mob/living/to_buckle, mob/living/user)
 		if(src.buckled_guy && src.buckled_guy.buckled == src)
 			return
+		if (!can_buckle(to_buckle,user))
+			return
+
+		if (to_buckle == user)
+			user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> lies down on [src], fastening the buckles!</span>", "<span style=\"color:blue\">You lie down and buckle yourself in.</span>")
+		else
+			user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [to_buckle].</span>")
+
 		to_buckle.lying = 1
 		if (src.anchored)
 			to_buckle.anchored = 1
@@ -420,9 +434,6 @@
 
 	MouseDrop_T(atom/A as mob|obj, mob/user as mob)
 		..()
-		if (get_dist(src, user) > 1)
-			user.show_text("[src] is too far away!", "red")
-			return
 
 		if (istype(A, /obj/item/clothing/suit/bedsheet))
 			if ((!src.Sheet || (src.Sheet && src.Sheet.loc != src.loc)) && A.loc == src.loc)
@@ -433,7 +444,13 @@
 				return
 
 		else if (ismob(A))
-			src.buckle_mob(A, user)
+			src.buckle_in(A, user)
+			var/mob/M = A
+			if (isdead(M) && M != user && emergency_shuttle && emergency_shuttle.location == SHUTTLE_LOC_STATION) // 1 should be SHUTTLE_LOC_STATION
+				var/area/shuttle/escape/station/area = get_area(M)
+				if (istype(area))
+					user.unlock_medal("Leave no man behind!", 1)
+			src.add_fingerprint(user)
 		else
 			return ..()
 
@@ -450,14 +467,11 @@
 		..()
 		return
 
-	verb/rest_in()
-		set src in oview(1)
-		set name = "sleep in"
-		set category = "Local"
-
-		var/mob/living/carbon/user = usr
-		if (!istype(user))
+	proc/sleep_in(var/mob/M)
+		if (!ishuman(M))
 			return
+
+		var/mob/living/carbon/user = M
 
 		if (isdead(user))
 			boutput(user, "<span style=\"color:red\">Some would say that death is already the big sleep.</span>")
@@ -498,8 +512,6 @@
 		anchored = 0
 
 	New()
-		//if (src.anchored)
-			//src.verbs -= /atom/movable/verb/pull
 		if (src.dir == NORTH)
 			src.layer = FLY_LAYER+1
 		..()
@@ -579,64 +591,73 @@
 					return
 				else
 					user.show_text("Seems like the buckle is firmly locked into place.", "red")
+					return
 
-		if (!src.buckledIn && src.foldable)
-			user.visible_message("<b>[user.name] folds [src].</b>")
-			if ((chump) && (chump != user))
-				chump.visible_message("<span style=\"color:red\"><b>[chump.name] falls off of [src]!</b></span>")
-				chump.on_chair = 0
-				chump.pixel_y = 0
-				chump.changeStatus("weakened", 1 SECOND)
-				chump.changeStatus("stunned", 2 SECONDS)
-				random_brute_damage(chump, 15)
-				playsound(chump.loc, "swing_hit", 50, 1)
+		if (!src.buckledIn)
+			if (src.foldable)
+				user.visible_message("<b>[user.name] folds [src].</b>")
+				if ((chump) && (chump != user))
+					chump.visible_message("<span style=\"color:red\"><b>[chump.name] falls off of [src]!</b></span>")
+					chump.on_chair = 0
+					chump.pixel_y = 0
+					chump.changeStatus("weakened", 1 SECOND)
+					chump.changeStatus("stunned", 2 SECONDS)
+					random_brute_damage(chump, 15)
+					playsound(chump.loc, "swing_hit", 50, 1)
 
-			var/obj/item/chair/folded/C = new/obj/item/chair/folded(src.loc)
-			if (src.material)
-				C.setMaterial(src.material)
-			if (src.icon_state)
-				C.c_color = src.icon_state
-				C.icon_state = "folded_[src.icon_state]"
-				C.item_state = C.icon_state
+				var/obj/item/chair/folded/C = new/obj/item/chair/folded(src.loc)
+				if (src.material)
+					C.setMaterial(src.material)
+				if (src.icon_state)
+					C.c_color = src.icon_state
+					C.icon_state = "folded_[src.icon_state]"
+					C.item_state = C.icon_state
 
-			qdel(src)
+				qdel(src)
+			else
+				src.rotate()
 		return
 
 	MouseDrop_T(mob/M as mob, mob/user as mob)
 		..()
-		if (!ticker)
-			boutput(user, "You can't buckle anyone in before the game starts.")
-			return
-		if ((!( iscarbon(M) ) || get_dist(src, user) > 1 || M.loc != src.loc || user.restrained() || usr.stat))
-			return
-		if(src.buckled_guy && src.buckled_guy.buckled == src && src.buckled_guy != M)
-			user.show_text("There's already someone buckled in [src]!", "red")
-			return
 		if (M == usr)
 			if (usr.a_intent == INTENT_GRAB)
 				if(climbable)
-					user.visible_message("<span style=\"color:blue\"><b>[M]</b> climbs up on [src]!</span>", "<span style=\"color:blue\">You climb up on [src].</span>")
-					buckle_in(M, 1)
+					buckle_in(M, user, 1)
 				else
 					boutput(user, "<span style=\"color:red\">[src] isn't climbable.</span>")
 			else
-				user.visible_message("<span style=\"color:blue\"><b>[M]</b> buckles in!</span>", "<span style=\"color:blue\">You buckle yourself in.</span>")
-				buckle_in(M)
+				buckle_in(M,user)
 		else
-			user.visible_message("<span style=\"color:blue\"><b>[M]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [M].</span>")
-			buckle_in(M)
+			buckle_in(M,user)
 			if (isdead(M) && M != user && emergency_shuttle && emergency_shuttle.location == SHUTTLE_LOC_STATION) // 1 should be SHUTTLE_LOC_STATION
 				var/area/shuttle/escape/station/A = get_area(M)
 				if (istype(A))
 					user.unlock_medal("Leave no man behind!", 1)
 		return
 
-	buckle_in(mob/living/to_buckle, var/stand = 0)
+	can_buckle(var/mob/M, var/mob/user)
+		if (!ticker)
+			boutput(user, "You can't buckle anyone in before the game starts.")
+			return 0
+		if ((!( iscarbon(M) ) || get_dist(src, user) > 1 || M.loc != src.loc || user.restrained() || usr.stat))
+			return 0
+		if(src.buckled_guy && src.buckled_guy.buckled == src && src.buckled_guy != M)
+			user.show_text("There's already someone buckled in [src]!", "red")
+			return 0
+		return 1
+
+	buckle_in(mob/living/to_buckle, mob/living/user, var/stand = 0)
 		if(!istype(to_buckle)) return
 		if(src.buckled_guy && src.buckled_guy.buckled == src && to_buckle != src.buckled_guy) return
 
+		if (!can_buckle(to_buckle,user))
+			return
+
 		if(stand)
 			if(ishuman(to_buckle))
+				user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> climbs up on [src]!</span>", "<span style=\"color:blue\">You climb up on [src].</span>")
+
 				var/mob/living/carbon/human/H = to_buckle
 				to_buckle.set_loc(src.loc)
 				to_buckle.pixel_y = 10
@@ -649,6 +670,11 @@
 				to_buckle.setStatus("buckled", duration = INFINITE_STATUS)
 				H.start_chair_flip_targeting()
 		else
+			if (to_buckle == usr)
+				user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> buckles in!</span>", "<span style=\"color:blue\">You buckle yourself in.</span>")
+			else
+				user.visible_message("<span style=\"color:blue\"><b>[to_buckle]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [to_buckle].</span>")
+
 			if (src.anchored)
 				to_buckle.anchored = 1
 			to_buckle.buckled = src
@@ -734,12 +760,8 @@
 #endif
 		else return ..()
 
-	verb/rotate()
-		set name = "Rotate"
-		set category = "Local"
+	proc/rotate()
 		if (rotatable)
-			set src in oview(1)
-
 			src.dir = turn(src.dir, 90)
 			if (src.dir == NORTH)
 				src.layer = FLY_LAYER+1
@@ -784,7 +806,7 @@
 /obj/item/chair/folded
 	name = "chair"
 	desc = "A folded chair. Good for smashing noggin-shaped things."
-	icon = 'icons/obj/chairs.dmi'
+	icon = 'icons/obj/furniture/chairs.dmi'
 	icon_state = "folded_chair"
 	item_state = "folded_chair"
 	w_class = 4.0
@@ -799,6 +821,7 @@
 	New()
 		..()
 		src.setItemSpecial(/datum/item_special/swipe)
+		BLOCK_LARGE
 
 /obj/item/chair/folded/attack_self(mob/user as mob)
 	if(cant_drop == 1)
@@ -992,7 +1015,7 @@
 		else
 			return ..()
 
-	buckle_in(mob/living/to_buckle, var/stand = 0)
+	buckle_in(mob/living/to_buckle, mob/living/user, var/stand = 0)
 		if (src.lying)
 			return
 		..()
@@ -1029,7 +1052,6 @@
 	var/arm_icon_state = null
 
 	New()
-		src.verbs -= /obj/stool/chair/verb/rotate
 		..()
 		if (arm_icon_state)
 			src.update_icon()
@@ -1092,7 +1114,6 @@
 	/obj/item/spacecash/buttcoin)
 
 	New()
-		src.verbs -= /obj/stool/chair/verb/rotate
 		..()
 		max_uses = rand(0, 2) // Losing things in a couch is hard.
 		spawn_chance = rand(1, 20)
@@ -1260,7 +1281,7 @@
 
 	// Seems to be the only way to get this stuff to auto-refresh properly, sigh (Convair880).
 	proc/control_interface(mob/user as mob)
-		if (!user.handcuffed && isalive(user))
+		if (!user.hasStatus("handcuffed") && isalive(user))
 			user.machine = src
 
 			var/dat = ""

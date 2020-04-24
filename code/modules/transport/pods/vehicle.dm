@@ -179,24 +179,23 @@
 		playsound(src.loc, W.hitsound, 50, 1, -1)
 		hit_twitch(src)
 
-		switch(W.damtype)
-			if("fire")
+		switch(W.hit_type)
+			if (DAMAGE_BURN)
 				if(src.material)
 					src.material.triggerTemp(src, W.force * 1000)
 				if (prob(W.force*2))
 					playsound(src.loc, 'sound/impact_sounds/Metal_Clang_1.ogg', 50, 1, -1)
 					for (var/mob/M in src)
-						M.changeStatus("weakened",5 SECONDS)
+						M.changeStatus("weakened",1 SECONDS)
 						M.show_text("The physical shock of the blow knocks you around!", "red")
 				return /////ships should pretty much be immune to fire
-			if("brute")
+			else
 				src.health -= W.force
 				if (prob(W.force*3))
 					playsound(src.loc, 'sound/impact_sounds/Metal_Clang_1.ogg', 50, 1, -1)
 					for (var/mob/M in src)
-						M.changeStatus("weakened",5 SECONDS)
+						M.changeStatus("weakened",1 SECONDS)
 						M.show_text("The physical shock of the blow knocks you around!", "red")
-
 
 		checkhealth()
 
@@ -829,14 +828,14 @@
 		src.visible_message("<b>[src] is breaking apart!</b>")
 		new /obj/effects/explosion (src.loc)
 		playsound(src.loc, "explosion", 50, 1)
-		sleep(30)
+		sleep(3 SECONDS)
 		for(var/mob/living/carbon/human/M in src)
 			M.update_burning(35)
 			boutput(M, "<span style=\"color:red\"><b>Everything is on fire!</b></span>")
 			//playsound(M.loc, "explosion", 50, 1)
 			//playsound(M.loc, "sound/machines/engine_alert1.ogg", 40, 0)
 			M << sound('sound/machines/engine_alert1.ogg',volume=50)
-		sleep(25)
+		sleep(2.5 SECONDS)
 		//playsound(src.loc, "sound/machines/engine_alert2.ogg", 40, 1)
 		playsound(src.loc, "sound/machines/pod_alarm.ogg", 40, 1)
 		for(var/mob/living/carbon/human/M in src)
@@ -844,10 +843,10 @@
 			M << sound('sound/machines/pod_alarm.ogg',volume=50)
 		new /obj/effects/explosion (src.loc)
 		playsound(src.loc, "explosion", 50, 1)
-		sleep(15)
+		sleep(1.5 SECONDS)
 		handle_occupants_shipdeath()
 		playsound(src.loc, "explosion", 50, 1)
-		sleep(2)
+		sleep(0.2 SECONDS)
 		var/turf/T = get_turf(src.loc)
 		if(T)
 			src.visible_message("<b>[src] explodes!</b>")
@@ -999,8 +998,8 @@
 	M.update_keymap()
 	M.recheck_keys()
 	if(!src.pilot && !isghostcritter(boarder))
-		src.pilot = M
 		src.ion_trail.start()
+	src.find_pilot()
 	if (M.client)
 		myhud.add_client(M.client)
 		if (M.client.tooltipHolder)
@@ -1080,7 +1079,7 @@
 
 	onEnd()
 		..()
-		if(!BOARD_DIST_ALLOWED(owner,V) || V == null || V.locked)
+		if(!BOARD_DIST_ALLOWED(owner,V) || V == null || V.locked || V.capacity <= V.passengers)
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
@@ -1138,8 +1137,10 @@
 /////////////////////////////////////////////////////////////////////////
 
 /obj/machinery/vehicle/proc/find_pilot()
+	if(src.pilot && (src.pilot.disposed || isdead(src.pilot) || src.pilot.loc != src))
+		src.pilot = null
 	for(var/mob/living/M in src) // fuck's sake stop assigning ghosts and observers to be the pilot
-		if(!src.pilot && !M.stat && M.client)
+		if(!src.pilot && !M.stat && M.client && !isghostcritter(M))
 			src.pilot = M
 			break
 

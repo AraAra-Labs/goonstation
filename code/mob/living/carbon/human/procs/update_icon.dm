@@ -417,10 +417,8 @@
 				UpdateOverlays(null, "wear_suit_bloody")
 
 			if (src.wear_suit.restrain_wearer)
-				if (src.handcuffed)
-					src.handcuffed.set_loc(src.loc)
-					src.handcuffed.layer = initial(src.handcuffed.layer)
-					src.handcuffed = null
+				if (src.hasStatus("handcuffed"))
+					src.handcuffs.drop_handcuffs(src)
 				if ((src.l_hand || src.r_hand))
 					var/h = src.hand
 					src.hand = 1
@@ -614,7 +612,7 @@
 	if (src.r_store)
 		src.r_store.screen_loc = hud.layouts[hud.layout_style]["storage2"]
 
-	if (src.handcuffed)
+	if (src.hasStatus("handcuffed"))
 		src.pulling = null
 		handcuff_img.icon_state = "handcuff1"
 		handcuff_img.pixel_x = 0
@@ -868,6 +866,8 @@ var/list/update_body_limbs = list("r_arm" = "stump_arm_right", "l_arm" = "stump_
 				src.body_standing.overlays += human_decomp_image
 
 			if (src.limbs)
+				src.limbs.reset_stone()
+
 				var/sleeveless = 1
 				if (istype(src.w_uniform, /obj/item/clothing) && !(src.w_uniform.c_flags & SLEEVELESS))
 					sleeveless = 0
@@ -1208,7 +1208,7 @@ var/list/update_body_limbs = list("r_arm" = "stump_arm_right", "l_arm" = "stump_
 	src.UpdateOverlays(src.body_standing, "body", 1, 1)
 	src.UpdateOverlays(src.hands_standing, "hands", 1, 1)
 
-#if ASS_JAM //Oh neat apparently this has to do with cool maptext for your health, very neat. plz comment cool things like this so I know what all is on assjam! 
+#if ASS_JAM //Oh neat apparently this has to do with cool maptext for your health, very neat. plz comment cool things like this so I know what all is on assjam!
 /mob/living/carbon/human/UpdateDamage()
 	..()
 	var/prev = health
@@ -1228,9 +1228,33 @@ var/list/update_body_limbs = list("r_arm" = "stump_arm_right", "l_arm" = "stump_
 			new /obj/maptext_junk/damage(get_turf(src), change = health - prev)
 	else
 		src.maptext = ""
+#else
+/mob/living/carbon/human/tdummy/UpdateDamage()
+	..()
+	var/prev = health
+	src.updatehealth()
+	if (!isdead(src))
+		var/h_color = "#999999"
+		var/h_pct = round((health / (max_health != 0 ? max_health : 1)) * 100)
+		switch (h_pct)
+			if (50 to INFINITY)
+				h_color	= "rgb([(100 - h_pct) / 50 * 255], 255, [(100 - h_pct) * 0.3])"
+			if (0 to 50)
+				h_color	= "rgb(255, [h_pct / 50 * 255], 0)"
+			if (-100 to 0)
+				h_color	= "#ffffff"
+		src.maptext = "<span style='color: [h_color];' class='pixel c sh'>[h_pct]%</span>"
+		if (prev != health)
+			new /obj/maptext_junk/damage(get_turf(src), change = health - prev)
+	else
+		src.maptext = ""
 
+/mob/living/carbon/human/tdummy/Life(datum/controller/process/mobs/parent)
+	if (..(parent))
+		return 1
+	src.UpdateDamage()
+	
 #endif
-
 
 /mob/living/carbon/human/UpdateDamageIcon()
 	if (lastDamageIconUpdate && !(world.time - lastDamageIconUpdate))

@@ -11,18 +11,18 @@
 	var/whos_id = null
 	var/console_location = null
 
-	proc/create(var/spawnpoint, var/mob/orderer)
-		var/atom/movable/A = object.create(spawnpoint, orderer)
+	proc/create(var/mob/orderer)
+		var/obj/storage/S = object.create(orderer)
 
 		if(!isnull(whos_id))
-			A.name = "[A.name], Ordered by [whos_id:registered], [comment ? "([comment])":"" ]"
+			S.name = "[S.name], Ordered by [whos_id:registered], [comment ? "([comment])":"" ]"
 		else
-			A.name = "[A.name] [comment ? "([comment])":"" ]"
+			S.name = "[S.name] [comment ? "([comment])":"" ]"
 
 		if(comment)
-			A.delivery_destination = comment
+			S.delivery_destination = comment
 
-		return A
+		return S
 
 //SUPPLY PACKS
 //NOTE: only secure crate types use the access var (and are lockable)
@@ -43,10 +43,8 @@
 	var/id = 0 //What jobs can order it
 	var/whos_id = null //linked ID
 
-	proc/create(var/spawnpoint, var/mob/creator)
-		if (!spawnpoint)
-			return null
-		var/atom/movable/A
+	proc/create(var/mob/creator)
+		var/obj/storage/S
 		if (!ispath(containertype) && contains.len > 1)
 			containertype = text2path(containertype)
 			if (!ispath(containertype))
@@ -55,21 +53,19 @@
 		if (ispath(containertype))
 #ifdef HALLOWEEN
 			if (halloween_mode && prob(10))
-				A = new /obj/storage/crate/haunted(spawnpoint)
+				S = new /obj/storage/crate/haunted
 			else
-				A = new containertype(spawnpoint)
+				S = new containertype
 #else
-			A = new containertype(spawnpoint)
+			S = new containertype
 #endif
-			if (A)
-				spawnpoint = A // set the spawnpoint to the container we made so we don't have to duplicate the contains spawner loop
+			if (S)
 				if (containername)
-					A.name = containername
+					S.name = containername
 
-				if (access && isobj(A))
-					var/obj/O = A
-					O.req_access = list()
-					O.req_access += text2num(access)
+				if (access && istype(S))
+					S.req_access = list()
+					S.req_access += text2num(access)
 
 		if (contains.len)
 			for (var/B in contains)
@@ -84,13 +80,11 @@
 					amt = abs(contains[B])
 
 				for (amt, amt>0, amt--)
-					var/atom/thething = new thepath(spawnpoint)
+					var/atom/thething = new thepath(S)
 					if (amount && isitem(thething))
 						var/obj/item/I = thething
 						I.amount = amount
-		if (A)
-			return A
-		return null
+		return S
 
 /datum/supply_packs/emptycrate
 	name = "Empty Crate"
@@ -292,13 +286,14 @@
 
 /datum/supply_packs/janitor
 	name = "Janitorial Supplies"
-	desc = "x3 Buckets, x1 Mop, x3 Wet Floor Signs, x3 Cleaning Grenades, x1 Mop Bucket"
+	desc = "x3 Buckets, x3 Mop, x3 Wet Floor Signs, x3 Cleaning Grenades, x1 Mop Bucket, x1 Rubber Gloves"
 	category = "Civilian Department"
 	contains = list(/obj/item/reagent_containers/glass/bucket = 3,
-					/obj/item/mop,
+					/obj/item/mop = 3,
 					/obj/item/caution = 3,
 					/obj/item/chem_grenade/cleaner = 3,
-					/obj/mopbucket)
+					/obj/mopbucket,
+					/obj/item/clothing/gloves/long)
 	cost = 500
 	containertype = /obj/storage/crate
 	containername = "Janitorial Supplies"
@@ -448,7 +443,7 @@
 
 /datum/supply_packs/alcohol
 	name = "Alcohol Crate"
-	desc = "x8 Assorted Liquor"
+	desc = "x9 Assorted Liquor"
 	category = "Civilian Department"
 	contains = list(/obj/item/storage/box/beer,
 					/obj/item/reagent_containers/food/drinks/bottle/beer,
@@ -457,8 +452,10 @@
 					/obj/item/reagent_containers/food/drinks/bottle/cider,
 					/obj/item/reagent_containers/food/drinks/bottle/rum,
 					/obj/item/reagent_containers/food/drinks/bottle/vodka,
-					/obj/item/reagent_containers/food/drinks/bottle/tequila)
-	cost = 300
+					/obj/item/reagent_containers/food/drinks/bottle/tequila,
+					/obj/item/reagent_containers/food/drinks/bottle/bojackson,
+					/obj/item/reagent_containers/food/drinks/curacao)
+	cost = 400
 	containertype = /obj/storage/crate
 	containername = "Alcohol Crate"
 
@@ -532,6 +529,23 @@
 	cost = 750
 	containertype = /obj/storage/crate
 	containername = "Party Supplies"
+
+/datum/supply_packs/glowsticks
+	name = "Emergency Glowsticks Crate - 4 pack"
+	desc = "x4 Glowsticks Box (28 glowsticks total)"
+	category = "Civilian Department"
+	contains = list(/obj/item/storage/box/glowstickbox = 4)
+	cost = 500
+	containertype = /obj/storage/crate
+	containername = "Emergency Glowsticks Crate - 4 pack"
+
+/datum/supply_packs/glowsticksassorted
+	name = "Assorted Glowsticks Crate - 4 pack"
+	desc = "Everything you need for your very own DIY rave!"
+	contains = list(/obj/item/storage/box/glowstickbox/assorted = 4)
+	cost = 600
+	containertype = /obj/storage/crate
+	containername = "Assorted Glowsticks Crate - 4 pack"
 
 /datum/supply_packs/fueltank
 	name = "Welding Fuel tank"

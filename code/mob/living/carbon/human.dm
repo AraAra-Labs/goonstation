@@ -617,7 +617,7 @@
 				emote("deathgasp")
 				src.visible_message("<span style=\"color:red\"><B>[src]</B> begins to grow another head!</span>")
 				src.show_text("<b>We begin to grow a headspider...</b>", "blue")
-				sleep(200)
+				sleep(20 SECONDS)
 				if(!M || M.disposed)
 					return
 				if (M && M.current)
@@ -685,7 +685,7 @@
 		if (emergency_shuttle.location == SHUTTLE_LOC_STATION)
 			src.unlock_medal("HUMANOID MUST NOT ESCAPE", 1)
 
-		if (src.handcuffed)
+		if (src.hasStatus("handcuffed"))
 			src.unlock_medal("Fell down the stairs", 1)
 
 		if (ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/revolution))
@@ -820,7 +820,7 @@
 	if (src.nodamage)
 		return tally
 
-	if (src.getStatusDuration("staggered"))
+	if (src.getStatusDuration("staggered") || src.hasStatus("blocking"))
 		tally += 0.5
 		//sprint disable handled in input.dm process_move, so that stamina isn't used up when running is impossible
 
@@ -913,6 +913,7 @@
 
 	for (var/obj/item/grab/G in src.equipped_list(check_for_magtractor=0))
 		var/mob/living/carbon/human/H = G.affecting
+		if (isnull(H)) continue //ZeWaka: If we have a null affecting, ex. someone jumped in lava when we were grabbing them
 		if (G.state == 0)
 			if (get_dist(src,H) > 0 && get_dist(move_target,H) > 0) //pasted into living.dm pull slow as well (consider merge somehow)
 				if(istype(H) && H.intent != INTENT_HELP && H.lying)
@@ -1129,44 +1130,40 @@
 	src.throw_mode_off()
 	if (usr.stat)
 		return
+#if ASS_JAM //no throwing while in timestop
+	if (paused)
+		return
+#endif
 
 	//MBC : removing this because it felt bad and it wasn't *too* exploitable. still does click delay on the end of a throw anyway.
 	//if (usr.next_click > world.time)
 	//	return
 
-	var/atom/movable/item = src.equipped()
+	var/obj/item/I = src.equipped()
 
-	if (!item) return
+	if (!I || !isitem(I) || I.cant_drop) return
 
-	if (istype(item, /obj/item/grab))
-		var/obj/item/grab/grab = item
-		var/mob/M = grab.affecting
-		if (istype(M))
-			if ((grab.state < 1 && !(M.getStatusDuration("paralysis") || M.getStatusDuration("weakened") || M.stat)) || !isturf(src.loc))
-				src.visible_message("<span style=\"color:red\">[M] stumbles a little!</span>")
-				u_equip(grab)
-				return
-			M.lastattacker = src
-			M.lastattackertime = world.time
-			u_equip(grab)
-			item = M
+	if (istype(I, /obj/item/grab))
+		var/obj/item/grab/G = I
+		I = G.handle_throw(src, target)
+		if (!I) return
 
-	u_equip(item)
+	u_equip(I)
 
-	item.set_loc(src.loc)
+	I.set_loc(src.loc)
 
-	// u_equip() already calls item.dropped()
+	// u_equip() already calls I.dropped()
 	// no it doesn't
-	if (isitem(item))
-		item:dropped(src) // let it know it's been dropped
+	if (isitem(I))
+		I.dropped(src) // let it know it's been dropped
 
 	if (get_dist(src, target) > 0)
 		src.dir = get_dir(src, target)
 
 	//actually throw it!
-	if (item)
+	if (I)
 		attack_twitch(src)
-		item.layer = initial(item.layer)
+		I.layer = initial(I.layer)
 		var/yeet = 0 // what the fuck am I doing
 
 		if(src.mind.karma >= 50) //karma karma karma karma karma khamelion
@@ -1177,33 +1174,33 @@
 			yeet_chance = 0.1
 
 		if(prob(yeet_chance))
-			src.visible_message("<span style=\"color:red\">[src] yeets [item].</span>")
+			src.visible_message("<span style=\"color:red\">[src] yeets [I].</span>")
 			src.say("YEET")
 			yeet = 1 // I hate this
 		else
-			src.visible_message("<span style=\"color:red\">[src] throws [item].</span>")
-		if (iscarbon(item))
-			var/mob/living/carbon/C = item
+			src.visible_message("<span style=\"color:red\">[src] throws [I].</span>")
+		if (iscarbon(I))
+			var/mob/living/carbon/C = I
 			logTheThing("combat", src, C, "throws %target% at [log_loc(src)].")
 			if ( ishuman(C) && !C.getStatusDuration("weakened"))
 				C.changeStatus("weakened", 1 SECOND)
 		else
 			// Added log_reagents() call for drinking glasses. Also the location (Convair880).
-			logTheThing("combat", src, null, "throws [item] [item.is_open_container() ? "[log_reagents(item)]" : ""] at [log_loc(src)].")
+			logTheThing("combat", src, null, "throws [I] [I.is_open_container() ? "[log_reagents(I)]" : ""] at [log_loc(src)].")
 		if (istype(src.loc, /turf/space) || src.no_gravity) //they're in space, move em one space in the opposite direction
 			src.inertia_dir = get_dir(target, src)
 			step(src, inertia_dir)
-		if ((istype(item.loc, /turf/space) || item.no_gravity)  && ismob(item))
-			var/mob/M = item
+		if ((istype(I.loc, /turf/space) || I.no_gravity)  && ismob(I))
+			var/mob/M = I
 			M.inertia_dir = get_dir(src,target)
 
 		playsound(src.loc, 'sound/effects/throw.ogg', 40, 1, 0.1)
 
-		SPAWN_DBG(item.throw_at(target, item.throw_range, item.throw_speed, params, thrown_from))
+		SPAWN_DBG(I.throw_at(target, I.throw_range, I.throw_speed, params, thrown_from))
 			if(yeet)
-				new/obj/effect/supplyexplosion(item.loc)
-				playsound(item.loc, 'sound/effects/ExplosionFirey.ogg', 100, 1)
-				for(var/mob/M in view(7, item.loc))
+				new/obj/effect/supplyexplosion(I.loc)
+				playsound(I.loc, 'sound/effects/ExplosionFirey.ogg', 100, 1)
+				for(var/mob/M in view(7, I.loc))
 					shake_camera(M, 20, 1)
 
 		if (mob_flags & AT_GUNPOINT)
@@ -1213,15 +1210,81 @@
 		src.next_click = world.time + src.combat_click_delay
 
 /mob/living/carbon/human/click(atom/target, list/params)
-	if ((src.client && src.client.check_key(KEY_THROW)) || src.in_throw_mode)
-		src.throw_item(target, params)
-		return
+	if (src.client)
+		if (src.client.experimental_intents)
+			if (src.client.check_key(KEY_THROW))
+				if (params["right"])
+					if (src.equipped())
+						src.throw_item(target, params)
+					else
+						params["left"] = 1 //hacky :)
+						src.a_intent = INTENT_DISARM
+						.=..()
+						src.a_intent = INTENT_DISARM
+				/*else if (params["middle"])
+					params["middle"] = 0
+					params["left"] = 1 //hacky again :)
+					var/prev = src.a_intent
+					src.a_intent = INTENT_GRAB
+					.=..()
+					src.a_intent = prev
+					return*/
+				else
+					src.a_intent = INTENT_HARM
+					.=..()
+					src.a_intent = INTENT_DISARM
+				return
+			if (src.client.check_key(KEY_PULL))
+				if (params["left"] && ismob(target))
+					params["ctrl"] = 0 //hacky wows :)
+					var/prev = src.a_intent
+					src.a_intent = INTENT_GRAB
+					.=..()
+					src.a_intent = prev
+					return
+				else
+					src.a_intent = INTENT_HARM
+					.=..()
+					src.a_intent = INTENT_DISARM
+				return
+		else
+			if (src.client.check_key(KEY_THROW) || src.in_throw_mode)
+				for (var/obj/item/cloaking_device/I in src)
+					if (I.active)
+						I.deactivate(src)
+						src.visible_message("<span style=\"color:blue\"><b>[src]'s cloak is disrupted!</b></span>")
+				src.throw_item(target, params)
+				return
+
 	return ..()
 
 /mob/living/carbon/human/update_cursor()
-	if ((src.client && src.client.check_key(KEY_THROW)) || src.in_throw_mode)
-		src.set_cursor('icons/cursors/throw.dmi')
-		return
+	if (src.client)
+		if (src.client.experimental_intents)
+			if (src.client.check_key(KEY_THROW))
+				if (src.equipped())
+					src.set_cursor('icons/cursors/combat.dmi')
+				else
+					src.set_cursor('icons/cursors/combat_barehand.dmi')
+				src.client.show_popup_menus = 0
+				src.a_intent = INTENT_DISARM
+				src.hud.update_intent()
+				return
+			else if (src.client.check_key(KEY_PULL))
+				src.set_cursor('icons/cursors/combat_grab.dmi')
+				src.client.show_popup_menus = 0
+				src.a_intent = INTENT_GRAB
+				src.hud.update_intent()
+				return
+			else if (src.client.show_popup_menus == 0)
+				src.client.show_popup_menus = 1
+				src.a_intent = INTENT_HELP
+				src.hud.update_intent()
+		else
+			if (src.client.check_key(KEY_THROW) || src.in_throw_mode)
+				src.set_cursor('icons/cursors/throw.dmi')
+				return
+
 	return ..()
 
 /mob/living/carbon/human/meteorhit(O as obj)
@@ -1312,6 +1375,44 @@
 		return r_store
 	return null
 
+/mob/living/carbon/human/get_slot_from_item(var/obj/item/I)
+	if (!(I in src.contents))
+		return null
+
+	//wanted the following to be a switch case but those expect constant expressions
+
+	if (src.w_uniform == I)
+		return slot_w_uniform
+	if (src.wear_id == I)
+		return slot_wear_id
+	if (src.gloves == I)
+		return slot_gloves
+	if (src.shoes == I)
+		return slot_shoes
+	if (src.wear_suit == I)
+		return slot_wear_suit
+	if (src.back == I)
+		return slot_back
+	if (src.glasses == I)
+		return slot_glasses
+	if (src.ears == I)
+		return ears
+	if (src.wear_mask == I)
+		return slot_wear_mask
+	if (src.head == I)
+		return slot_head
+	if (src.belt == I)
+		return slot_belt
+	if (src.l_store == I)
+		return slot_l_store
+	if (src.r_store == I)
+		return slot_r_store
+	if(src.l_hand == I)
+		return slot_l_hand
+	if(src.r_hand == I)
+		return slot_r_hand
+	return null
+
 /mob/living/carbon/human/is_in_hands(var/obj/O)
 	if (l_hand == O || r_hand == O)
 		return 1
@@ -1329,6 +1430,7 @@
 
 	actions.interrupt(src, INTERRUPT_ATTACKED)
 	M.lastattacked = src
+
 	attack_particle(M,src)
 
 	if (!ishuman(M) && !ismobcritter(M))
@@ -1427,12 +1529,16 @@
 	return
 
 /mob/living/carbon/human/restrained()
-	if (src.handcuffed)
+	if (src.hasStatus("handcuffed"))
 		return 1
 	if (src.wear_suit && src.wear_suit.restrain_wearer)
 		return 1
 	if (src.limbs && (src.hand ? !src.limbs.l_arm : !src.limbs.r_arm))
 		return 1
+#if ASS_JAM //no fucking with inventory in timestop
+	if (paused)
+		return 1
+#endif
 	/*if (src.limbs && (src.hand ? !src.limbs.l_arm:can_hold_items : !src.limbs.r_arm:can_hold_items)) // this was fucking stupid and broke item limbs, I mean really, how do you restrain someone whos arm is a goddamn CHAINSAW
 		return 1*/
 
@@ -1468,7 +1574,7 @@
 	<BR><B>ID:</B> <A href='?src=\ref[src];varname=wear_id;slot=[src.slot_wear_id];item=id'>[(src.wear_id ? src.wear_id : "Nothing")]</A>
 	<BR><B>Left Pocket:</B> <A href='?src=\ref[src];varname=l_store;slot=[src.slot_l_store];item=pockets'>[(src.l_store ? "Something" : "Nothing")]</A>
 	<BR><B>Right Pocket:</B> <A href='?src=\ref[src];varname=r_store;slot=[src.slot_r_store];item=pockets'>[(src.r_store ? "Something" : "Nothing")]</A>
-	<BR>[(src.handcuffed ? text("<A href='?src=\ref[src];slot=handcuff;item=handcuff'>Handcuffed</A>") : text("<A href='?src=\ref[src];item=handcuff;slot=handcuff'>Not Handcuffed</A>"))]
+	<BR>[(src.hasStatus("handcuffed") ? text("<A href='?src=\ref[src];slot=handcuff;item=handcuff'>Handcuffed</A>") : text("<A href='?src=\ref[src];item=handcuff;slot=handcuff'>Not Handcuffed</A>"))]
 	<BR>[(src.internal ? text("<A href='?src=\ref[src];slot=internal;item=internal'>Remove Internal</A>") : "")]
 	<BR><A href='?action=mach_close&window=mob[src.name]'>Close</A>
 	<BR>"}
@@ -1958,8 +2064,8 @@
 		W.unequipped(src)
 		src.back = null
 		src.update_clothing()
-	else if (W == src.handcuffed)
-		src.handcuffed = null
+	else if (W == src.handcuffs)
+		src.handcuffs = null
 		src.update_clothing()
 
 	if (W && W == src.r_hand)
@@ -2616,7 +2722,7 @@
 	boutput(src, "<span style=\"color:red\"><B>You feel a [wattage > 7500 ? "powerful" : "slight"] shock course through your body!</B></span>")
 	src.unlock_medal("HIGH VOLTAGE", 1)
 	src.Virus_ShockCure(min(wattage / 500, 100))
-	sleep(1)
+	sleep(0.1 SECONDS)
 
 #ifdef USE_STAMINA_DISORIENT
 	var/stun = (min((shock_damage/5), 12) * stun_multiplier)* 10
@@ -2686,29 +2792,23 @@
 			src.show_text("You attempt to remove your shackles. (This will take around [round(time / 10)] seconds and you need to stand still.)", "red")
 			actions.start(new/datum/action/bar/private/icon/shackles_removal(time), src)
 
-	if (src.handcuffed)
+	if (src.hasStatus("handcuffed"))
 		if (ishuman(src))
 			if (src.is_changeling())
 				boutput(src, "<span style=\"color:blue\">You briefly shrink your hands to remove your handcuffs.</span>")
-				src.handcuffed:set_loc(src.loc)
-				src.handcuffed.unequipped(src)
-				src.handcuffed = null
-				src.update_clothing()
+				src.handcuffs.drop_handcuffs(src)
 				return
 			if (ishunter(src))
 				for (var/mob/O in AIviewers(src))
 					O.show_message(text("<span style=\"color:red\"><B>[] rips apart the handcuffs with pure brute strength!</B></span>", src), 1)
 				boutput(src, "<span style=\"color:blue\">You rip apart your handcuffs.</span>")
 
-				if (src.handcuffed:material) //This is a bit hacky.
-					src.handcuffed:material:triggerOnAttacked(src.handcuffed, src, src, src.handcuffed)
-
-				qdel(src.handcuffed)
-				src.handcuffed = null
-				src.update_clothing()
+				if (src.handcuffs:material) //This is a bit hacky.
+					src.handcuffs:material:triggerOnAttacked(src.handcuffs, src, src, src.handcuffs)
+				src.handcuffs.destroy_handcuffs(src)
 				return
 			if (iswerewolf(src))
-				if (src.handcuffed.werewolf_cant_rip())
+				if (src.handcuffs.werewolf_cant_rip())
 					boutput(src, __red("You can't seem to rip apart these silver handcuffs. They burn!"))
 					src.TakeDamage("l_arm", 0, 2, 0, DAMAGE_BURN)
 					src.TakeDamage("r_arm", 0, 2, 0, DAMAGE_BURN)
@@ -2716,39 +2816,32 @@
 				else
 					src.visible_message("<span style=\"color:red\"><B>[src] rips apart the handcuffs with pure brute strength!</b></span>")
 					boutput(src, "<span style=\"color:blue\">You rip apart your handcuffs.</span>")
-					if (src.handcuffed:material) //This is a bit hacky.
-						src.handcuffed:material:triggerOnAttacked(src.handcuffed, src, src, src.handcuffed)
-					qdel(src.handcuffed)
-					src.handcuffed = null
-					src.update_clothing()
+					if (src.handcuffs:material) //This is a bit hacky.
+						src.handcuffs:material:triggerOnAttacked(src.handcuffs, src, src, src.handcuffs)
+					src.handcuffs.destroy_handcuffs(src)
 					return
 		if (src.is_hulk())
 			for (var/mob/O in AIviewers(src))
 				O.show_message(text("<span style=\"color:red\"><B>[] rips apart the handcuffs with pure brute strength!</B></span>", src), 1)
 			boutput(src, "<span style=\"color:blue\">You rip apart your handcuffs.</span>")
 
-			if (src.handcuffed:material) //This is a bit hacky.
-				src.handcuffed:material:triggerOnAttacked(src.handcuffed, src, src, src.handcuffed)
-				qdel(src.handcuffed)
-			src.handcuffed = null
-			src.update_clothing()
+			if (src.handcuffs:material) //This is a bit hacky.
+				src.handcuffs:material:triggerOnAttacked(src.handcuffs, src, src, src.handcuffs)
+			src.handcuffs.destroy_handcuffs(src)
 		else if ( src.limbs && (istype(src.limbs.l_arm, /obj/item/parts/robot_parts) && !istype(src.limbs.l_arm, /obj/item/parts/robot_parts/arm/left/light)) && (istype(src.limbs.r_arm, /obj/item/parts/robot_parts) && !istype(src.limbs.r_arm, /obj/item/parts/robot_parts/arm/right/light))) //Gotta be two standard borg arms
 			for (var/mob/O in AIviewers(src))
 				O.show_message(text("<span style=\"color:red\"><B>[] rips apart the handcuffs with machine-like strength!</B></span>", src), 1)
 			boutput(src, "<span style=\"color:blue\">You rip apart your handcuffs.</span>")
 
-			if (src.handcuffed:material) //This is a bit hacky.
-				src.handcuffed:material:triggerOnAttacked(src.handcuffed, src, src, src.handcuffed)
-
-			qdel(src.handcuffed)
-			src.handcuffed = null
-			src.update_clothing()
+			if (src.handcuffs:material) //This is a bit hacky.
+				src.handcuffs:material:triggerOnAttacked(src.handcuffs, src, src, src.handcuffs)
+			src.handcuffs.destroy_handcuffs(src)
 		else
 			src.last_resist = world.time + 100
-			var/calcTime = src.handcuffed.material ? max((src.handcuffed.material.getProperty("hard") + src.handcuffed.material.getProperty("density")) * 10, 200) : (istype(src.handcuffed, /obj/item/handcuffs/guardbot) ? rand(150, 180) : (src.canmove ? rand(400,500) : rand(600,750)))
+			var/calcTime = src.handcuffs.material ? max((src.handcuffs.material.getProperty("hard") + src.handcuffs.material.getProperty("density")) * 10, 200) : (istype(src.handcuffs, /obj/item/handcuffs/guardbot) ? rand(150, 180) : (src.canmove ? rand(400,500) : rand(600,750)))
 			boutput(src, "<span style=\"color:red\">You attempt to remove your handcuffs. (This will take around [round(calcTime / 10)] seconds and you need to stand still)</span>")
-			if (src.handcuffed:material) //This is a bit hacky.
-				src.handcuffed:material:triggerOnAttacked(src.handcuffed, src, src, src.handcuffed)
+			if (src.handcuffs:material) //This is a bit hacky.
+				src.handcuffs:material:triggerOnAttacked(src.handcuffs, src, src, src.handcuffs)
 			actions.start(new/datum/action/bar/private/icon/handcuffRemoval(calcTime), src)
 	return 0
 
@@ -3456,3 +3549,13 @@
 	if (abilityHolder)
 		abilityHolder.set_loc_callback(newloc)
 	..()
+
+/mob/living/carbon/human/get_id()
+	. = ..()
+	if(.)
+		return
+	if(istype(src.wear_id, /obj/item/card/id))
+		return src.wear_id
+	if(istype(src.wear_id, /obj/item/device/pda2))
+		var/obj/item/device/pda2/pda = src.wear_id
+		return pda.ID_card
