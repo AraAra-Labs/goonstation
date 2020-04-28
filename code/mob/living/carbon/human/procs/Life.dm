@@ -479,7 +479,6 @@
 #if ASS_JAM //Oh neat apparently this has to do with cool maptext for your health, very neat. plz comment cool things like this so I know what all is on assjam!
 	src.UpdateDamage()
 #endif
-
 	last_life_tick = world.timeofday
 
 
@@ -596,7 +595,7 @@
 			dizziness = max(0, dizziness - 2)
 			jitteriness = max(0, jitteriness - 2)
 
-		if (!isnull(src.mind) && (isvampire(src) || iswelder(src)))
+		if (src.mind && isvampire(src))
 			if (istype(get_area(src), /area/station/chapel) && src.check_vampire_power(3) != 1)
 				if (prob(33))
 					boutput(src, "<span style=\"color:red\">The holy ground burns you!</span>")
@@ -821,8 +820,14 @@
 			return
 
 		if (buckled && buckled.anchored)
-			canmove = 0
-			return
+			if (istype(src.buckled, /obj/stool/chair)) //this check so we can still rotate the chairs on their slower delay even if we are anchored
+				var/obj/stool/chair/chair = src.buckled
+				if (!chair.rotatable)
+					canmove = 0
+					return
+			else
+				canmove = 0
+				return
 
 		if (throwing & (THROW_CHAIRFLIP | THROW_GUNIMPACT))
 			canmove = 0
@@ -1194,9 +1199,8 @@
 			var/obj/item/grab/block/G = src.check_block()
 			if (G)
 				protection += 1
-				if (G.can_block(damage_type))
-					if (G != src.equipped()) // bare handed block is less protective
-						protection += 1
+				if (G != src.equipped()) // bare handed block is less protective
+					protection += G.can_block(damage_type)
 
 		return protection
 

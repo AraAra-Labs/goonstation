@@ -55,6 +55,9 @@ TRAYS
 		BLOCK_KNIFE
 		return
 
+
+	//mbc disabling for now bc this can be done other ways without a verb and obj verbs slow down rclick menu
+	/*
 	verb/rotate()
 		set name = "Rotate"
 		set category = "Local"
@@ -63,6 +66,7 @@ TRAYS
 
 			src.dir = turn(src.dir, 90)
 		return
+	*/
 
 /obj/item/kitchen/utensil/fork
 	name = "fork"
@@ -110,7 +114,7 @@ TRAYS
 
 	proc/break_fork(mob/living/carbon/user as mob)
 		user.visible_message("<span style=\"color:red\">[src] breaks!</span>")
-		playsound(user.loc, "sound/effects/snap.ogg", 30, 1)
+		playsound(user.loc, "sound/impact_sounds/Generic_Snap_1.ogg", 30, 1)
 		user.u_equip(src)
 		qdel(src)
 		return
@@ -186,7 +190,7 @@ TRAYS
 
 	proc/break_knife(mob/living/carbon/user as mob)
 		user.visible_message("<span style=\"color:red\">[src] breaks!</span>")
-		playsound(user.loc, "sound/effects/snap.ogg", 30, 1)
+		playsound(user.loc, "sound/impact_sounds/Generic_Snap_1.ogg", 30, 1)
 		user.u_equip(src)
 		qdel(src)
 		return
@@ -307,7 +311,7 @@ TRAYS
 
 	proc/break_spoon(mob/living/carbon/user as mob)
 		user.visible_message("<span style=\"color:red\">[src] breaks!</span>")
-		playsound(user.loc, "sound/effects/snap.ogg", 30, 1)
+		playsound(user.loc, "sound/impact_sounds/Generic_Snap_1.ogg", 30, 1)
 		user.u_equip(src)
 		qdel(src)
 		return
@@ -882,9 +886,9 @@ TRAYS
 				user.u_equip(FOOD)
 				qdel(FOOD)
 			else if(!src.seaweed)
-				boutput(user,"<span style=\"color:red\">You need a seaweed sheet on the roller first, silly :P</span>")
+				boutput(user,"<span style=\"color:red\">You need a seaweed sheet on the roller first, silly.</span>")
 			else
-				boutput(user,"<span style=\"color:red\">You need sticky rice tooooooo!</span>")
+				boutput(user,"<span style=\"color:red\">You need sticky rice!</span>")
 		else
 			..()
 
@@ -986,10 +990,11 @@ TRAYS
 	item_state = "platestack1"
 	w_class = 4 // why the fuck would you put a stack of plates in your backpack, also prevents shenanigans
 	var/platenum = 1 // used for targeting icon_states
+#if ASS_JAM
+	var/platemax = 13
+#else
 	var/platemax = 8
-	#if ASS_JAM
-		var/platemax = 13
-	#endif
+#endif
 
 	proc/update_icon(mob/user as mob)
 		src.icon_state = "platestack[src.platenum]"

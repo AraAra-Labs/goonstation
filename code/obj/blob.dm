@@ -242,7 +242,7 @@ var/image/blob_icon_cache
 
 	attackby(var/obj/item/W, var/mob/user)
 		user.lastattacked = src
-		if( iscritter(user) && user:ghost_spawned )
+		if(iscritter(user) && user:ghost_spawned || isghostdrone(user))
 			src.visible_message("<span class='combat'><b>[user.name]</b> feebly attacks [src] with [W], but is too weak to harm it!</span>")
 			return
 		if( istype(W,/obj/item/clothing/head) && overmind )
@@ -579,7 +579,7 @@ var/image/blob_icon_cache
 
 	bullet_act(var/obj/projectile/P)
 		if (P.proj_data.damage_type == D_ENERGY && src.overmind && prob(src.overmind.nucleus_reflectivity))
-			shoot_reflected(P, src)
+			shoot_reflected_to_sender(P, src)
 		else
 			..()
 
@@ -1029,7 +1029,7 @@ var/image/blob_icon_cache
 
 	bullet_act(var/obj/projectile/P)
 		if (P.proj_data.damage_type == D_ENERGY)
-			shoot_reflected(P, src)
+			shoot_reflected_to_sender(P, src)
 		else
 			..()
 
