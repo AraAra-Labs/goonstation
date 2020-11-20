@@ -839,6 +839,25 @@
 		src.access = get_access("Botanist")
 		return
 
+/datum/job/civilian/mycologist
+	name = "Mycologist"
+	#ifdef MAP_OVERRIDE_DONUT3
+	limit = 7
+	#else
+	limit = 5
+	#endif
+	wages = PAY_TRADESMAN
+	slot_belt = /obj/item/device/pda2/botanist
+	slot_jump = /obj/item/clothing/under/rank/hydroponics
+	slot_foot = /obj/item/clothing/shoes/brown
+	slot_glov = /obj/item/clothing/gloves/black
+	slot_ears = /obj/item/device/radio/headset/civilian
+
+	New()
+		..()
+		src.access = get_access("Botanist")
+		return
+
 /datum/job/civilian/janitor
 	name = "Janitor"
 	limit = 2
