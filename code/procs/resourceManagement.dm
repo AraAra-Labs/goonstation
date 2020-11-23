@@ -7,18 +7,15 @@
 //Generates file paths for browser resources when used in html tags e.g. <img>
 /proc/resource(file, group)
 	if (!file) return
-	var/path
 	if (cdn)
-		path = "[cdn]/[file]?serverrev=[vcs_revision]"
+		. = "[cdn]/[file]?serverrev=[vcs_revision]"
 	else
 		if (findtext(file, "{{resource")) //Got here via the dumb regex proc (local only)
 			file = group
 		if (findtext(file, "/"))
 			var/list/parts = splittext(file, "/")
 			file = parts[parts.len]
-		path = file
-
-	return path
+		. = file
 
 
 //Returns the file contents for storage in memory or further processing during runtime (e.g. many html files)
@@ -36,12 +33,20 @@
 	else
 		if (cdn)
 			Z_LOG_DEBUG("Resource/Grab", "[path] - requesting from CDN")
+
 			//Actually get the file contents from the CDN
-			var/http[] = world.Export("[cdn]/[path]?serverrev=[vcs_revision]")
-			if (!http || !http["CONTENT"])
+			var/datum/http_request/request = new()
+			request.prepare(RUSTG_HTTP_METHOD_GET, "[cdn]/[path]?serverrev=[vcs_revision]", "", "")
+			request.begin_async()
+			UNTIL(request.is_complete())
+			var/datum/http_response/response = request.into_response()
+
+			if (response.errored || !response.body)
 				Z_LOG_ERROR("Resource/Grab", "[path] - failed to get from CDN")
 				CRASH("CDN DEBUG: No file found for path: [path]")
-			file = file2text(http["CONTENT"])
+
+			file = response.body
+
 		else //No CDN, grab from local directory
 			Z_LOG_DEBUG("Resource/Grab", "[path] - locally loaded, parsing")
 			file = parseAssetLinks(file("browserassets/[path]"))
@@ -64,7 +69,7 @@
 
 
 /client/proc/debugResourceCache()
-	set category = "Debug"
+	SET_ADMIN_CAT(ADMIN_CAT_DEBUG)
 	set name = "Debug Resource Cache"
 	set hidden = 1
 	admin_only
@@ -76,13 +81,13 @@
 
 
 /client/proc/toggleResourceCache()
-	set category = "Toggles"
+	SET_ADMIN_CAT(ADMIN_CAT_SERVER_TOGGLES)
 	set name = "Toggle Resource Cache"
 	set desc = "Enable or disable the resource cache system"
 	admin_only
 
 	disableResourceCache = !disableResourceCache
-	boutput(usr, "<span style=\"color:blue\">Toggled the resource cache [disableResourceCache ? "off" : "on"]</span>")
+	boutput(usr, "<span class='notice'>Toggled the resource cache [disableResourceCache ? "off" : "on"]</span>")
 	logTheThing("admin", usr, null, "toggled the resource cache [disableResourceCache ? "off" : "on"]")
 	logTheThing("diary", usr, null, "toggled the resource cache [disableResourceCache ? "off" : "on"]", "admin")
 	message_admins("[key_name(usr)] toggled the resource cache [disableResourceCache ? "off" : "on"]")
@@ -171,7 +176,7 @@
 //A thing for coders locally testing to use (as they might be offline = can't reach the CDN)
 /client/proc/loadResources()
 	if (cdn || src.resourcesLoaded) return 0
-	boutput(src, "<span style='color: blue;'><b>Resources are now loading, browser windows will open normally when complete.</b></span>")
+	boutput(src, "<span class='notice'><b>Resources are now loading, browser windows will open normally when complete.</b></span>")
 
 	src.loadResourcesFromList(localResources)
 

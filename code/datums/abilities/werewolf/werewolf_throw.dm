@@ -23,9 +23,9 @@
 			boutput(M, __red("You can't throw yourself."))
 			return 1
 		HH.set_loc(M.loc)
-		HH.dir = get_dir(HH, M)
+		HH.set_dir(get_dir(HH, M))
 		HH.changeStatus("stunned",40)
-		M.visible_message("<span style=\"color:red\"><B>[M] starts flinging [HH] around like a ragdoll!</B></span>")
+		M.visible_message("<span class='alert'><B>[M] starts flinging [HH] around like a ragdoll!</B></span>")
 		M.emote("scream")
 		for (var/i = 0, i < 10, i++)
 			var/delay = 3
@@ -43,12 +43,12 @@
 				if (!isturf(M.loc) || !isturf(HH.loc))
 					boutput(M, __red("You can't throw [HH] from here!"))
 					return 0
-				M.dir = turn(M.dir, 90)
+				M.set_dir(turn(M.dir, 90))
 				var/turf/T = get_step(M, M.dir)
 				var/turf/S = HH.loc
 				if ((S && isturf(S) && S.Exit(HH)) && (T && isturf(T) && T.Enter(HH)))
 					HH.set_loc(T)
-					HH.dir = get_dir(HH, M)
+					HH.set_dir(get_dir(HH, M))
 			else
 				return 0
 			sleep (delay)
@@ -60,15 +60,14 @@
 				boutput(M, __red("You can't throw [HH] from here!"))
 				return 0
 			HH.set_loc(M.loc) // Maybe this will help with the wallthrowing bug.
-			M.visible_message("<span style=\"color:red\"><B>[M] throws [HH]!</B></span>")
+			M.visible_message("<span class='alert'><B>[M] throws [HH]!</B></span>")
 			playsound(M.loc, "swing_hit", 50, 1)
 			var/turf/T = get_edge_target_turf(M, M.dir)
 			if (T && isturf(T))
-				SPAWN_DBG(0)
-					if (HH.stat != 2)
-						HH.emote("scream")
-					HH.throw_at(T, 10, 4)
-					HH.changeStatus("weakened",20)
-					HH.change_misstep_chance(33)
-			logTheThing("combat", M, HH, "uses the throw werewolf move on %target% at [log_loc(M)].")
+				if (HH.stat != 2)
+					HH.emote("scream")
+				HH.throw_at(T, 10, 4)
+				HH.changeStatus("weakened",20)
+				HH.change_misstep_chance(33)
+			logTheThing("combat", M, HH, "uses the throw werewolf move on [constructTarget(HH,"combat")] at [log_loc(M)].")
 		return 0

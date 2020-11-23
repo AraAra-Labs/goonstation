@@ -8,17 +8,14 @@
 	var/obj/item/fuel_pellet/fuel_pellet
 
 	process()
-		if (fuel_pellet && fuel_pellet.material && fuel_pellet.material.hasProperty("radioactive"))
+		if (fuel_pellet?.material && fuel_pellet.material.hasProperty("radioactive"))
 			lastgen = (4800 + rand(-100, 100)) * log(1 + fuel_pellet.material.getProperty("radioactive"))
 			fuel_pellet.material.adjustProperty("radioactive", -1)
 			add_avail(lastgen)
 			updateicon()
 
 		// shamelessly stolen from the SMES code, this is kinda stupid
-		for(var/mob/M in range(1, src))
-			if (M.client && M.machine == src)
-				src.interacted(M)
-		AutoUpdateAI(src)
+		src.updateDialog()
 
 	attack_ai(mob/user)
 		add_fingerprint(user)
@@ -38,20 +35,20 @@
 		if (istype(I, /obj/item/fuel_pellet))
 			if (!fuel_pellet)
 				user.drop_item()
-				I.loc = src
+				I.set_loc(src)
 				fuel_pellet = I
 				updateicon()
 			else
-				boutput(usr, "<span style=\"color:blue\">A fuel pellet has already been inserted.</span>")
+				boutput(usr, "<span class='notice'>A fuel pellet has already been inserted.</span>")
 
 	Topic(href, href_list)
 		if (..())
 			return
 		if (href_list["close"])
 			usr.Browse(null, "window=rtg")
-			usr.machine = null
+			src.remove_dialog(usr)
 		else if (href_list["eject"] && in_range(src, usr))
-			fuel_pellet.loc = src.loc
+			fuel_pellet.set_loc(src.loc)
 			usr.put_in_hand_or_eject(src.fuel_pellet) // try to eject it into the users hand, if we can
 			fuel_pellet = null
 			updateicon()
@@ -59,11 +56,11 @@
 
 	proc/interacted(mob/user)
 		if (get_dist(src, user) > 1 && !isAI(user))
-			user.machine = null
+			src.remove_dialog(user)
 			user.Browse(null, "window=rtg")
 			return
 
-		user.machine = src
+		src.add_dialog(user)
 
 		var/t = "<B>Radioisotope Thermoelectric Generator</B><br>"
 		t += "Output: [src.lastgen]W<br>"

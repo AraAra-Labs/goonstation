@@ -7,21 +7,21 @@
 	//cycle that oxygen value represents
 	var/tmp/current_cycle = 0
 
-	//cycle that oxygen_archived value represents
+	//cycle that ARCHIVED(oxygen) value represents
 	//The use of archived cycle saves processing power by permitting the archiving step of FET
 	//	to be rolled into the updating step
 	var/tmp/archived_cycle = 0
 
-	//Tiles that connect this group to other groups/individual tiles
-	var/list/borders
+	/// Tiles that connect this group to other groups/individual tiles
+	var/list/turf/simulated/borders
 
-	//All tiles in this group
-	var/list/members
+	/// All tiles in this group
+	var/list/turf/simulated/members
 
-	// Space tiles that border this group
-	var/list/space_borders
+	/// Space tiles that border this group
+	var/list/turf/space_borders // ZeWaka/Atmos: SHOULD JUST BE SPACE TILES??? HOW SIM GETTING IN
 
-	// Length of space border
+	/// Length of space border
 	var/length_space_border = 0
 
 	// drsingh - lets try caching these lists from process_group, see if we can't reduce the garbage collection
@@ -35,7 +35,6 @@
 
 	var/spaced = 0
 	var/spaced_via_group = 0
-	var/gencolor = null
 
 // overrides
 /datum/air_group/disposing()
@@ -49,10 +48,12 @@
 // Group procs
 /datum/air_group/proc/suspend_group_processing()
 	// Distribute air from the group out to members
+	ASSERT(group_processing == 1)
 	update_tiles_from_group()
 	group_processing = 0
 
 /datum/air_group/proc/resume_group_processing()
+	ASSERT(group_processing == 0)
 	update_group_from_tiles()
 	group_processing = 1
 
@@ -62,12 +63,11 @@
 	// Single sample? Seems like not very many...
 	// Local var, direct access to gas_mixture, no need to pool
 	var/sample_member
-	for (var/turf/S in members)
-		if (istype(S, /turf/space))
-			members -= S
+
 	if(!members || !members.len ) //I guess all the areas were BADSPACE!!! OH NO! (Spyguy fix for pick() from empty list)
 		qdel(src)
 		return 0
+
 	sample_member = pick(members)
 	if (sample_member:air)
 		var/datum/gas_mixture/sample_air = sample_member:air
@@ -80,13 +80,15 @@
 //Copy group air information to individual tile air
 //Used right before turning off group processing
 /datum/air_group/proc/update_tiles_from_group()
-	for(var/turf/simulated/member in members)
+	for(var/turf/simulated/member as() in members)
 		if (member.air) member.air.copy_from(air)
 
+#ifdef ATMOS_ARCHIVING
 /datum/air_group/proc/archive()
 	if (air)
 		air.archive()
 	archived_cycle = air_master.current_cycle
+#endif
 
 //If individually processing tiles, checks all member tiles to see if they are close enough
 //	that the group may resume group processing
@@ -96,23 +98,16 @@
 	//Returns: group_processing
 	if(group_processing) return 1
 
-	// I don't know why the fuck space tiles are even getting into
-	// airgroups, but this should sort of fix it. This is a bad
-	// hack and I'm sorry. This should eliminate the runtime
-	// "undefined variable: /turf/space/var/air"
-	for(var/turf/space/BADSPACE in members)
-		if(istype(BADSPACE))
-			members -= BADSPACE
-
 	if(!members || !members.len ) //I guess all the areas were BADSPACE!!! OH NO! (Spyguy fix for pick() from empty list)
 		qdel(src)
 		return 0
 
 	var/turf/simulated/sample = pick(members)
-	for(var/turf/simulated/member in members)
+	for(var/turf/simulated/member as() in members)
 		if(member.active_hotspot)
 			return 0
-		if(member.air && member.air.compare(sample.air)) continue
+		if(member.air && member.air.compare(sample.air))
+			continue
 		else
 			return 0
 
@@ -121,6 +116,7 @@
 
 
 /datum/air_group/proc/process_group(var/datum/controller/process/parent_controller)
+	var/abort_group = 0
 	current_cycle = air_master.current_cycle
 
 	if (spaced)
@@ -138,13 +134,14 @@
 		self_group_borders = null
 		self_tile_borders = null
 
+#ifdef ATMOS_ARCHIVING
 		if(archived_cycle < air_master.current_cycle)
 			archive()
 				//Archive air data for use in calculations
 				//But only if another group didn't store it for us
+#endif
 
-		for(var/turf/simulated/border_tile in src.borders)
-			//var/obj/movable/floor/movable_on_me = locate(/obj/movable/floor) in border_tile
+		for(var/turf/simulated/border_tile as() in src.borders)
 			for(var/direction in cardinal) //Go through all border tiles and get bordering groups and individuals
 				if(border_tile.group_border&direction)
 					var/turf/simulated/enemy_tile = get_step(border_tile, direction) //Add found tile to appropriate category
@@ -184,15 +181,16 @@
 
 			LAGCHECK(LAG_REALTIME)
 
-		var/abort_group = 0
 
 		// Process connections to adjacent groups
 		var/border_index = 1
 		if(border_group)
-			for(var/datum/air_group/AG in border_group)
+			for(var/datum/air_group/AG as() in border_group)
+#ifdef ATMOS_ARCHIVING
 				if(AG.archived_cycle < archived_cycle)
 					//archive other groups information if it has not been archived yet this cycle
 					AG.archive()
+#endif
 				if(AG.current_cycle < current_cycle)
 					//This if statement makes sure two groups only process their individual connections once!
 					//Without it, each connection would be processed a second time as the second group is evaluated
@@ -200,7 +198,7 @@
 					var/connection_difference = 0
 					var/turf/simulated/floor/self_border
 					var/turf/simulated/floor/enemy_border
-					if(self_group_borders && self_group_borders.len)
+					if(length(self_group_borders))
 						self_border = self_group_borders[border_index]
 					if(enemy_border)
 						enemy_border = enemies[border_index]
@@ -231,8 +229,7 @@
 		// Process connections to adjacent tiles
 		border_index = 1
 		if(!abort_group && border_individual)
-			for(var/border_tile in border_individual)
-				var/turf/enemy_tile = border_tile
+			for(var/turf/enemy_tile as() in border_individual)
 
 				var/connection_difference = 0
 				var/turf/simulated/floor/self_border
@@ -241,15 +238,17 @@
 
 				//if(istype(enemy_tile, /turf/simulated)) //trying the other one
 				if(enemy_tile.turf_flags & IS_TYPE_SIMULATED) //blahhh danger
+#ifdef ATMOS_ARCHIVING
 					if(enemy_tile:archived_cycle < archived_cycle) //archive tile information if not already done
 						enemy_tile:archive()
+#endif
 					if(enemy_tile:current_cycle < current_cycle)
 						if(air.check_gas_mixture(enemy_tile:air))
 							connection_difference = air.share(enemy_tile:air)
 						else
 							abort_group = 1
 							break
-				else if(isturf(enemy_tile))
+				else if(isturf(enemy_tile) && !enemy_tile.density) // optimization, if you ever need unsimmed walls to affect temperature change this
 					if(air.check_turf(enemy_tile))
 						connection_difference = air.mimic(enemy_tile)
 					else
@@ -271,24 +270,35 @@
 		border_index = 1
 		if(!abort_group)
 			if(length_space_border > 0)
-				//var/turf/space/sample = locate()
-				var/turf/space/sample = air_master.get_space_sample()
 				var/connection_difference = 0
+				if(map_currently_underwater)
+					var/turf/space/sample = air_master.space_sample
+					if (!sample || !(sample.turf_flags & CAN_BE_SPACE_SAMPLE))
+						sample = air_master.update_space_sample()
 
-				if(air && sample && air.check_turf(sample))
-					connection_difference = air.mimic(sample, length_space_border)
-				else
-					abort_group = 1
+					if(air && sample && air.check_turf(sample))
+						connection_difference = air.mimic(sample, length_space_border)
+					else
+						abort_group = 1
+				else // faster check for actual space (modified check_turf)
+					var/moles = TOTAL_MOLES(air)
+					if(moles <= MINIMUM_AIR_TO_SUSPEND)
+						var/turf/space/sample = air_master.space_sample
+						if (!sample || !(sample.turf_flags & CAN_BE_SPACE_SAMPLE))
+							sample = air_master.update_space_sample()
+						connection_difference = air.mimic(sample, length_space_border)
+					else
+						abort_group = 1
 
 				if(connection_difference)
-					for(var/turf/simulated/self_border in space_borders)
+					for(var/turf/simulated/self_border in space_borders) // ZeWaka/Atmos: BOTH SPACE AND SIM?
 						self_border.consider_pressure_difference_space(connection_difference)
 
 		if(abort_group)
 			suspend_group_processing()
 		else
-			if(air && air.check_tile_graphic())
-				for(var/turf/simulated/member in members)
+			if(air?.check_tile_graphic())
+				for(var/turf/simulated/member as() in members)
 					member.update_visuals(air)
 
 					LAGCHECK(LAG_REALTIME)
@@ -297,19 +307,19 @@
 	// This logic is not inverted because group processing may have been
 	// suspended in the above block.
 	if(!group_processing) //Revert to individual processing
-		// space fastpath
-		if (members.len && length_space_border) {
+		// space fastpath if we didn't revert (avoid regrouping tiles prior to processing individual cells)
+		if (!abort_group && members.len && length_space_border)
 			if (space_fastpath(parent_controller))
 				// If the fastpath resulted in the group being zeroed, return early.
 				return
-		}
-		for(var/turf/simulated/member in members)
+
+		for(var/turf/simulated/member as() in members)
 			member.process_cell()
 
 			LAGCHECK(LAG_REALTIME)
 	else
 		if(air.temperature > FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
-			for(var/turf/simulated/member in members)
+			for(var/turf/simulated/member as() in members)
 				member.hotspot_expose(air.temperature, CELL_VOLUME)
 				member.consider_superconductivity(starting=1)
 
@@ -317,41 +327,49 @@
 
 		air.react()
 
+
 // If group processing is off, and the air group is bordered by a space tile,
 // execute a fast evacuation of the air in the group.
 // If the average pressure in the group is < 5kpa, the group will be zeroed
 // returns: 1 if the group is zeroed, 0 if not
 /datum/air_group/proc/space_fastpath(var/datum/controller/process/parent_controller)
 	var/minDist
-	var/dist
 	var/turf/space/sample
-	if (map_currently_underwater)
-		//sample = locate(/turf/space/fluid)
-		sample = air_master.get_space_sample()
-	else
-		//sample = locate()
-		sample = air_master.get_space_sample()
+	. = 0
+	sample = air_master.space_sample
+
+	if (!sample || !(sample.turf_flags & CAN_BE_SPACE_SAMPLE))
+		sample = air_master.update_space_sample()
+
 	if (!sample)
-		return 0
+		return
+
 	var/totalPressure = 0
 
-	for(var/turf/simulated/member in members)
+	for(var/turf/simulated/member as() in members)
+/* // commented out temporarily, it will probably have to be reenabled later
 		minDist = null
 		// find nearest space border tile
 		for(var/turf/simulated/b in space_borders)
 			if (b == member)
 				continue
 
-			dist = get_dist(b, member)
+			var/dist = get_dist(b, member)
 			if (minDist == null || dist < minDist)
 				minDist = dist
+*/
+		minDist = member.dist_to_space
+
+		// Don't space hotspots, it breaks them
+		if(member.active_hotspot)
+			return 0
 
 		if (member.air && !isnull(minDist))
+			var/datum/gas_mixture/member_air = member.air
 			// Todo - retain nearest space tile border and apply force proportional to amount
 			// of air leaving through it
-			member.air.mimic(sample, CLAMP(length_space_border / (2 * max(1, minDist)), 0.1, 1))
-		if (member && member.air)
-			totalPressure += member.air.return_pressure()
+			member_air.mimic(sample, clamp(length_space_border / (2 * max(1, minDist)), 0.1, 1))
+			ADD_MIXTURE_PRESSURE(member_air, totalPressure) // Build your own atmos disaster
 
 		LAGCHECK(LAG_REALTIME)
 
@@ -365,18 +383,15 @@
 			space_group()
 			return 1
 
-
-
-	return 0
-
 /datum/air_group/proc/space_group()
-	for(var/turf/simulated/member in members)
-		if (member.air)
-			member.air.zero()
+	for(var/turf/simulated/member as() in members)
+		member.air?.zero()
 	if (length_space_border)
 		spaced = 1
-		resume_group_processing()
+		if(!group_processing)
+			resume_group_processing()
 
 /datum/air_group/proc/unspace_group()
-	suspend_group_processing()
+	if(group_processing)
+		suspend_group_processing()
 	spaced = 0

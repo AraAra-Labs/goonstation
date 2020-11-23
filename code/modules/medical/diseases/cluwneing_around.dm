@@ -31,15 +31,15 @@
 		return
 	if (prob(laugh_rate)) affected_mob.emote("laugh")
 	switch(D.stage)
-		if(1 || 2)
+		if(1, 2)
 
 			if(prob(8))
-				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 50, 1)
-				affected_mob.show_message(text("<span style=\"color:red\">[] makes a VERY strange honking sound!</span>", affected_mob), 1)
+				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 22, 1)
+				affected_mob.show_message(text("<span class='alert'>[] makes a VERY strange honking sound!</span>", affected_mob), 1)
 			if(prob(8))
-				boutput(affected_mob, "<span style=\"color:red\">You feel your feet crying out!</span>")
+				boutput(affected_mob, "<span class='alert'>You feel your feet crying out!</span>")
 			if(prob(8))
-				boutput(affected_mob, "<span style=\"color:red\">Your head throbs with pain.</span>")
+				boutput(affected_mob, "<span class='alert'>Your head throbs with pain.</span>")
 			if(prob(8))
 				affected_mob.say("HUNKE!")
 			if(prob(8))
@@ -80,10 +80,10 @@
 								affected_mob.set_loc(T2)
 								affected_mob.changeStatus("stunned", 2 SECONDS)
 								affected_mob.changeStatus("weakened", 2 SECONDS)
-								boutput(affected_mob, "<span style=\"color:red\">You feel clumsy and suddenly slip!</span>")
+								boutput(affected_mob, "<span class='alert'>You feel clumsy and suddenly slip!</span>")
 
 			if(prob(10))
-				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 50, 1)
+				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 22, 1)
 			if(prob(10))
 
 				if(!affected_mob:wear_mask || ((affected_mob:wear_mask != null) && !istype(affected_mob:wear_mask, /obj/item/clothing/mask/cursedclown_hat)))
@@ -160,8 +160,8 @@
 					affected_mob:equip_if_possible( clowngloves, affected_mob:slot_gloves)
 
 			if(prob(8))
-				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 50, 1)
-				affected_mob.show_message(text("<span style=\"color:red\">[] makes a VERY strange honking sound!</span>", affected_mob), 1)
+				playsound(affected_mob.loc, "sound/musical_instruments/Boathorn_1.ogg", 22, 1)
+				affected_mob.show_message(text("<span class='alert'>[] makes a VERY strange honking sound!</span>", affected_mob), 1)
 
 			if(prob(4) && isturf(affected_mob.loc))
 				var/turf/T = affected_mob.loc
@@ -188,7 +188,7 @@
 								affected_mob.set_loc(T2)
 								affected_mob.changeStatus("stunned", 2 SECONDS)
 								affected_mob.changeStatus("weakened", 2 SECONDS)
-								boutput(affected_mob, "<span style=\"color:red\">You feel clumsy and suddenly slip!</span>")
+								boutput(affected_mob, "<span class='alert'>You feel clumsy and suddenly slip!</span>")
 
 
 /datum/ailment/disease/cluwneing_around/cluwne/on_remove(var/mob/living/affected_mob,var/datum/ailment_data/D)
@@ -198,7 +198,7 @@
 			affected_mob.job = src.oldjob
 		if(affected_mob.job == "Cluwne" )
 			affected_mob.job = "Cleansed Cluwne"
-		boutput(affected_mob, "<span style=\"color:blue\">You feel like yourself again.</span>")
+		boutput(affected_mob, "<span class='notice'>You feel like yourself again.</span>")
 		for(var/obj/item/clothing/W in affected_mob)
 			if (W.cant_self_remove && W.cant_other_remove)//this might not be a great way to do this.
 				affected_mob.u_equip(W)

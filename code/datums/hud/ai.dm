@@ -11,14 +11,17 @@
 		radio
 		pda
 		laws
+		viewport
+		hologram
 		killswitch
 
 	var/list/spinner = list("/", "-", "\\", "|")
 	var/spinner_num = 1
 
 	New(M)
+		..()
 		master = M
-		
+
 		health = create_screen("health", "Core Health", 'icons/mob/hud_ai.dmi', "health", "EAST, NORTH+0.5", HUD_LAYER)
 		health.underlays += "underlay"
 		health.maptext_width = 96
@@ -56,6 +59,12 @@
 
 		laws = create_screen("laws", "Show Laws", 'icons/mob/hud_ai.dmi', "laws", "WEST, NORTH-2", HUD_LAYER)
 		laws.underlays += "button"
+
+		viewport = create_screen("viewport", "Create Viewport", 'icons/mob/hud_ai.dmi', "viewport", "WEST, NORTH-2.5", HUD_LAYER)
+		viewport.underlays += "button"
+
+		hologram = create_screen("hologram", "Create Hologram", 'icons/mob/hud_ai.dmi', "hologram", "WEST, NORTH-3", HUD_LAYER)
+		hologram.underlays += "button"
 
 		tracking = create_screen("tracking", "Tracking", 'icons/mob/hud_ai.dmi', "track", "WEST, SOUTH", HUD_LAYER)
 		tracking.underlays += "button"
@@ -119,11 +128,11 @@
 			if ("health")
 				//output health info
 				boutput(user, "Health: [master.health]/[master.max_health] - Brute: [master.bruteloss] - Burn: [master.fireloss]")
-			
+
 			if ("cell")
 				// Output cell info
 				boutput(user, "Cell: [master.cell.charge]/[master.cell.maxcharge]")
-			
+
 			if ("status")
 				// Change status
 				master.ai_statuschange()
@@ -144,7 +153,7 @@
 				else
 					master.ai_camera_track()
 				update_tracking()
-			
+
 			if ("pda")
 				master.access_internal_pda()
 
@@ -153,3 +162,14 @@
 
 			if ("laws")
 				master.show_laws()
+
+			if ("viewport")
+				if(master.deployed_to_eyecam)
+					master.eyecam.create_viewport()
+				else
+					boutput(master, "Deploy to an AI Eye first to create a viewport.")
+			if ("hologram")
+				if(master.deployed_to_eyecam)
+					master.create_hologram()
+				else
+					boutput(master, "Deploy to an AI Eye first to create a hologram.")

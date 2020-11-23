@@ -6,7 +6,7 @@
 	aggressive = 1
 	defensive = 1
 	wanderer = 1
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 1
 	atksilicon = 1
 	butcherable = 1
@@ -35,11 +35,11 @@
 		if (!src.left_arm)
 			src.left_arm = new /obj/item/parts/human_parts/arm/left/bear(src)
 			src.left_arm_stage = 0
-			src.visible_message("<span style=\"color:red\">[src]'s left arm regrows!</span>")
+			src.visible_message("<span class='alert'>[src]'s left arm regrows!</span>")
 		if (!src.right_arm)
 			src.right_arm = new /obj/item/parts/human_parts/arm/right/bear(src)
 			src.right_arm_stage = 0
-			src.visible_message("<span style=\"color:red\">[src]'s right arm regrows!</span>")
+			src.visible_message("<span class='alert'>[src]'s right arm regrows!</span>")
 		..()
 
 	CritterDeath()
@@ -65,10 +65,10 @@
 			if (istype(W, /obj/item/scalpel))
 				if (user.zone_sel.selecting == "l_arm")
 					if (src.left_arm_stage == 0)
-						user.visible_message("<span class='combat'>[user] slices through the skin and flesh of [src]'s left arm with [W].</span>", "<span style=\"color:red\">You slice through the skin and flesh of [src]'s left arm with [W].</span>")
+						user.visible_message("<span class='combat'>[user] slices through the skin and flesh of [src]'s left arm with [W].</span>", "<span class='alert'>You slice through the skin and flesh of [src]'s left arm with [W].</span>")
 						src.left_arm_stage++
 					else if (src.left_arm_stage == 2)
-						user.visible_message("<span class='combat'>[user] cuts through the remaining strips of skin holding [src]'s left arm on with [W].</span>", "<span style=\"color:red\">You cut through the remaining strips of skin holding [src]'s left arm on with [W].</span>")
+						user.visible_message("<span class='combat'>[user] cuts through the remaining strips of skin holding [src]'s left arm on with [W].</span>", "<span class='alert'>You cut through the remaining strips of skin holding [src]'s left arm on with [W].</span>")
 						src.left_arm_stage++
 
 						var/turf/location = get_turf(src)
@@ -79,10 +79,10 @@
 
 				else if (user.zone_sel.selecting == "r_arm")
 					if (src.right_arm_stage == 0)
-						user.visible_message("<span class='combat'>[user] slices through the skin and flesh of [src]'s right arm with [W].</span>", "<span style=\"color:red\">You slice through the skin and flesh of [src]'s right arm with [W].</span>")
+						user.visible_message("<span class='combat'>[user] slices through the skin and flesh of [src]'s right arm with [W].</span>", "<span class='alert'>You slice through the skin and flesh of [src]'s right arm with [W].</span>")
 						src.right_arm_stage++
 					else if (src.right_arm_stage == 2)
-						user.visible_message("<span class='combat'>[user] cuts through the remaining strips of skin holding [src]'s right arm on with [W].</span>", "<span style=\"color:red\">You cut through the remaining strips of skin holding [src]'s right arm on with [W].</span>")
+						user.visible_message("<span class='combat'>[user] cuts through the remaining strips of skin holding [src]'s right arm on with [W].</span>", "<span class='alert'>You cut through the remaining strips of skin holding [src]'s right arm on with [W].</span>")
 						src.right_arm_stage++
 
 						var/turf/location = get_turf(src)
@@ -94,11 +94,11 @@
 			else if (istype(W, /obj/item/circular_saw))
 				if (user.zone_sel.selecting == "l_arm")
 					if (src.left_arm_stage == 1)
-						user.visible_message("<span class='combat'>[user] saws through the bone of [src]'s left arm with [W].</span>", "<span style=\"color:red\">You saw through the bone of [src]'s left arm with [W].</span>")
+						user.visible_message("<span class='combat'>[user] saws through the bone of [src]'s left arm with [W].</span>", "<span class='alert'>You saw through the bone of [src]'s left arm with [W].</span>")
 						src.left_arm_stage++
 				else if (user.zone_sel.selecting == "r_arm")
 					if (src.right_arm_stage == 1)
-						user.visible_message("<span class='combat'>[user] saws through the bone of [src]'s right arm with [W].</span>", "<span style=\"color:red\">You saw through the bone of [src]'s right arm with [W].</span>")
+						user.visible_message("<span class='combat'>[user] saws through the bone of [src]'s right arm with [W].</span>", "<span class='alert'>You saw through the bone of [src]'s right arm with [W].</span>")
 						src.right_arm_stage++
 			else
 				..()
@@ -142,7 +142,7 @@ obj/critter/bear/care
 	aggressive = 1
 	defensive = 1
 	wanderer = 1
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 1
 	atksilicon = 1
 	firevuln = 3
@@ -156,6 +156,7 @@ obj/critter/bear/care
 
 	New()
 		..()
+		src.atk_delay = 4
 		src.seek_target()
 
 	seek_target()
@@ -166,10 +167,8 @@ obj/critter/bear/care
 				break
 			if ((C.name == src.oldtarget_name) && (world.time < src.last_found + 100)) continue
 			if (C.health < 0) continue
-			if (C.name == src.attacker) src.attack = 1
-			if (iscarbon(C)) src.attack = 1
-			if (issilicon(C)) src.attack = 1
-			if (src.attack)
+			if (C.name == src.attacker || iscarbon(C) || issilicon(C)) src.attack = 1 //If the living mob C attacked the yeti set attack flag to true
+			if (src.attack)  //If attack flag was set, attack this target
 				src.target = C
 				src.oldtarget_name = C.name
 				src.visible_message("<span class='combat'><b>[src]</b> [src.angertext] [src.target]!</span>")
@@ -186,8 +185,24 @@ obj/critter/bear/care
 		M.changeStatus("weakened", 10 SECONDS)
 
 	CritterAttack(mob/M)
+		if (ishuman(M))
+			var/mob/living/carbon/human/H = M
+			var/obj/item/parts/targetLimb = pickTargetLimb(H)
+			if(targetLimb)
+				src.attacking = 0
+				src.visible_message("<span class='combat'><B>[src]</B> bites [targetLimb] right off!'")
+				random_brute_damage(H, 25)
+				targetLimb.remove(0)
+				H.update_body()
+				M.emote("scream")
+				bleed(H, 20, 30)
+				targetLimb.delete()
+				return
+
+		//Old instakill code. Happens when there are no more limbs to chew.
+		//I want to rework this so the yeti keeps the heads as a trophy and he drops them once dead
 		src.attacking = 1
-		src.visible_message("<span class='combat'><B>[src]</B> devours [M] in one bite!</span>")
+		src.visible_message("<span class='combat'><B>[src]</B> devours the rest of [M] in one bite!</span>")
 		logTheThing("combat", M, null, "was devoured by [src] at [log_loc(src)].") // Some logging for instakill critters would be nice (Convair880).
 		playsound(src.loc, "sound/items/eatfood.ogg", 30, 1, -2)
 		M.death(1)
@@ -204,7 +219,7 @@ obj/critter/bear/care
 		if (M.client)
 			var/mob/dead/observer/newmob
 			newmob = new/mob/dead/observer(M)
-			M.client:mob = newmob
+			M.client.mob = newmob
 			M.mind.transfer_to(newmob)
 		qdel(M)
 		src.task = "thinking"
@@ -214,11 +229,25 @@ obj/critter/bear/care
 
 		sleeping = 1
 
+	proc/pickTargetLimb(var/mob/living/carbon/human/H)
+		if(!H)
+			return null
+		var/list/part_list = list("l_arm", "r_arm", "l_leg", "r_leg")
+
+		while(part_list.len > 0)
+			var/current_part = pick(part_list)
+			part_list -= current_part
+			var/obj/item/parts/bodypart = H.limbs.get_limb(current_part)
+			if(bodypart && !istype(bodypart, /obj/item/parts/robot_parts)) //Quick check for robolimbs. It may be wrong, limb check examples give me headaches
+				return bodypart
+		return null
+
+
 /obj/critter/yeti/super
 	name = "super space yeti"
 	desc = "Well-known as the single most aggressive, dangerous, intelligent, sturdy and hungry thing in the universe."
 	health = 225
-	opensdoors = 1
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_ANY
 
 /obj/critter/shark
 	name = "space shark"
@@ -230,7 +259,7 @@ obj/critter/bear/care
 	aggressive = 1
 	defensive = 1
 	wanderer = 1
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 1
 	atksilicon = 1
 	firevuln = 3
@@ -315,7 +344,7 @@ obj/critter/bear/care
 	aggressive = 0
 	defensive = 1
 	wanderer = 1
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 0
 	atksilicon = 0
 	firevuln = 1
@@ -350,7 +379,7 @@ obj/critter/bear/care
 					src.visible_message("[usr] offers up [his_or_her(usr)] arm to feed [src].")
 					if (prob(30))
 						take_bleeding_damage(usr, null, 5, DAMAGE_CUT, 0, get_turf(src))
-						src.visible_message("<span style=\"color:red\"><B>Whoops, looks like [src] bit down a bit too hard.</span>")
+						src.visible_message("<span class='alert'><B>Whoops, looks like [src] bit down a bit too hard.</span>")
 
 			//stand next to bat, and point towards some blood, the bat will try to drink it
 			else if (istype(over_object,/obj/item/reagent_containers/) && get_dist(usr, src) <= 1)
@@ -481,7 +510,7 @@ obj/critter/bear/care
 	Move()
 		if(prob(15))
 			playsound(src.loc, "rustle", 10, 1)
-		..()
+		. = ..()
 
 /obj/critter/bat/doctor
 	name = "Dr. Acula"
@@ -489,6 +518,7 @@ obj/critter/bear/care
 	icon_state = "batdoctor"
 	health = 30
 	generic = 0
+	is_pet = 2
 
 	drink_blood(var/atom/target)
 		..()
@@ -508,7 +538,7 @@ obj/critter/bear/care
 	atkcarbon = 1
 	atksilicon = 1
 	brutevuln = 0.7
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	seekrange = 5
 	density = 1 // so lasers can hit them
 	angertext = "screeches at"
@@ -558,7 +588,7 @@ obj/critter/bear/care
 	aggressive = 1
 	defensive = 0
 	wanderer = 1
-	opensdoors = 1
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_ANY
 	atkcarbon = 1
 	atksilicon = 1
 	atcritter = 1

@@ -1,7 +1,7 @@
 // AI (i.e. game AI, not the AI player) controlled bots
 
 /obj/machinery/bot
-	icon = 'icons/obj/aibots.dmi'
+	icon = 'icons/obj/bots/aibots.dmi'
 	layer = MOB_LAYER
 	event_handler_flags = USE_FLUID_ENTER | USE_CANPASS
 	object_flags = CAN_REPROGRAM_ACCESS
@@ -11,6 +11,7 @@
 	var/locked = null
 	var/on = 1
 	var/health = 25
+	var/exploding = 0 //So we don't die like five times at once.
 	var/muted = 0 // shut up omg shut up.
 	var/no_camera = 0
 	var/setup_camera_network = "Robots"
@@ -30,7 +31,7 @@
 
 	New()
 		..()
-
+		RegisterSignal(src, COMSIG_ATOM_HITBY_PROJ, .proc/hitbyproj)
 		if(!no_camera)
 			src.cam = new /obj/machinery/camera(src)
 			src.cam.c_tag = src.name
@@ -38,7 +39,9 @@
 
 	disposing()
 		botcard = null
-		cam = null
+		if(cam)
+			cam.dispose()
+			cam = null
 		..()
 
 	attackby(obj/item/W as obj, mob/user as mob)
@@ -53,7 +56,6 @@
 	bullet_act(var/obj/projectile/P)
 		if (!P || !istype(P))
 			return
-
 		hit_twitch(src)
 
 		var/damage = 0
@@ -90,3 +92,20 @@
 					return 1
 				else
 					return 0
+
+/obj/machinery/bot/examine()
+	. = ..()
+	var/healthpct = src.health / initial(src.health)
+	if (healthpct <= 0.8)
+		if (healthpct >= 0.4)
+			. += "<span class='alert'>[src]'s parts look loose.</span>"
+		else
+			. += "<span class='alert'><B>[src]'s parts look very loose!</B></span>"
+
+/obj/machinery/bot/proc/hitbyproj(source, obj/projectile/P)
+	if((P.proj_data.damage_type & (D_KINETIC | D_ENERGY | D_SLASHING)) && P.proj_data.ks_ratio > 0)
+		P.initial_power -= 10
+		if(P.initial_power <= 0)
+			P.die()
+	if(!src.density)
+		return PROJ_OBJ_HIT_OTHER_OBJS | PROJ_ATOM_PASSTHROGH

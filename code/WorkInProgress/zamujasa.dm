@@ -11,8 +11,8 @@
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (issnippingtool(W))
 			logTheThing("station", user, null, "cut the don't-cut-this wire and got ghosted/disconnected as a result.")
-			//boutput(user, "<span style=\"color:red\">You snip the ca</span>")
-			user.visible_message("[user] nearly snips the cable with \the [W], but suddenly freezes in place just before it cuts!", "<span style=\"color:red\">You snip the ca</span>")
+			//boutput(user, "<span class='alert'>You snip the ca</span>")
+			user.visible_message("[user] nearly snips the cable with \the [W], but suddenly freezes in place just before it cuts!", "<span class='alert'>You snip the ca</span>")
 			var/client/C = user.client
 			user.ghostize()
 			del(C)
@@ -80,6 +80,7 @@
 	maptext_width = 96
 
 	New(var/change = 0)
+		..()
 		if (abs(change) < 1)
 			del(src)
 			return
@@ -113,6 +114,7 @@
 	var/bumped = 0
 
 	New(mob/M as mob, msg, style = "")
+		..()
 		for (var/obj/maptext_junk/speech/O in M.vis_contents)
 			if (!istype(O))
 				continue
@@ -242,6 +244,7 @@
 	icon = 'icons/obj/32x64.dmi'
 	icon_state = "voting_box"
 	density = 1
+	event_handler_flags = NO_MOUSEDROP_QOL
 	flags = FPRINT
 	anchored = 1
 	desc = "Funds further renovations for the afterlife. You can put the fruits / vegetables / minerals / bombs you grew into this (click this with them or click-drag them onto it)."
@@ -251,6 +254,7 @@
 	var/working = 0
 
 	New()
+		..()
 		total_score = world.load_intra_round_value("afterlife_donations")
 		tracker = new /obj/maptext_junk()
 		tracker.pixel_y = 40
@@ -272,7 +276,7 @@
 		if (score == -1)
 			return ..()
 
-		boutput(user, "<span style=\"color:blue\">[src] mulches up [W].</span>")
+		boutput(user, "<span class='notice'>[src] mulches up [W].</span>")
 		user.u_equip(W)
 		W.dropped()
 		mulch_item(W, score)
@@ -352,19 +356,19 @@
 
 	MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
 		if (!isliving(user))
-			boutput(user, "<span style=\"color:red\">Excuse me you are dead, get your gross dead hands off that!</span>")
+			boutput(user, "<span class='alert'>Excuse me you are dead, get your gross dead hands off that!</span>")
 			return
 		if (get_dist(user,src) > 1)
-			boutput(user, "<span style=\"color:red\">You need to move closer to [src] to do that.</span>")
+			boutput(user, "<span class='alert'>You need to move closer to [src] to do that.</span>")
 			return
 		if (get_dist(O,src) > 1 || get_dist(O,user) > 1)
-			boutput(user, "<span style=\"color:red\">[O] is too far away to load into [src]!</span>")
+			boutput(user, "<span class='alert'>[O] is too far away to load into [src]!</span>")
 			return
 
 		var/score = 0
 		if (get_item_value(O) != -1)
 			var/MT = start_scoring()
-			user.visible_message("<span style=\"color:blue\">[user] begins quickly stuffing things into [src]!</span>")
+			user.visible_message("<span class='notice'>[user] begins quickly stuffing things into [src]!</span>")
 			var/staystill = user.loc
 
 			for(var/obj/item/P in view(1,user))
@@ -377,20 +381,21 @@
 				update_score(MT, score)
 				sleep(0.1 SECONDS)
 
-			boutput(user, "<span style=\"color:blue\">You finish stuffing things into [src]!</span>")
+			boutput(user, "<span class='notice'>You finish stuffing things into [src]!</span>")
 			finish_scoring(MT)
 		else ..()
 
 /obj/death_button/clean_gunsim
 	name = "button that will clean the murderbox"
 	desc = "push this to clean the murderbox and probably not get killed. takes a minute."
-	icon = 'icons/obj/aibots.dmi'
+	icon = 'icons/obj/bots/aibots.dmi'
 	icon_state = "cleanbot1"
 
 	var/area/sim/gunsim/gunsim
 	var/active = 0
 
 	New()
+		..()
 		SPAWN_DBG(0.5 SECONDS)
 			gunsim = locate() in world
 
@@ -449,15 +454,18 @@
 
 		active = 1
 		alpha = 128
-		user.visible_message("Creatin dummy for you, you dummy")
+		boutput(user, "Spawning target dummy, stand by") //no need to be rude
 
-		var/mob/living/carbon/human/tdummy/T = new(get_turf(src))
-		T.x = src.x + 1 // move it to the right
+		new /mob/living/carbon/human/tdummy(locate(src.x+1, src.y, src.z))
+		//T.x = src.x + 1 // move it to the right
 
 
 		SPAWN_DBG(10 SECONDS)
 			active = 0
 			alpha = 255
+
+	ex_act(severity)
+		return
 
 
 /proc/fancy_pressure_bar(var/pressure, var/max_pressure, var/width = 300)
@@ -466,7 +474,7 @@
 	var/bar_bg_color = "#000000"
 	var/bar_color = "#00cc00"
 	var/bar_width = clamp(pct, 0, 1)
-	if (pct > 1)
+	if (pct > 1.01)
 		bar_width = clamp((pressure / (max_pressure * 10)), 0, 1)
 		bar_bg_color = "#b00000"
 		bar_color = "#ffff00"
@@ -546,6 +554,8 @@
 	layer = TURF_LAYER + 0.1 // it should basically be part of a turf
 	plane = PLANE_FLOOR // hence, they should be on the same plane!
 
+	ex_act(severity)
+		return
 
 
 /area/football
@@ -598,9 +608,12 @@
 	name = "join"
 	icon = 'icons/effects/mapeditor.dmi'
 	icon_state = "landmark"
+	deleted_on_start = TRUE
+	add_to_landmarks = FALSE
+
 	New()
 		football_spawns[src.name] += src.loc
-		qdel(src)
+		..()
 
 	blue
 		name = "blue"
@@ -656,11 +669,12 @@
 
 
 	New()
-		SubscribeToProcess()
+		..()
 		src.process()
 
 	disposing()
 		UnsubscribeProcess()
+		..()
 
 	process()
 		if (src.last_count != runtime_count)
@@ -674,3 +688,394 @@
 
 	ex_act()
 		return
+
+
+/obj/machinery/fix_this_shit/delete_this_shit
+	name = "\proper qdel()"
+	desc = "please stop looking at my dangling references"
+	icon = 'icons/effects/effects.dmi'
+	icon_state = "onfire"
+
+	process()
+		if (src.last_count != harddel_count)
+			src.last_count = harddel_count
+			animate_storage_rustle(src)
+			playsound(src, "sound/mksounds/gotitem.ogg",33, 0)
+			src.maptext = "<span class='ps2p sh vb c'><span style='font-size: 12px;'>[harddel_count]</span>\nharddels</span>"
+			src.maptext_x = -100
+			src.maptext_width = 232
+			src.maptext_y = 34
+
+
+/obj/machinery/maptext_monitor
+	name = "maptext monitor doodad"
+	desc = "This thing reports the value something else has, automatically! Wow!"
+	icon = null
+	anchored = 2
+	density = 0
+
+	var/datum/monitored = null
+	var/monitored_var = null
+	var/monitored_list = null
+	var/monitored_ref = null
+	var/last_value = null
+	var/display_mode = null
+	var/maptext_prefix = "<span class='c pixel sh'>Value:\n<span class='vga'>"
+	var/maptext_suffix = "</span></span>"
+	var/ding_on_change = 0
+	var/ding_sound = "sound/machines/ping.ogg"
+	var/update_delay = 0
+	var/require_var_or_list = 1
+
+	New()
+		..()
+		src.maptext_x = -100
+		src.maptext_width = 232
+		src.maptext_height = 64
+		src.process()
+
+	disposing()
+		UnsubscribeProcess()
+		..()
+
+	process()
+		src.update_monitor()
+		if (src.update_delay)
+			UnsubscribeProcess()
+			SPAWN_DBG(0)
+				while (src.update_delay)
+					src.update_monitor()
+					sleep(update_delay)
+
+				SubscribeToProcess()
+
+	/**
+	* Checks if a monitored thing still exists
+	*
+	* Returns 0 if monitoring should stop,
+	* 1 if monitoring is okay
+	*/
+	proc/validate_monitored()
+		if (src.monitored_ref)
+			var/datum/thing = locate(src.monitored_ref)
+			if (thing)
+				src.monitored = thing
+			src.monitored_ref = null
+
+		if (monitored)
+			if (monitored.pooled || monitored.qdeled)
+				// The thing we were watching was deleted/removed! Welp.
+				monitored = null
+				return 0
+
+			if (src.require_var_or_list && !src.monitored_list && !src.monitored_var)
+				return 0
+			return 1
+
+		return 0
+
+	/**
+	* Updates the maptext monitor
+	*/
+	proc/update_monitor()
+		if (!src.validate_monitored())
+			return
+
+		try
+			var/current_value = src.get_value()
+
+			if (current_value != last_value)
+				src.maptext = "[maptext_prefix][format_value(current_value)][maptext_suffix]"
+				src.last_value = current_value
+				if (src.ding_on_change)
+					playsound(src, src.ding_sound, 33, 0)
+		catch(var/exception/e)
+			src.maptext = "(Err: [e])"
+
+
+	proc/get_value()
+		if (src.monitored_list && !src.monitored_var)
+			var/list/monlist = monitored.vars[src.monitored_list]
+			. = monlist.len
+		else if (src.monitored_list)
+			. = monitored.vars[src.monitored_list][src.monitored_var]
+		else
+			. = monitored.vars[monitored_var]
+
+
+	proc/format_value(var/val)
+		switch (src.display_mode)
+			if ("power")
+				return engineering_notation(val)
+			if ("percent")
+				return (val * 100)
+			if ("temperature")
+				return "[val - T0C]&deg;C"
+			if ("round")
+				return round(val)
+
+		return val
+
+
+	ex_act()
+		return
+
+
+	location
+		require_var_or_list = 0
+		maptext_prefix = "<span class='c pixel sh'><span class='vga'>"
+		maptext_suffix = "</span>"
+
+		get_value()
+			var/turf/where = get_turf(monitored)
+			if (!where)
+				. = "Unknown</span>\n(?, ?, ?)"
+			else
+				. = "[where.loc]</span>\n([where.x], [where.y], [where.z])"
+
+
+	stats
+		monitored_list = "stats"
+		ding_on_change = 1
+
+		New()
+			src.monitored = game_stats
+			..()
+
+		farts
+			monitored_var = "farts"
+			maptext_prefix = "<span class='c pixel sh'>Farts:\n<span class='vga'>"
+			update_delay = 1 SECOND
+
+		deaths
+			monitored_var = "deaths"
+			maptext_prefix = "<span class='c pixel sh'>Deaths:\n<span class='vga'>"
+			ding_sound = "sound/misc/lose.ogg"
+
+		adminhelps
+			monitored_var = "adminhelps"
+			maptext_prefix = "<span class='c pixel sh'>Adminhelps:\n<span class='vga'>"
+			ding_sound = "sound/voice/screams/mascream6.ogg"
+
+	budget
+		New()
+			src.monitored = wagesystem
+			..()
+
+		display_mode = "round"
+		monitored_var = "station_budget"
+		maptext_prefix = "<span class='c pixel sh'>Station Budget:\n<span class='vga'>$"
+
+		station
+			// the default, but explicit...
+		shipping
+			monitored_var = "shipping_budget"
+			maptext_prefix = "<span class='c pixel sh'>Shipping Budget:\n<span class='vga'>$"
+		research
+			monitored_var = "research_budget"
+			maptext_prefix = "<span class='c pixel sh'>Research Budget:\n<span class='vga'>$"
+
+
+	clients
+		maptext_prefix = "<span class='c pixel sh'>Players:\n<span class='vga'>"
+		validate_monitored()
+			return 1
+		get_value()
+			. = total_clients()
+
+	load
+		maptext_prefix = "<span class='c pixel sh'>Server Load:\n<span class='vga'>"
+		update_delay = 1 SECOND
+
+		validate_monitored()
+			return 1
+		get_value()
+			var/lagc = "#ffffff"
+			switch (world.tick_lag)
+				if (0 to 0.4)
+					lagc = "#00ff00"
+				if (0.4 to 0.6)
+					lagc = "#ffff00"
+				if (0.6 to 0.8)
+					lagc = "#ff8800"
+				if (0.8 to INFINITY)
+					lagc = "#ff0000; -dm-text-outline: 1px #000000 solid"
+
+			. = "<span style='color: [lagc];'>[world.cpu]% @ [world.tick_lag]s</span>"
+
+
+/obj/overlay/zamujasa/football_wave_timer
+	name = "football wave countdown"
+
+	New()
+		..()
+		src.maptext_x = -100
+		src.maptext_height = 64
+		src.maptext_width = 232
+		src.plane = 100
+		src.anchored = 2
+		src.mouse_opacity = 1
+
+	proc/update_timer(var/num)
+		if (num == -1)
+			src.maptext = ""
+		else
+			src.maptext = {"<span class='c pixel sh'>Next spawn wave in\n<span class='vga'>[round(num)]</span> seconds</span>"}
+
+
+
+/obj/overlay/zamujasa/help_text
+	name = "new player tutorial maptext"
+
+	New()
+		..()
+		src.maptext_x = -100
+		src.maptext_height = 64
+		src.maptext_width = 232
+		src.plane = 100
+		src.anchored = 2
+		src.mouse_opacity = 1
+		src.maptext = {"<div class='c pixel sh' style="background: #00000080;"><strong>-- Welcome to Goonstation! --</strong>
+New? <a href="https://mini.xkeeper.net/ss13/tutorial/" style="color: #8888ff; font-weight: bold;" clss="ol">Click here for a tutorial!</a>
+Ask mentors for help with <strong>F3</strong>
+Contact admins with <strong>F1</strong>
+Read the rules, don't grief, and have fun!</div>"}
+
+
+/obj/overlay/zamujasa/round_start_countdown
+	New()
+		..()
+		if (lobby_titlecard)
+			src.x = lobby_titlecard.x + 13
+			src.y = lobby_titlecard.y + 0
+			src.z = lobby_titlecard.z
+			src.layer = lobby_titlecard.layer + 1
+		else
+			// oops
+			src.x = 7
+			src.y = 2
+			src.z = 1
+			src.layer = 1
+
+		src.maptext = ""
+		src.maptext_width = 320
+		src.maptext_x = -(320 / 2) + 16
+		src.maptext_height = 48
+		src.plane = 100
+
+
+	proc/update_status(var/message)
+		if (message)
+			src.maptext = "<span class='c ol vga vt'>Setting up game...\n<span style='color: #aaaaaa;'>[message]</span></span>"
+		else
+			src.maptext = ""
+
+	timer
+		New()
+			..()
+			if (lobby_titlecard)
+				src.x = lobby_titlecard.x + 13
+				src.y = lobby_titlecard.y + 1
+				src.z = lobby_titlecard.z
+				src.layer = lobby_titlecard.layer + 1
+			else
+				// oops
+				src.x = 7
+				src.y = 1
+				src.z = 1
+				src.layer = 1
+
+			src.maptext = ""
+			src.maptext_width = 320
+			src.maptext_x = -(320 / 2) + 16
+			src.maptext_height = 96
+			src.plane = 100
+
+		proc/update_time(var/time)
+			if (time >= 0)
+				var/timeLeftColor
+				switch (time)
+					if (90 to INFINITY)
+						timeLeftColor = "#33dd33"
+					if (60 to 90)
+						timeLeftColor = "#ffff00"
+					if (30 to 60)
+						timeLeftColor = "#ffb400"
+					if (0 to 30)
+						timeLeftColor = "#ff6666"
+				src.maptext = "<span class='c ol vga vt'>Round begins in<br><span style='color: [timeLeftColor]; font-size: 36px;'>[time]</span></span>"
+			else
+				src.maptext = "<span class='c ol vga vt'>Round begins<br><span style='color: #aaaaaa; font-size: 36px;'>soon</span></span>"
+
+
+
+
+/obj/overlay/inventory_counter
+	name = "inventory amount counter"
+	invisibility = 101
+	plane = PLANE_HUD
+	layer = HUD_LAYER_3
+	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM | PIXEL_SCALE
+	var/static/matrix/infinity_matrix = matrix().Turn(90).Translate(18, 1)
+
+	New()
+		..()
+		maptext_width = 64
+		maptext_x = -34
+		maptext_y = 1
+		mouse_opacity = 0
+		maptext = ""
+
+	proc/update_text(var/text)
+		maptext = {"<span class="vb r pixel sh">[text]</span>"}
+		if(src.transform) src.transform = null
+
+	proc/update_number(var/number)
+		if(number == -1)
+			maptext = {"<span class="vb r pixel sh" style="font-size:1.5em;">8</span>"} // pixel font has more symmetric 8, ok?
+			src.transform = infinity_matrix
+			return
+		maptext = {"<span class="vb r xfont sh"[number == 0 ? " style='color: #ff6666;'" : number == -1 ? " style='-ms-transform: rotate(-90deg);'" : ""]>[number == -1 ? "8" : number >= 100000 ? "[round(number / 1000)]K" : round(number)]</span>"}
+		if(src.transform) src.transform = null
+
+	proc/update_percent(var/current, var/maximum)
+		if (!maximum)
+			// no dividing by zero
+			src.update_number(current)
+			return
+		maptext = {"<span class="vb r xfont sh"[current == 0 ? " style='color: #ff6666;'" : ""]>[round(current / maximum * 100)]%</span>"}
+		if(src.transform) src.transform = null
+
+	proc/hide_count()
+		invisibility = 101
+
+	proc/show_count()
+		invisibility = 0
+
+	pooled()
+		src.maptext = ""
+		src.invisibility = 101
+		..()
+
+
+
+/mob/living/critter/small_animal/bee/zombee/zambee
+	name = "zambee"
+	real_name = "zambee"
+	desc = "Genetically engineered for passiveness and bred for badminning, the greater domestic zambee is increasingly unpopular among grayshirts and griefers."
+	limb_path = /datum/limb/small_critter/bee/strong
+	add_abilities = list(/datum/targetable/critter/bite/bee,
+						 /datum/targetable/critter/bee_sting/zambee,
+						 /datum/targetable/critter/bee_swallow,
+						 /datum/targetable/critter/bee_teleport)
+
+	setup_equipment_slots()
+		equipment += new /datum/equipmentHolder/ears(src)
+		equipment += new /datum/equipmentHolder/head/bee(src)
+
+
+/datum/targetable/critter/bee_sting/zambee
+	venom1 = "saline"
+	amt1 = 15
+	venom2 = "omnizine"
+	amt2 = 5

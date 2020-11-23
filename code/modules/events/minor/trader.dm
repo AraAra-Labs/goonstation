@@ -11,7 +11,6 @@
 		..()
 		if(active == 1)
 			return //This is to prevent admins from fucking up the shuttle arrival/departures by spamming this event.
-		event = 1
 		active = 1
 		map_turf = map_settings.shuttle_map_turf
 #ifdef UNDERWATER_MAP // bodge fix for oshan
@@ -73,13 +72,12 @@
 		sleep(30 SECONDS)
 
 		// hey you, get out of my shuttle! I ain't taking you back to centcom!
-		var/area/teleport_to_location = locate(/area/station/crew_quarters/bar)
 		for(var/turf/T in dstturfs)
 			for(var/mob/AM in T)
 				if(isobserver(AM))
 					continue
 				showswirl(AM)
-				AM.set_loc(pick(get_area_turfs(teleport_to_location, 1)))
+				AM.set_loc(pick_landmark(LANDMARK_LATEJOIN, locate(150, 150, 1)))
 				showswirl(AM)
 			for (var/obj/O in T)
 				get_hiding_jerk(O)
@@ -101,5 +99,5 @@
 		if(AM.contents.len) get_hiding_jerk(AM)
 		if(ismob(AM))
 			var/mob/M = AM
-			boutput(AM, "<span style=\"color:red\"><b>Your body is destroyed as the merchant shuttle passes [pick("an eldritch decomposure field", "a life negation ward", "a telekinetic assimilation plant", "a swarm of matter devouring nanomachines", "an angry Greek god", "a burnt-out coder", "a death ray fired millenia ago from a galaxy far, far away")].</b></span>")
+			boutput(AM, "<span class='alert'><b>Your body is destroyed as the merchant shuttle passes [pick("an eldritch decomposure field", "a life negation ward", "a telekinetic assimilation plant", "a swarm of matter devouring nanomachines", "an angry Greek god", "a burnt-out coder", "a death ray fired millenia ago from a galaxy far, far away")].</b></span>")
 			M.gib()

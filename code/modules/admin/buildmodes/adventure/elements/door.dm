@@ -8,7 +8,7 @@
 		door_type = input("Door type", "Door type", "normal") in list("normal", "glass", "ancient", "shuttle", "wall", "runes")
 		color_rgb = input("Color", "Color", "#ffffff") as color
 		door_name = input("Door name", "Door name", "[door_type] door") as text
-		boutput(usr, "<span style=\"color:blue\">Left click to place doors, right click doors to toggle state. Ctrl+click anywhere to finish.</span>")
+		boutput(usr, "<span class='notice'>Left click to place doors, right click doors to toggle state. Ctrl+click anywhere to finish.</span>")
 
 	build_click(var/mob/user, var/datum/buildmode_holder/holder, var/list/pa, var/atom/object)
 		if (pa.Find("left"))
@@ -20,7 +20,7 @@
 				var/obj/adventurepuzzle/triggerable/door/door = new /obj/adventurepuzzle/triggerable/door(T)
 				door.name = door_name
 				door.icon_state = "door_[door_type]_closed"
-				door.dir = holder.dir
+				door.set_dir(holder.dir)
 				door.door_type = door_type
 				if (door_type == "glass" || door_type == "runes")
 					door.RL_SetOpacity(0)
@@ -115,7 +115,7 @@
 
 	attack_hand(mob/user as mob)
 		if (src.density)
-			usr.show_message("<span style=\"color:red\">[src] won't open. Perhaps you need a key?</span>")
+			usr.show_message("<span class='alert'>[src] won't open. Perhaps you need a key?</span>")
 		flick("door_[door_type]_deny", src)
 
 	serialize(var/savefile/F, var/path, var/datum/sandbox/sandbox)

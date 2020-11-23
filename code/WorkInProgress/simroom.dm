@@ -70,7 +70,7 @@
 			user.Browse(null, "window=mm")
 			return
 
-	user.machine = src
+	src.add_dialog(user)
 	var/dat = "<HEAD><TITLE>V-space Computer</TITLE><META HTTP-EQUIV='Refresh' CONTENT='10'></HEAD><BODY><br>"
 	dat += "<A HREF='?action=mach_close&window=mm'>Close</A><br><br>"
 
@@ -111,7 +111,7 @@
 	if(..())
 		return
 	if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))) || (issilicon(usr)))
-		usr.machine = src
+		src.add_dialog(usr)
 		if (href_list["setup"])
 			if(active)
 				boutput(usr, "System already set up.")
@@ -145,9 +145,9 @@
 	if (M.buckled)	return
 
 	if (M == usr)
-		user.visible_message("<span style=\"color:blue\">[user] buckles in!</span>")
+		user.visible_message("<span class='notice'>[user] buckles in!</span>")
 	else
-		M.visible_message("<span style=\"color:blue\">[M] is buckled in by [user]!</span>")
+		M.visible_message("<span class='notice'>[M] is buckled in by [user]!</span>")
 
 	M.anchored = 1
 	M.buckled = src
@@ -163,9 +163,9 @@
 	if (src.con_user)
 		var/mob/living/M = src.con_user
 		if (M != user)
-			M.visible_message("<span style=\"color:blue\">[M] is unbuckled by [user].</span>")
+			M.visible_message("<span class='notice'>[M] is unbuckled by [user].</span>")
 		else
-			M.visible_message("<span style=\"color:blue\">[M] is unbuckles.</span>")
+			M.visible_message("<span class='notice'>[M] is unbuckles.</span>")
 
 		M.anchored = 0
 		M.buckled = null
@@ -202,6 +202,11 @@
 	..()
 	src.update_icon()
 
+/obj/machinery/sim/vr_bed/disposing()
+	go_out()
+	. = ..()
+
+
 /obj/machinery/sim/vr_bed/proc/update_icon()
 	ENSURE_IMAGE(src.image_lid, src.icon, "lid[!isnull(occupant)]")
 	src.UpdateOverlays(src.image_lid, "lid")
@@ -212,12 +217,12 @@
 		if (!ismob(G.affecting))
 			return
 		if (src.occupant)
-			boutput(user, "<span style=\"color:blue\"><B>The VR pod is already occupied!</B></span>")
+			boutput(user, "<span class='notice'><B>The VR pod is already occupied!</B></span>")
 			return
 		if(..())
 			return
 		var/dat = "<HTML><BODY><TT><B>VR pod timer</B>"
-		user.machine = src
+		src.add_dialog(user)
 		var/d2
 		if (src.timing)
 			d2 = text("<A href='?src=\ref[];time=0'>Stop Timed</A><br>", src)
@@ -240,11 +245,11 @@
 	if (src.occupant && !isobserver(M))
 		if(M == src.occupant)
 			return src.go_out()
-		boutput(M, "<span style=\"color:blue\"><B>The VR pod is already occupied!</B></span>")
+		boutput(M, "<span class='notice'><B>The VR pod is already occupied!</B></span>")
 		return
 
 	if (!iscarbon(M) && !isobserver(M))
-		boutput(M, "<span style=\"color:blue\"><B>You cannot possibly fit into that!</B></span>")
+		boutput(M, "<span class='notice'><B>You cannot possibly fit into that!</B></span>")
 		return
 
 	if (!isobserver(M))
@@ -314,7 +319,7 @@
 	if(..())
 		return
 	var/dat = "<HTML><BODY><TT><B>VR pod timer</B>"
-	user.machine = src
+	src.add_dialog(user)
 	var/d2
 	if (src.timing)
 		d2 = text("<A href='?src=\ref[];time=0'>Stop Timed</A><br>", src)
@@ -333,9 +338,9 @@
 	if (!src.occupant)
 		return
 	for(var/obj/O in src)
-		O.set_loc(src.loc)
+		O.set_loc(get_turf(src.loc))
 //	src.verbs -= /mob/proc/jack_in
-	src.occupant.set_loc(src.loc)
+	src.occupant.set_loc(get_turf(src.loc))
 	src.occupant.changeStatus("weakened", 2 SECONDS)
 	src.occupant.network_device = null
 	src.occupant = null
@@ -356,7 +361,6 @@
 			src.time = 0
 			src.timing = 0
 			last_tick = 0
-		src.updateDialog()
 		last_tick = world.time
 	else
 		last_tick = 0
@@ -377,7 +381,7 @@
 	if(..())
 		return
 	if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))) || (issilicon(usr)))
-		usr.machine = src
+		src.add_dialog(usr)
 		if (href_list["time"])
 			if(src.allowed(usr))
 				src.timing = text2num(href_list["time"])
@@ -412,11 +416,11 @@
 /obj/machinery/sim/programcomp/proc/interacted(mob/user)
 	if ( (get_dist(src, user) > 1 ) || (status & (BROKEN|NOPOWER)) )
 		if (!issilicon(user))
-			user.machine = null
+			src.remove_dialog(user)
 			user.Browse(null, "window=mm")
 			return
 
-	user.machine = src
+	src.add_dialog(user)
 	var/dat = "<HEAD><TITLE>V-space Computer</TITLE><META HTTP-EQUIV='Refresh' CONTENT='10'></HEAD><BODY><br>"
 	dat += "<A HREF='?action=mach_close&window=mm'>Close</A><br><br>"
 
@@ -446,7 +450,7 @@
 	if(..())
 		return
 	if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))) || (issilicon(usr)))
-		usr.machine = src
+		src.add_dialog(usr)
 		switch(href_list["set"])
 			if("grass")
 				Setup_Vspace("grass",network)
@@ -462,7 +466,7 @@
 			var/mob/living/carbon/human/virtual/V = usr
 
 			if(src.network == "prison")
-				boutput(V, "<span style=\"color:red\">Leaving this network from the inside has been disabled!</span>")
+				boutput(V, "<span class='alert'>Leaving this network from the inside has been disabled!</span>")
 				return
 			Station_VNet.Leave_Vspace(V)
 
@@ -500,17 +504,11 @@
 /obj/machinery/sim/programcomp/proc/Run_Program(var/program = "zombies", var/vspace = 0)
 	if(vspace == 0)	return
 
-	for (var/obj/landmark/A in landmarks)//world)
-		LAGCHECK(LAG_LOW)
-		if (A.name == "[network]_critter_spawn")//ex (area1_critter_spawn)
-			switch(program)
-				if("zombies")
-					new/obj/critter/zombie(A.loc)
-
-//				if("aliens")
-//					new/obj/critter/zombie(A.loc)
-
-				else
-					break
+	for(var/turf/T in landmarks["[network]_critter_spawn"])
+		switch(program)
+			if("zombies")
+				new/obj/critter/zombie(T)
+			else
+				break
 
 	return

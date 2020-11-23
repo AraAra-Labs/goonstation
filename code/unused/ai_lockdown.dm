@@ -10,9 +10,9 @@ This shit isn't good for anything and lags like fuck. Commented it out for now.
 		boutput(usr, "You cannot initiate lockdown because you are dead!")
 		return
 
-	boutput(world, "<span style=\"color:red\">Lockdown initiated by [usr.name]!</span>")
+	boutput(world, "<span class='alert'>Lockdown initiated by [usr.name]!</span>")
 
-	for(var/obj/machinery/firealarm/FA in machine_registry[MACHINES_FIREALARMS]) //activate firealarms
+	for(var/obj/machinery/firealarm/FA as() in machine_registry[MACHINES_FIREALARMS]) //activate firealarms
 		SPAWN_DBG( 0 )
 			if(FA.lockdownbyai == 0)
 				FA.lockdownbyai = 1
@@ -29,7 +29,7 @@ This shit isn't good for anything and lags like fuck. Commented it out for now.
 
 /*	src.verbs -= /mob/living/silicon/ai/proc/lockdown
 	src.verbs += /mob/living/silicon/ai/proc/disablelockdown
-	boutput(usr, "<span style=\"color:red\">Disable lockdown command enabled!</span>")
+	boutput(usr, "<span class='alert'>Disable lockdown command enabled!</span>")
 	winshow(usr,"rpane",1)
 */
 
@@ -41,9 +41,9 @@ This shit isn't good for anything and lags like fuck. Commented it out for now.
 		boutput(usr, "You cannot disable lockdown because you are dead!")
 		return
 
-	boutput(world, "<span style=\"color:red\">Lockdown cancelled by [usr.name]!</span>")
+	boutput(world, "<span class='alert'>Lockdown cancelled by [usr.name]!</span>")
 
-	for(var/obj/machinery/firealarm/FA in machine_registry[MACHINES_FIREALARMS]) //deactivate firealarms
+	for(var/obj/machinery/firealarm/FA s anything in machine_registry[MACHINES_FIREALARMS]) //deactivate firealarms
 		SPAWN_DBG( 0 )
 			if(FA.lockdownbyai == 1)
 				FA.lockdownbyai = 0
@@ -56,6 +56,6 @@ This shit isn't good for anything and lags like fuck. Commented it out for now.
 
 	src.verbs -= /mob/living/silicon/ai/proc/disablelockdown
 	src.verbs += /mob/living/silicon/ai/proc/lockdown
-	boutput(usr, "<span style=\"color:red\">Disable lockdown command removed until lockdown initiated again!</span>")
+	boutput(usr, "<span class='alert'>Disable lockdown command removed until lockdown initiated again!</span>")
 	winshow(usr,"rpane",1)
 */

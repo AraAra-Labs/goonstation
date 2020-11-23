@@ -95,12 +95,12 @@
 	/obj/item/device/radio/headset/civilian,\
 	/obj/item/device/pda2/chef)
 
-/obj/item/storage/box/clothing/barman
-	name = "\improper Barman's equipment"
+/obj/item/storage/box/clothing/bartender
+	name = "\improper Bartender's equipment"
 	spawn_contents = list(/obj/item/clothing/under/rank/bartender,\
 	/obj/item/clothing/shoes/black,\
 	/obj/item/device/radio/headset/civilian,\
-	/obj/item/device/pda2/barman)
+	/obj/item/device/pda2/bartender)
 
 /obj/item/storage/box/clothing/waiter
 	name = "\improper Waiter's equipment"
@@ -108,7 +108,7 @@
 	/obj/item/clothing/shoes/black,\
 	/obj/item/clothing/suit/wcoat,\
 	/obj/item/device/radio/headset/civilian,\
-	/obj/item/device/pda2/barman)
+	/obj/item/device/pda2/bartender)
 
 /obj/item/storage/box/clothing/chaplain
 	name = "\improper Chaplain's equipment"
@@ -218,6 +218,13 @@
 	/obj/item/clothing/under/rank/bartender/tuxedo,
 	/obj/item/clothing/shoes/dress_shoes)
 
+/obj/item/storage/box/clothing/witchfinder
+	name = "\improper Witchfinder's equipment"
+	spawn_contents = list(/obj/item/clothing/under/gimmick/witchfinder,\
+	/obj/item/clothing/suit/witchfinder,\
+	/obj/item/clothing/head/witchfinder,\
+	/obj/item/clothing/shoes/witchfinder)
+
 /* ============================== */
 /* ---------- Costumes ---------- */
 /* ============================== */
@@ -235,6 +242,18 @@
 	/obj/item/storage/fanny/funny,
 	/obj/item/card/id/clown,
 	/obj/item/device/pda2/clown)
+
+/obj/item/storage/box/costume/clown/recycled
+	name = "recycled clown costume"
+	desc = "A box that contains a clown costume. One clumsy former owner."
+	spawn_contents = list(
+		/obj/item/clothing/mask/clown_hat,
+		/obj/item/clothing/under/misc/clown,
+		/obj/item/clothing/shoes/clown_shoes,
+		/obj/item/storage/fanny/funny/mini,
+		/obj/item/card/id/clown,
+		/obj/item/device/pda2/clown,
+	)
 
 /obj/item/storage/box/costume/robuddy
 	name = "guardbuddy costume"

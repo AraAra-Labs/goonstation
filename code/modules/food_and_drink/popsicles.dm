@@ -8,8 +8,8 @@
 	throw_speed = 4
 	throw_range = 5
 	w_class = 1.0
-	stamina_damage = 1
-	stamina_cost = 1
+	stamina_damage = 0
+	stamina_cost = 0
 	var/broken = 0
 
 	attack_self(mob/user)
@@ -32,7 +32,7 @@
 
 	attack_self(var/mob/user)
 		if (user.find_in_hand(src))
-			boutput(user,"<span style=\"color:blue\"><b>You unwrap [src].</b></span>")
+			boutput(user,"<span class='notice'><b>You unwrap [src].</b></span>")
 			var/obj/item/reagent_containers/food/snacks/popsicle/P = new /obj/item/reagent_containers/food/snacks/popsicle(src.loc)
 			user.put_in_hand_or_drop(P)
 			if(prob(8))
@@ -117,7 +117,7 @@
 		return
 
 	proc/melt(var/mob/user)
-		boutput(user,"<span style=\"color:blue\"><b>[src] has already melted! Damn!</b></span>")
+		boutput(user,"<span class='notice'><b>[src] has already melted! Damn!</b></span>")
 		src.reagents.reaction(get_turf(src))
 		user.u_equip(src)
 		src.set_loc(get_turf(user))

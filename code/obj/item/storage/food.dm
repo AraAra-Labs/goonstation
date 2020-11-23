@@ -131,7 +131,7 @@
 		else
 			new /obj/item/reagent_containers/food/snacks/ingredient/cheese(src)
 
-		shuffle(src.contents)
+		shuffle_list(src.contents)
 
 /obj/item/storage/goodybag
 	name = "goodybag"

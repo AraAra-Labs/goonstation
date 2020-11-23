@@ -3,7 +3,7 @@
 	desc = "Enables vestigal non-mammal traits in the subject's body."
 	id = "lizard"
 	mutantrace_option = "Lizard"
-	effectType = effectTypeMutantRace
+	effectType = EFFECT_TYPE_MUTANTRACE
 	probability = 33
 	msgGain = "Your skin feels oddly dry."
 	msgLose = "Your scales fall off."
@@ -25,7 +25,8 @@
 				// clear away any existing mutantraces first
 				if (istype(H.bioHolder.GetEffect(ID), /datum/bioEffect/mutantrace) && ID != src.id)
 					H.bioHolder.RemoveEffect(ID)
-			H.set_mutantrace(src.mutantrace_path)
+			if (!istype(H.mutantrace, src.mutantrace_path))
+				H.set_mutantrace(src.mutantrace_path)
 		return
 
 	OnRemove()
@@ -53,16 +54,6 @@
 	msgGain = "Your skin begins flashing!"
 	msgLose = "Your flashy glow fades away."
 	icon_state  = "flashy"
-
-/datum/bioEffect/mutantrace/blank
-	name = "Melanin Eraser"
-	desc = "Shuts down all melanin production in subject's body, and eradicates all existing melanin."
-	id = "blankman"
-	mutantrace_option = "Blank"
-	mutantrace_path = /datum/mutantrace/blank
-	msgGain = "You feel oddly plain."
-	msgLose = "You don't feel boring anymore."
-	icon_state  = "blank"
 
 /datum/bioEffect/mutantrace/skeleton
 	name = "Ossification"
@@ -116,7 +107,7 @@
 	id = "monkey"
 	mutantrace_option = "Monkey"
 	mutantrace_path = /datum/mutantrace/monkey
-	research_level = 3
+	research_level = EFFECT_RESEARCH_ACTIVATED
 	msgGain = "You go bananas!"
 	msgLose = "You do the evolution."
 	icon_state  = "monkey"

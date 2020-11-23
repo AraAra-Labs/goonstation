@@ -14,19 +14,28 @@ var/list/datum/bioEffect/mutini_effects = list()
 	M.bioHolder.AddEffect(id)
 	return
 
+/// Holds all the appearance information.
 /datum/appearanceHolder
-	//Holds all the appearance information.
+
+	//_carry holds our "actual" color, in case it changes and we want the old one back
+	var/mob_color_flags = (HAS_HAIR_COLORED_HAIR)
+
+	var/customization_first_color_carry = "#101010" //Holds someone's original colors if they need to be changed temporarily
 	var/customization_first_color = "#101010"
 	var/customization_first = "Trimmed"
 
+	var/customization_second_color_carry = "#101010" // This way, they can return to their orignal colors
 	var/customization_second_color = "#101010"
 	var/customization_second = "None"
 
+	var/customization_third_color_carry = "#101010"
 	var/customization_third_color = "#101010"
 	var/customization_third = "None"
 
 	var/e_color = "#101010"
+	var/e_color_carry = "#101010"
 
+	var/s_tone_carry = "#FFCC99"
 	var/s_tone = "#FFCC99"
 	// Standard tone reference:
 	// FAD7D0 - Albino
@@ -45,7 +54,9 @@ var/list/datum/bioEffect/mutini_effects = list()
 	var/u_color = "#FFFFFF"
 
 	var/mob/owner = null
-	var/mob/parentHolder = null
+	var/datum/bioHolder/parentHolder = null
+
+	var/datum/mutantrace/mutant_race = null
 
 	var/gender = MALE
 	var/pronouns = 0		//1 if using neutral pronouns (they/their);  0 if using gendered pronouns matching their gender var
@@ -81,24 +92,31 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 	proc/CopyOther(var/datum/appearanceHolder/toCopy)
 		//Copies settings of another given holder. Used for the bioholder copy proc and such things.
+		customization_first_color_carry = toCopy.customization_first_color_carry
 		customization_first_color = toCopy.customization_first_color
 		customization_first = toCopy.customization_first
 
+		customization_second_color_carry = toCopy.customization_second_color_carry
 		customization_second_color = toCopy.customization_second_color
 		customization_second = toCopy.customization_second
 
+		customization_third_color_carry = toCopy.customization_third_color_carry
 		customization_third_color = toCopy.customization_third_color
 		customization_third = toCopy.customization_third
+
+		mob_color_flags = toCopy.mob_color_flags
 
 		e_color = toCopy.e_color
 
 		s_tone = toCopy.s_tone
+		s_tone_carry = toCopy.s_tone_carry
 
 		underwear = toCopy.underwear
 		u_color = toCopy.u_color
 
 		gender = toCopy.gender
 		pronouns = toCopy.pronouns
+		mutant_race = toCopy.mutant_race
 
 		screamsound = toCopy.screamsound
 		fartsound = toCopy.fartsound
@@ -106,6 +124,14 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 		flavor_text = toCopy.flavor_text
 		return src
+
+	disposing()
+		owner = null
+		if(src.parentHolder)
+			if(src.parentHolder.mobAppearance == src)
+				src.parentHolder.mobAppearance = null
+			src.parentHolder = null
+		..()
 
 	// Disabling this for now as I have no idea how to fit it into hex strings
 	// I'm help -Spy
@@ -132,6 +158,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if (progress > 7 || prob(progress * 10))
 			gender = toCopy.gender
 			pronouns = toCopy.pronouns
+			mutant_race = toCopy.mutant_race
 
 		if(progress >= 10) //Finalize the copying here, with anything we may have missed.
 			src.CopyOther(toCopy)
@@ -152,7 +179,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 			targetColor = hex2num(targetColor)
 
 			//Do the math and add to the output
-			. += num2hex(color + ((targetColor - color) / adjust_denominator))
+			. += num2hex(color + ((targetColor - color) / adjust_denominator), 0)
 
 	proc/UpdateMob() //Rebuild the appearance of the mob from the settings in this holder.
 		if (ishuman(owner))
@@ -199,38 +226,44 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 
 	var/Uid = "not initialized" //Unique id for the mob. Used for fingerprints and whatnot.
+	var/uid_hash
 
 	New(var/mob/owneri)
 		owner = owneri
 		Uid = CreateUid()
-		bioUids.Add(Uid)
-		bioUids[Uid] = owner
+		uid_hash = md5(Uid)
+		bioUids[Uid] = null
 		mobAppearance = new/datum/appearanceHolder()
 
 		mobAppearance.owner = owner
 		mobAppearance.parentHolder = src
 
-		if(owner)
-			reg_dna[Uid] = owner:real_name
-			ownerName = owner:real_name
+		SPAWN_DBG(2 SECONDS) // fuck this shit
+			if(owner)
+				ownerName = owner.real_name
+				bioUids[Uid] = owner?.real_name ? owner.real_name : owner?.name
 
 		BuildEffectPool()
 		return ..()
 
 	disposing()
-		src.RemoveAllEffects()
-		src.RemoveAllPoolEffects()
-
 		for(var/D in effects)
 			var/datum/bioEffect/BE = effects[D]
-			BE.disposing()
-			BE.owner = null
+			qdel(BE)
+			BE?.owner = null
 		for(var/D in effectPool)
 			var/datum/bioEffect/BE = effectPool[D]
-			BE.disposing()
-			BE.owner = null
+			qdel(BE)
+			BE?.owner = null
+
+		if(src.mobAppearance)
+			src.mobAppearance.dispose()
+			src.mobAppearance = null
+
 		src.owner = null
 
+		effects.len = 0
+		effectPool.len = 0
 		effects = null
 		effectPool = null
 
@@ -238,10 +271,6 @@ var/list/datum/bioEffect/mutini_effects = list()
 			mobAppearance.owner = null
 			mobAppearance = null
 
-		..()
-
-	Del()
-		src.RemoveAllEffects()
 		..()
 
 	proc/ActivatePoolEffect(var/datum/bioEffect/E, var/overrideDNA = 0, var/grant_research = 1)
@@ -252,7 +281,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if (grant_research)
 			if (global_BE.research_level < 2)
 				genResearch.mutations_researched++
-			global_BE.research_level = max(global_BE.research_level,3)
+			global_BE.research_level = max(global_BE.research_level, EFFECT_RESEARCH_ACTIVATED)
 
 		//AddEffect(E.id)
 		//effectPool.Remove(E)
@@ -264,11 +293,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 		E.holder = src
 		E.activated_from_pool = 1
 		E.OnAdd()
-		if(lentext(E.msgGain) > 0)
+		if(length(E.msgGain) > 0)
 			if (E.isBad)
-				boutput(owner, "<span style=\"color:red\">[E.msgGain]</span>")
+				boutput(owner, "<span class='alert'>[E.msgGain]</span>")
 			else
-				boutput(owner, "<span style=\"color:blue\">[E.msgGain]</span>")
+				boutput(owner, "<span class='notice'>[E.msgGain]</span>")
 
 		mobAppearance.UpdateMob()
 		return E
@@ -326,6 +355,8 @@ var/list/datum/bioEffect/mutini_effects = list()
 		var/list/filteredBad = new/list()
 		var/list/filteredSecret = new/list()
 
+		for(var/datum/bioEffect/BE in effectPool)
+			qdel(BE)
 		effectPool.Cut()
 
 		if (!bioEffectList || !bioEffectList.len)
@@ -389,7 +420,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 			effectPool[selectedNew.id] = selectedNew
 			filteredBad.Remove(selectedS)
 
-		effectPool = shuffle(effectPool)
+		shuffle_list(effectPool)
 
 	proc/OnLife()
 		var/datum/bioEffect/BE
@@ -434,6 +465,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 			genetic_stability = toCopy.genetic_stability
 			ownerName = toCopy.ownerName
 			Uid = toCopy.Uid
+			uid_hash = md5(Uid)
 
 		if (copyPool)
 			src.RemoveAllPoolEffects()
@@ -491,7 +523,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if(istype(newEffect))
 			for(var/datum/bioEffect/curr_id in effects)
 				var/datum/bioEffect/curr = effects[curr_id]
-				if(curr && curr.type == effectTypeMutantRace && newEffect.type == effectTypeMutantRace)
+				if(curr?.type == EFFECT_TYPE_MUTANTRACE && newEffect.type == EFFECT_TYPE_MUTANTRACE)
 					//Can only have one mutant race.
 					RemoveEffect(curr.id)
 					break //Since this cleaning is always done we just ousted the only mutantrace in effects
@@ -503,19 +535,21 @@ var/list/datum/bioEffect/mutini_effects = list()
 				newEffect.stability_loss = 0
 				newEffect.can_scramble = 0
 				newEffect.can_reclaim = 0
+				newEffect.degrade_to = null
 
 			effects[newEffect.id] = newEffect
 			newEffect.owner = owner
 			newEffect.holder = src
-			newEffect.OnAdd()
+			if(owner)
+				newEffect.OnAdd()
 			if (do_stability)
 				src.genetic_stability -= newEffect.stability_loss
 				src.genetic_stability = max(0,src.genetic_stability)
-			if(owner && lentext(newEffect.msgGain) > 0)
+			if(owner && length(newEffect.msgGain) > 0)
 				if (newEffect.isBad)
-					boutput(owner, "<span style=\"color:red\">[newEffect.msgGain]</span>")
+					boutput(owner, "<span class='alert'>[newEffect.msgGain]</span>")
 				else
-					boutput(owner, "<span style=\"color:blue\">[newEffect.msgGain]</span>")
+					boutput(owner, "<span class='notice'>[newEffect.msgGain]</span>")
 			mobAppearance.UpdateMob()
 			return newEffect
 
@@ -527,6 +561,12 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 		if (do_delay && BE.add_delay > 0)
 			sleep(BE.add_delay)
+
+		src.AddEffectInstanceNoDelay(BE, do_stability)
+
+	proc/AddEffectInstanceNoDelay(var/datum/bioEffect/BE,var/do_stability = 1)
+		if (!istype(BE) || !owner || HasEffect(BE.id))
+			return null
 		effects[BE.id] = BE
 		BE.owner = owner
 		BE.holder = src
@@ -534,11 +574,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if (do_stability)
 			src.genetic_stability -= BE.stability_loss
 			src.genetic_stability = max(0,src.genetic_stability)
-		if(lentext(BE.msgGain) > 0)
+		if(length(BE.msgGain) > 0)
 			if (BE.isBad)
-				boutput(owner, "<span style=\"color:red\">[BE.msgGain]</span>")
+				boutput(owner, "<span class='alert'>[BE.msgGain]</span>")
 			else
-				boutput(owner, "<span style=\"color:blue\">[BE.msgGain]</span>")
+				boutput(owner, "<span class='notice'>[BE.msgGain]</span>")
 		mobAppearance.UpdateMob()
 		return BE
 
@@ -554,11 +594,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 				src.genetic_stability = max(0,src.genetic_stability)
 			D.activated_from_pool = 0 //Fix for bug causing infinitely exploitable stability gain / loss
 
-			if(owner && lentext(D.msgLose) > 0)
+			if(owner && length(D.msgLose) > 0)
 				if (D.isBad)
-					boutput(owner, "<span style=\"color:blue\">[D.msgLose]</span>")
+					boutput(owner, "<span class='notice'>[D.msgLose]</span>")
 				else
-					boutput(owner, "<span style=\"color:red\">[D.msgLose]</span>")
+					boutput(owner, "<span class='alert'>[D.msgLose]</span>")
 			if (mobAppearance)
 				mobAppearance.UpdateMob()
 			return effects.Remove(D.id)
@@ -570,6 +610,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 			var/datum/bioEffect/BE = effects[D]
 			if(BE && (isnull(type) || BE.effectType == type))
 				RemoveEffect(BE.id)
+				BE.owner = null
+				BE.holder = null
+				if(istype(BE, /datum/bioEffect/power))
+					var/datum/bioEffect/power/BEP = BE
+					BEP?.ability.owner = null
 				//qdel(BE)
 		return 1
 
@@ -578,6 +623,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 			var/datum/bioEffect/BE = effectPool[D]
 			if(BE && (isnull(type) || BE.effectType == type))
 				effectPool.Remove(D)
+				BE.owner = null
+				BE.holder = null
+				if(istype(BE, /datum/bioEffect/power))
+					var/datum/bioEffect/power/BEP = BE
+					BEP?.ability.owner = null
 				//qdel(BE)
 		return 1
 
@@ -628,6 +678,13 @@ var/list/datum/bioEffect/mutini_effects = list()
 				tally++
 
 		return tally >= args.len
+
+	proc/GetASubtypeEffect(type)
+		for(var/id in effects)
+			var/datum/bioEffect/BE = effects[id]
+			if(istype(BE, type))
+				return BE
+		return null
 
 	proc/GetEffect(var/id) //Returns the effect with the given ID if it exists else returns null.
 		return effects[id]

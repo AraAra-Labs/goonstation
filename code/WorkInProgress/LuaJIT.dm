@@ -305,7 +305,7 @@ lua
 		if("control_freak") src.control_freak = v
 		//if("computer_id") src.computer_id = v
 		if("default_verb_category") src.default_verb_category = v
-		if("dir") src.dir = v
+		if("dir") src.set_dir(v)
 		if("edge_limit") src.edge_limit = v
 		if("eye") src.eye = v
 		//if("gender") src.gender = v
@@ -418,12 +418,12 @@ lua
 var/global/lua/L = new
 /client/proc/RunLuaString(var/code as message)
 	set name = "Run Lua Code"
-	set category = "Debug"
+	SET_ADMIN_CAT(ADMIN_CAT_DEBUG)
 
 	admin_only
 	if( !IsSecureAuthorized() )
-		boutput( usr, "<span style='color:red'>You are not authorized to use this command.</span>" )
+		boutput( usr, "<span class='alert'>You are not authorized to use this command.</span>" )
 	try//
 		L.RunString("local me = locate(\"\ref[usr]\");local client=locate('\ref[src]');local function print(str) BYOND.CallProc('boutput', me, tostring(str)) end;local function printf(s,...)world(s:format(...))end;[code]")
 	catch(var/exception/e)
-		boutput( usr, "<span style='color:red'>Error: [e.name]</span>" )
+		boutput( usr, "<span class='alert'>Error: [e.name]</span>" )

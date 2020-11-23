@@ -1,7 +1,11 @@
 /datum/component/itemblock/backpackblock
-	signals = list(COMSIG_MOB_ATTACKED_PRE) 
+	signals = list(COMSIG_MOB_ATTACKED_PRE)
 	mobtype = /mob/living
 	proctype = .proc/loseitem
+
+/datum/component/itemblock/backpackblock/RegisterWithParent()
+	. = ..()
+	RegisterSignal(parent, COMSIG_TOOLTIP_BLOCKING_APPEND, .proc/append_to_tooltip)
 
 /datum/component/itemblock/backpackblock/proc/loseitem(var/mob/living/M, var/obj/item/weap)
 	var/obj/item/storage/S = parent
@@ -24,24 +28,23 @@
 	..()
 	updateblock()
 
-/datum/component/itemblock/backpackblock/getTooltipDesc()
-	.= ..()
-	if(showTooltip) 
+/datum/component/itemblock/backpackblock/proc/append_to_tooltip(parent, list/tooltip)
+	if(showTooltip)
 		var/obj/item/storage/I = parent
-		. += itemblock_tooltip_entry("special.png", "Blocks more damage when filled (+[round(I.get_contents().len/3)])")
-		. += itemblock_tooltip_entry("minus.png", "Contents ejected when attacked")
+		tooltip += itemblock_tooltip_entry("special.png", "Blocks more damage when filled (+[ceil(I.get_contents().len/3)])")
+		tooltip += itemblock_tooltip_entry("minus.png", "Contents ejected when attacked")
 
 /datum/component/itemblock/backpackblock/proc/updateblock()
 	var/obj/item/storage/I = parent
 	if(!istype(I)||!(I.c_flags && I.c_flags & HAS_GRAB_EQUIP))
 		return
-	var/blockplus = 1 + round(I.get_contents().len/3) //a bit of bonus protection. 1 point bonus per 3 items in the bag
+	var/blockplus = DEFAULT_BLOCK_PROTECTION_BONUS + ceil(I.get_contents().len/3) //a bit of bonus protection. 1 point bonus per 3 items in the bag
 	for (var/obj/item/grab/block/B in I.contents)
 		if(I.c_flags & BLOCK_CUT) //only increase the types we're actually blocking
-			B.setProperty("block_cut", blockplus)
+			B.setProperty("I_block_cut", blockplus)
 		if(I.c_flags & BLOCK_STAB)
-			B.setProperty("block_stab", blockplus)
+			B.setProperty("I_block_stab", blockplus)
 		if(I.c_flags & BLOCK_BURN)
-			B.setProperty("block_burn", blockplus)
+			B.setProperty("I_block_burn", blockplus)
 		if(I.c_flags & BLOCK_BLUNT)
-			B.setProperty("block_blunt", blockplus)
+			B.setProperty("I_block_blunt", blockplus)

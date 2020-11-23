@@ -149,7 +149,7 @@
 		if((target in range(0,src))&&(istype(target,/obj/item/reagent_containers/food/snacks/ectoplasm))&&(src.invisibility > 0))
 			if(src.emoting)
 				return
-			src.visible_message("<span style=\"color:blue\"><b>[src.name] rolls around in the ectoplasm, making their soul visible!</b></span>")
+			src.visible_message("<span class='notice'><b>[src.name] rolls around in the ectoplasm, making their soul visible!</b></span>")
 			if (prob(50))
 				animate_spin(src, "R", 1, 0)
 			else
@@ -158,7 +158,7 @@
 			src.invisibility = 0
 			qdel(target)
 		else
-			target.examine()
+			src.examine_verb(target)
 
 	CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 		return 1
@@ -183,7 +183,7 @@
 		if(!canmove) return
 
 		if (NewLoc && isrestrictedz(src.z) && !restricted_z_allowed(src, NewLoc) && !(src.client && src.client.holder))
-			var/OS = observer_start.len ? pick(observer_start) : locate(1, 1, 1)
+			var/OS = pick_landmark(LANDMARK_OBSERVER, locate(1, 1, 1))
 			if (OS)
 				src.set_loc(OS)
 			else
@@ -193,11 +193,11 @@
 		if (!isturf(src.loc))
 			src.set_loc(get_turf(src))
 		if (NewLoc)
-			dir = get_dir(loc, NewLoc)
+			src.set_dir(get_dir(loc, NewLoc))
 			src.set_loc(NewLoc)
 			return
 
-		dir = direct
+		src.set_dir(direct)
 		if((direct & NORTH) && src.y < world.maxy)
 			src.y++
 		if((direct & SOUTH) && src.y > 1)
@@ -272,7 +272,7 @@
 				src.emoting = 1
 				soulcache = src.icon
 				if(!src.invisibility)
-					src.visible_message("<span style=\"color:red\"><b>The ectoplasm falls off! Oh no!</b></span>")
+					src.visible_message("<span class='alert'><b>The ectoplasm falls off! Oh no!</b></span>")
 					src.invisibility = 10
 					src.ClearAllOverlays()
 					var/obj/item/reagent_containers/food/snacks/ectoplasm/e = new /obj/item/reagent_containers/food/snacks/ectoplasm
@@ -310,11 +310,11 @@
 			if(src.homebooth)
 				src.set_loc(homebooth)
 			else
-				src.visible_message("<span style=\"color:red\"><b>Poof!</b></span>")
+				src.visible_message("<span class='alert'><b>Poof!</b></span>")
 				src.gib(1)
 				return
 		var/obj/machinery/playerzoldorf/pz = src.loc
-		src.visible_message("<span style=\"color:red\"><b>Poof!</b></span>")
+		src.visible_message("<span class='alert'><b>Poof!</b></span>")
 		src.free()
 		src.set_loc(get_turf(src.loc))
 		pz.remove_simple_light("zoldorf")
@@ -325,7 +325,7 @@
 
 		var/turf/T = get_turf(src)
 		if (!(T && isturf(T)) || ((isrestrictedz(T.z) || T.z != 1) && !(src.client && src.client.holder)))
-			var/OS = observer_start.len ? pick(observer_start) : locate(1, 1, 1)
+			var/OS = pick_landmark(LANDMARK_OBSERVER, locate(1, 1, 1))
 			if (OS)
 				Z.set_loc(OS)
 			else
@@ -365,10 +365,7 @@
 			namestring +="dorf"
 		Z.real_name = src.real_name
 
-		src.loc = null
-		var/this = src
-		src = null
-		qdel(this)
+		qdel(src)
 
 		pz.name = namestring
 		Z.name = namestring
@@ -386,7 +383,7 @@
 /mob/proc/zoldize()
 	if (src.mind || src.client)
 		message_admins("[key_name(usr)] made [key_name(src)] a zoldorf.")
-		logTheThing("admin", usr, src, "made %target% a zoldorf.")
+		logTheThing("admin", usr, src, "made [constructTarget(src,"admin")] a zoldorf.")
 		return make_zoldorf()
 	return null
 

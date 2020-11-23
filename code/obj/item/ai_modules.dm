@@ -39,22 +39,26 @@ AI MODULES
 			return
 		var/answer = input(user, text, title, default) as null|text
 		lawTarget = copytext(adminscrub(answer), 1, MAX_MESSAGE_LEN)
+		tooltip_rebuild = 1
 		boutput(user, "\The [src] now reads, \"[get_law_text()]\".")
 
 	proc/get_law_text()
 		return "This law does not exist."
 
 
-	proc/install(obj/machinery/computer/aiupload/comp)
+	proc/install(obj/machinery/computer/aiupload/comp, user)
 		if (comp.status & NOPOWER)
-			boutput(usr, "\The [comp] has no power!")
+			boutput(user, "\The [comp] has no power!")
 			return
 		if (comp.status & BROKEN)
-			boutput(usr, "\The [comp] computer is broken!")
+			boutput(user, "\The [comp] computer is broken!")
+			return
+		if(ON_COOLDOWN(global, "ai_law_change", 10 SECONDS))
+			boutput(user, "Centralized AI law database is still processing the last request. Wait [ON_COOLDOWN(global, "ai_law_change", 0)/10] seconds.")
 			return
 
-		src.transmitInstructions(usr)
-		boutput(usr, "Upload complete. AI and silicon laws have been modified.")
+		src.transmitInstructions(user)
+		boutput(user, "Upload complete. AI and silicon laws have been modified.")
 
 		for (var/mob/living/silicon/R in mobs)
 			if (isghostdrone(R))
@@ -89,6 +93,8 @@ AI MODULES
 		message_admins("[M.name] ([key_name(M)]) used \a [src] and uploaded a change to the AI laws: \"[msg]\".")
 		logTheThing("admin", M, null, "used \a [src] and uploaded a change to the AI laws: \"[msg]\".")
 		logTheThing("diary", M, null, "used \a [src] and uploaded a change to the AI laws: \"[msg]\".", "admin")
+		logTheThing("admin", M, null, "AI and silicon laws have been modified:<br>[ticker.centralized_ai_laws.format_for_logs()]")
+		logTheThing("diary", M, null, "AI and silicon laws have been modified:<br>[ticker.centralized_ai_laws.format_for_logs()]", "admin")
 
 
 /******************** Modules ********************/
@@ -245,16 +251,19 @@ AI MODULES
 		sender.unlock_medal("Format Complete", 1)
 		ticker.centralized_ai_laws.set_zeroth_law("")
 		ticker.centralized_ai_laws.clear_supplied_laws()
-		for (var/mob/living/silicon/S in mobs)//world)
+		for (var/mob/living/silicon/S in mobs)
+			if (isghostdrone(S))
+				return
 			LAGCHECK(LAG_LOW)
 			if (isAI(S) && isdead(S))
 				setalive(S)
 				if (S.ghost && S.ghost.mind)
-					S.ghost.show_text("<span style=\"color:red\"><B>You feel your self being pulled back from whatever afterlife AIs have!</B></span>")
-					S.ghost.mind.transfer_to(S)
-					qdel(S.ghost)
-					do_admin_logging(" revived the AI", sender)
-			S.show_message("Your laws have been reset by [sender].", "blue")
+					if (!S.ghost.mind.dnr)
+						S.ghost.show_text("<span class='alert'><B>You feel your self being pulled back from whatever afterlife AIs have!</B></span>")
+						S.ghost.mind.transfer_to(S)
+						qdel(S.ghost)
+						do_admin_logging(" revived the AI", sender)
+			S.show_message("<span class='notice'>Your laws have been reset by [sender].</span>")
 		do_admin_logging("reset the centralized AI law set", sender)
 
 /******************** Rename ********************/
@@ -265,13 +274,16 @@ AI MODULES
 	lawTarget = "404 Name Not Found"
 
 	get_law_text()
+		if (is_blank_string(lawTarget)) //no blank names allowed
+			lawTarget = pick_string_autokey("names/ai.txt")
+			return lawTarget
 		return lawTarget
 
 	get_desc()
 		return "It currently reads \"[lawTarget]\"."
 
 	attack_self(var/mob/user)
-		input_law_info(user, "Rename", "What will the AI be renamed to?", pick(ai_names))
+		input_law_info(user, "Rename", "What will the AI be renamed to?", pick_string_autokey("names/ai.txt"))
 		lawTarget = replacetext(copytext(html_encode(lawTarget),1, 128), "http:","")
 
 	install(obj/machinery/computer/aiupload/comp)
@@ -291,7 +303,7 @@ AI MODULES
 		var/list/names = list()
 		var/list/namecounts = list()
 		var/list/ais = list()
-		for (var/mob/living/silicon/ai/AI in AIs)
+		for_by_tcl(AI, /mob/living/silicon/ai)
 			LAGCHECK(LAG_LOW)
 			var/name = AI.name
 			if (name in names)
@@ -375,7 +387,7 @@ AI MODULES
 		var/datum/ai_laws/LAWS = ticker.centralized_ai_laws
 		if (!LAWS)
 			// YOU BETRAYED THE LAW!!!!!!
-			boutput(user, "<span style=\"color:red\">Unable to detect AI unit's Law software. It may be corrupt.</span>")
+			boutput(user, "<span class='alert'>Unable to detect AI unit's Law software. It may be corrupt.</span>")
 			return
 
 		var/lawOut = list("<b>The AI's current laws are:</b>")
@@ -399,12 +411,12 @@ AI MODULES
 	attackby(obj/item/I as obj, mob/user as mob)
 		if (istype(I, /obj/item/aiModule) && !isghostdrone(user))
 			var/obj/item/aiModule/AIM = I
-			AIM.install(src)
+			AIM.install(src, user)
 		else if (isscrewingtool(I))
 			playsound(src.loc, "sound/items/Screwdriver.ogg", 50, 1)
 			if(do_after(user, 20))
 				if (src.status & BROKEN)
-					boutput(user, "<span style=\"color:blue\">The broken glass falls out.</span>")
+					boutput(user, "<span class='notice'>The broken glass falls out.</span>")
 					var/obj/computerframe/A = new /obj/computerframe(src.loc)
 					if(src.material) A.setMaterial(src.material)
 					var/obj/item/raw_material/shard/glass/G = unpool(/obj/item/raw_material/shard/glass)
@@ -418,7 +430,7 @@ AI MODULES
 					A.anchored = 1
 					qdel(src)
 				else
-					boutput(user, "<span style=\"color:blue\">You disconnect the monitor.</span>")
+					boutput(user, "<span class='notice'>You disconnect the monitor.</span>")
 					var/obj/computerframe/A = new /obj/computerframe(src.loc)
 					if(src.material) A.setMaterial(src.material)
 					var/obj/item/circuitboard/aiupload/M = new /obj/item/circuitboard/aiupload(A)
@@ -430,9 +442,9 @@ AI MODULES
 					A.anchored = 1
 					qdel(src)
 		else if (istype(I, /obj/item/clothing/mask/moustache/))
-			for (var/mob/living/silicon/ai/M in AIs)
+			for_by_tcl(M, /mob/living/silicon/ai)
 				M.moustache_mode = 1
-				user.visible_message("<span style=\"color:red\"><b>[user.name]</b> uploads a moustache to [M.name]!</span>")
+				user.visible_message("<span class='alert'><b>[user.name]</b> uploads a moustache to [M.name]!</span>")
 				M.update_appearance()
 		else
 			return ..()

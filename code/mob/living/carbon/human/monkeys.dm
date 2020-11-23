@@ -11,7 +11,7 @@
 				src.bioHolder.AddEffect("monkey")
 				src.get_static_image()
 				if (src.name == "monkey" || !src.name)
-					src.name = pick(monkey_names)
+					src.name = pick_string_autokey("names/monkey.txt")
 				src.real_name = src.name
 
 // special monkeys.
@@ -37,6 +37,7 @@
 	name = "Mr. Rathen"
 	real_name = "Mr. Rathen"
 	gender = "male"
+
 	New()
 		..()
 		SPAWN_DBG(1 SECOND)
@@ -110,18 +111,18 @@
 
 	New()
 		..()
-		npcmonkeypals += src
+		START_TRACKING
 		SPAWN_DBG(0.5 SECONDS)
 			if (!src.disposed)
 				src.bioHolder.mobAppearance.customization_first = "None"
 				src.cust_one_state = "None"
 				src.bioHolder.AddEffect("monkey")
 				if (src.name == "monkey" || !src.name)
-					src.name = pick(monkey_names)
+					src.name = pick_string_autokey("names/monkey.txt")
 				src.real_name = src.name
 
 	disposing()
-		npcmonkeypals -= src
+		STOP_TRACKING
 		..()
 
 	ai_action()
@@ -142,6 +143,9 @@
 			..()
 
 	was_harmed(var/atom/T as mob|obj, var/obj/item/weapon = 0, var/special = 0)
+		// Dead monkeys can't hold a grude and stops emote
+		if(isdead(src))
+			return ..()
 		//src.ai_aggressive = 1
 		src.target = T
 		src.ai_state = 2
@@ -151,7 +155,7 @@
 		if (prob(40))
 			src.emote("scream")
 		var/pals = 0
-		for (var/mob/living/carbon/human/npc/monkey/pal in npcmonkeypals)
+		for_by_tcl(pal, /mob/living/carbon/human/npc/monkey)
 			if (get_dist(src, pal) > 7)
 				continue
 			if (pals >= 5)
@@ -250,6 +254,32 @@
 		theft_target.attack_hand(src)
 		src.a_intent = src.ai_default_intent
 
+	hear_talk(mob/M as mob, messages, heardname, lang_id)
+		if (isalive(src) && messages)
+			if (M.singing)
+				if (M.singing & (BAD_SINGING | LOUD_SINGING))
+					if (prob(20))
+						// monkey is angered by singing
+						spawn(0.5 SECONDS)
+							was_harmed(M)
+							var/singing_modifier = (M.singing & BAD_SINGING) ? "bad" : "loud"
+							src.visible_message("<B>[name]</B> becomes furious at [M] for their [singing_modifier] singing!", 1)
+							src.say(pick("Must take revenge for insult to music!", "I now attack you like your singing attacked my ears!"))
+					else
+						spawn(0.5 SECONDS)
+							src.visible_message(pick("<B>[name]</B> doesn't seem to like [M]'s singing", \
+							"<B>[name]</B> puts their hands over their ears", \
+							), 1)
+						// monkey merely doesn't like the singing
+							src.say(pick("You human sing worse than a baboon!", \
+							"Me know gorillas with better vocal pitch than you!", \
+							"Monkeys ears too sensitive for this cacophony!", \
+							"You sound like you singing in two keys at same time!", \
+							"Monkey no like atonal music!")) // monkeys don't know grammar but naturally know concepts like "atonal" and "cacophony"
+							if (prob(40))
+								src.emote("scream")
+		..()
+
 /datum/action/bar/icon/filthyPickpocket
 	id = "pickpocket"
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
@@ -289,7 +319,7 @@
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
-		logTheThing("combat", source, target, "tries to pickpocket \an [I] from %target%")
+		logTheThing("combat", source, target, "tries to pickpocket \an [I] from [constructTarget(target,"combat")]")
 
 		for(var/mob/O in AIviewers(owner))
 			O.show_message("<B>[source]</B> rifles through [target]'s pockets!", 1)
@@ -306,7 +336,7 @@
 		var/obj/item/I = target.get_slot(slot)
 
 		if(I.handle_other_remove(source, target))
-			logTheThing("combat", source, target, "successfully pickpockets \an [I] from %target%!")
+			logTheThing("combat", source, target, "successfully pickpockets \an [I] from [constructTarget(target,"combat")]!")
 			for(var/mob/O in AIviewers(owner))
 				O.show_message("<B>[source]</B> grabs [I] from [target]'s pockets!", 1)
 			target.u_equip(I)
@@ -359,7 +389,7 @@
 				src.bioHolder.AddEffect("seamonkey")
 				src.get_static_image()
 				if (src.name == "sea monkey" || !src.name)
-					src.name = pick(monkey_names)
+					src.name = pick_string_autokey("names/monkey.txt")
 				src.real_name = src.name
 
 

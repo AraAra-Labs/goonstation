@@ -49,13 +49,14 @@ Broken RCD + Effects
 	throw_range = 5
 	w_class = 3.0
 	m_amt = 50000
-	var/datum/effects/system/spark_spread/spark_system
+
 	mats = 12
 	stamina_damage = 15
 	stamina_cost = 15
 	stamina_crit_chance = 5
 	module_research = list("tools" = 8, "engineering" = 8, "devices" = 3, "efficiency" = 5)
 	module_research_type = /obj/item/rcd
+	inventory_counter_enabled = 1
 
 	// Borgs/drones can't really use matter units.
 	// (matter cost) x (this) = (power cell charge used)
@@ -88,7 +89,7 @@ Broken RCD + Effects
 	// What index into mode list we are (used for updating)
 	var/internal_mode = 1
 
-	get_desc(dist)
+	get_desc()
 		. += "<br>It holds [matter]/[max_matter] matter units. It is currently set to "
 		switch (src.mode)
 			if (RCD_MODE_FLOORSWALLS)
@@ -108,20 +109,9 @@ Broken RCD + Effects
 		. += "mode."
 
 	New()
-		if (src.shits_sparks)
-			src.spark_system = unpool(/datum/effects/system/spark_spread)
-			spark_system.set_up(5, 0, src)
-			spark_system.attach(src)
+		..()
 		src.update_icon()
 		return
-
-	pickup(mob/M)
-		..()
-		src.update_maptext()
-
-	dropped(mob/M)
-		src.maptext = null
-		..()
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/rcd_ammo))
@@ -139,11 +129,10 @@ Broken RCD + Effects
 				src.matter += R.matter
 				R.matter = 0
 				qdel(R)
+			R.tooltip_rebuild = 1
 			src.update_icon()
 			playsound(get_turf(src), "sound/machines/click.ogg", 50, 1)
 			boutput(user, "\The [src] now holds [src.matter]/[src.max_matter] matter-units.")
-			if (src.maptext)
-				src.update_maptext()
 			return
 
 	attack_self(mob/user as mob)
@@ -167,13 +156,11 @@ Broken RCD + Effects
 
 			if (RCD_MODE_PODDOORCONTROL)
 				boutput(user, "Changed mode to 'Pod Door Control'")
-				boutput(user, "<span style=\"color:blue\">Place a door control on a wall, then place any amount of pod doors on floors.</span>")
-				boutput(user, "<span style=\"color:blue\">You can also select an existing door control by whacking it with \the [src].</span>")
-
+				boutput(user, "<span class='notice'>Place a door control on a wall, then place any amount of pod doors on floors.</span>")
+				boutput(user, "<span class='notice'>You can also select an existing door control by whacking it with \the [src].</span>")
 		// Gonna change this so it doesn't shit sparks when mode switched
 		// Just that it does it only after actually doing something
 		//src.shitSparks()
-		src.update_maptext()
 		src.update_icon()
 		return
 
@@ -268,7 +255,7 @@ Broken RCD + Effects
 				if (istype(A, /obj/machinery/door/airlock))
 					var/obj/machinery/door/airlock/AL = A
 					if (AL.hardened == 1)
-						boutput(user, "<span style=\"color:red\">\The [AL] is reinforced against rapid deconstruction!</span>")
+						boutput(user, "<span class='alert'>\The [AL] is reinforced against rapid deconstruction!</span>")
 						return
 					if (do_thing(user, AL, "deconstructing \the [AL]", matter_remove_door, 5 SECONDS))
 						log_construction(user, "deconstructs an airlock ([AL])")
@@ -313,18 +300,17 @@ Broken RCD + Effects
 		if (ishuman(M) && matter >= 3)
 			var/mob/living/carbon/human/H = M
 			if(!isdead(H) && H.health > 0)
-				boutput(user, "<span style=\"color:red\">You poke [H] with \the [src].</span>")
-				boutput(H, "<span style=\"color:red\">[user] pokes you with \the [src].</span>")
+				boutput(user, "<span class='alert'>You poke [H] with \the [src].</span>")
+				boutput(H, "<span class='alert'>[user] pokes you with \the [src].</span>")
 				return
-			boutput(user, "<span style=\"color:red\"><B>You shove \the [src] down [H]'s mouth and pull the trigger!</B></span>")
-			H.show_message("<span style=\"color:red\"><B>[user] is shoving an RCD down your throat!</B></span>", 1)
+			boutput(user, "<span class='alert'><B>You shove \the [src] down [H]'s mouth and pull the trigger!</B></span>")
+			H.show_message("<span class='alert'><B>[user] is shoving an RCD down your throat!</B></span>", 1)
 			for(var/mob/N in viewers(user, 3))
 				if(N.client && N != user && N != H)
-					N.show_message(text("<span style=\"color:red\"><B>[] shoves \the [src] down []'s throat!</B></span>", user, H), 1)
+					N.show_message(text("<span class='alert'><B>[] shoves \the [src] down []'s throat!</B></span>", user, H), 1)
 			playsound(get_turf(src), "sound/machines/click.ogg", 50, 1)
 			if(do_after(user, 20))
-				spark_system.set_up(5, 0, src)
-				src.spark_system.start()
+				elecflash(src)
 				var/mob/living/carbon/wall/W = new(H.loc)
 				W.real_name = H.real_name
 				playsound(get_turf(src), "sound/items/Deconstruct.ogg", 50, 1)
@@ -343,17 +329,7 @@ Broken RCD + Effects
 	proc/shitSparks()
 		if (!src.shits_sparks)
 			return
-		spark_system.set_up(5, 0, src)
-		src.spark_system.start()
-
-	proc/update_maptext()
-		if (!src.matter)
-			src.maptext = null
-			return
-
-		src.maptext_x = -2
-		src.maptext_y = 1
-		src.maptext = {"<span class="vb r pixel sh">[src.matter]</span></span>"}
+		elecflash(src)
 
 	proc/ammo_check(mob/user as mob, var/checkamt = 0)
 		if (issilicon(user))
@@ -390,7 +366,6 @@ Broken RCD + Effects
 		if ((!delay || do_after(user, delay)) && ammo_check(user, ammo))
 			ammo_consume(user, ammo)
 			playsound(get_turf(src), "sound/items/Deconstruct.ogg", 50, 1)
-			src.update_maptext()
 			shitSparks()
 			src.working_on -= target
 			return 1
@@ -407,13 +382,14 @@ Broken RCD + Effects
 			var/obj/machinery/door/airlock/T = new interim(A)
 			log_construction(user, "builds an airlock ([T])")
 
-			//if(map_setting == "COG2") T.dir = user.dir
+			//if(map_setting == "COG2") T.set_dir(user.dir)
 			T.autoclose = 1
 
 	proc/update_icon() //we got fancy rcds now
 		if (GetOverlayImage("mode"))
 			src.ClearSpecificOverlays("mode")
 		var/ammo_amt = 0
+		tooltip_rebuild = 1
 		switch (round((src.matter / src.max_matter) * 100)) //is the round() necessary? yell at me if it isnt
 			if (10 to 34)
 				ammo_amt = 1
@@ -445,6 +421,9 @@ Broken RCD + Effects
 
 		var/image/I = SafeGetOverlayImage("mode", src.icon, "[mode]-[ammo_amt]")
 		src.UpdateOverlays(I, "mode")
+
+		if (!issilicon(usr))
+			src.inventory_counter.update_number(matter)
 
 ///////////////////
 //NORMAL VARIANTS//
@@ -498,7 +477,7 @@ Broken RCD + Effects
 							qdel(A)
 							playsound(get_turf(src), "sound/items/Deconstruct.ogg", 50, 1)
 				else
-					boutput(user, "<span style=\"color:red\">You cannot deconstruct that!</span>")
+					boutput(user, "<span class='alert'>You cannot deconstruct that!</span>")
 					return
 			else if (istype(A, /obj/machinery/r_door_control) && ammo_check(user, matter_remove_door, 500))
 				var/obj/machinery/r_door_control/R = A
@@ -514,17 +493,17 @@ Broken RCD + Effects
 							qdel(A)
 							playsound(get_turf(src), "sound/items/Deconstruct.ogg", 50, 1)
 				else
-					boutput(user, "<span style=\"color:red\">You cannot deconstruct that!</span>")
+					boutput(user, "<span class='alert'>You cannot deconstruct that!</span>")
 					return
 		else if (mode == RCD_MODE_PODDOORCONTROL)
 			if (istype(A, /obj/machinery/r_door_control))
 				var/obj/machinery/r_door_control/R = A
 				if (findtext(R.id, "rcd_built") != 0)
-					boutput(user, "<span style=\"color:blue\">Selected.</span>")
+					boutput(user, "<span class='notice'>Selected.</span>")
 					hangar_id = R.id
 					mode = RCD_MODE_PODDOOR
 				else
-					boutput(user, "<span style=\"color:red\">You cannot modify that!</span>")
+					boutput(user, "<span class='alert'>You cannot modify that!</span>")
 			else if (istype(A, /turf/simulated/wall) && ammo_check(user, matter_create_door, 500))
 				boutput(user, "Creating Door Control ([matter_create_door])")
 				playsound(get_turf(src), "sound/machines/click.ogg", 50, 1)
@@ -556,7 +535,7 @@ Broken RCD + Effects
 						var/poddir = turn(stepdir, 90)
 						var/obj/machinery/door/poddoor/blast/B = new /obj/machinery/door/poddoor/blast(A)
 						B.id = "[hangar_id]"
-						B.dir = poddir
+						B.set_dir(poddir)
 						B.autoclose = 1
 						ammo_consume(user, matter_create_door)
 						logTheThing("station", user, null, "creates Blast Door [hangar_id] using \the [src] in [user.loc.loc] ([showCoords(user.x, user.y, user.z)])")
@@ -595,13 +574,13 @@ Broken RCD + Effects
 			door_type = door_types[door_type_name_cache]
 
 		if (user.loc != L)
-			boutput(user, "<span style=\"color:red\">Airlock build cancelled - you moved.</span>")
+			boutput(user, "<span class='alert'>Airlock build cancelled - you moved.</span>")
 			return
 
 		if (do_thing(user, A, "building an airlock", matter_create_door, 5 SECONDS))
 			var/obj/machinery/door/airlock/T = new door_type(A)
 			log_construction(user, null, "builds an airlock ([T], name: [door_name], access: [door_access], type: [door_type])")
-			T.dir = door_dir
+			T.set_dir(door_dir)
 			T.autoclose = 1
 			T.name = door_name
 			if (door_access)
@@ -686,14 +665,10 @@ Broken RCD + Effects
 	m_amt = 50000
 	var/mode = 1
 	var/broken = 0 //Fully broken, that is.
-	var/datum/effects/system/spark_spread/spark_system
 
 	New()
 		..()
 		src.icon_state = "bad_rcd[rand(0,2)]"
-		src.spark_system = unpool(/datum/effects/system/spark_spread)
-		spark_system.set_up(5, 0, src)
-		spark_system.attach(src)
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/rcd_ammo))
@@ -702,31 +677,31 @@ Broken RCD + Effects
 
 	attack_self(mob/user as mob)
 		if (src.broken)
-			boutput(user, "<span style=\"color:red\">It's broken!</span>")
+			boutput(user, "<span class='alert'>It's broken!</span>")
 			return
 
 		playsound(src.loc, "sound/effects/pop.ogg", 50, 0)
 		if (mode)
 			mode = 0
 			boutput(user, "Changed mode to 'Deconstruct'")
-			src.spark_system.start()
+			elecflash(src)
 			return
 		else
 			mode = 1
 			boutput(user, "Changed mode to 'Floor & Walls'")
-			src.spark_system.start()
+			elecflash(src)
 			return
 
 	afterattack(atom/A, mob/user as mob)
 		if (src.broken > 1)
-			boutput(user, "<span style=\"color:red\">It's broken!</span>")
+			boutput(user, "<span class='alert'>It's broken!</span>")
 			return
 
 		if (!(istype(A, /turf) || istype(A, /obj/machinery/door/airlock)))
 			return
 		if ((istype(A, /turf/space) || istype(A, /turf/simulated/floor)) && mode)
 			if (src.broken)
-				boutput(user, "<span style=\"color:red\">Insufficient charge.</span>")
+				boutput(user, "<span class='alert'>Insufficient charge.</span>")
 				return
 
 			boutput(user, "Building [istype(A, /turf/space) ? "Floor (1)" : "Wall (3)"]...")
@@ -737,15 +712,14 @@ Broken RCD + Effects
 					return
 
 				src.broken++
-				spark_system.set_up(5, 0, src)
-				src.spark_system.start()
+				elecflash(src)
 				playsound(src.loc, "sound/items/Deconstruct.ogg", 50, 1)
 
 				for (var/turf/T in orange(1,user))
 					T.ReplaceWithWall()
 
 
-				boutput(user, "<span style=\"color:red\">\the [src] shorts out!</span>")
+				boutput(user, "<span class='alert'>\the [src] shorts out!</span>")
 				return
 
 		else if (!mode)
@@ -757,8 +731,7 @@ Broken RCD + Effects
 					return
 
 				src.broken++
-				spark_system.set_up(5,0,src)
-				src.spark_system.start()
+				elecflash(src)
 				playsound(src.loc, "sound/items/Deconstruct.ogg", 100, 1)
 
 				boutput(user, "<span class='combat'>\the [src] shorts out!</span>")
@@ -790,7 +763,7 @@ Broken RCD + Effects
 				A.pixel_x = rand(-4,4)
 				A.pixel_y = rand(-4,4)
 			else if (isliving(A))
-				shake_camera(A, 8, 3)
+				shake_camera(A, 8, 32)
 				A.ex_act( get_dist(src, A) > 1 ? 3 : 1 )
 
 			else if (istype(A, /obj) && (A != src))
@@ -802,9 +775,7 @@ Broken RCD + Effects
 
 				continue
 
-		var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-		s.set_up(3, 1, src)
-		s.start()
+		elecflash(src,power=3)
 
 	proc/void_loop()
 		if (lifespan-- < 0)

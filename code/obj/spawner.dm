@@ -268,7 +268,7 @@
 				var/atom/movable/overlay/A = new /atom/movable/overlay( T )
 				A.icon_state = "nothing"
 				A.icon = 'icons/effects/effects.dmi'
-				A.dir = rel_dir
+				A.set_dir(rel_dir)
 
 				if(dist == 3)
 					boom_tips.Add(A)
@@ -287,8 +287,8 @@
 			if (!isnull(O)) O.ex_act(rand(1,2))
 		playsound(src.loc, "explosion", 100, 1)
 		playsound(src.loc, "sound/effects/explosionfar.ogg", 100, 1, 14)
-		sleep(1 SECOND)
-		animation.dispose()
-		for(var/atom/movable/overlay/A in (boom + boom_tips))
-			A.dispose()
-		src.dispose()
+		SPAWN_DBG(1 SECOND)
+			animation.dispose()
+			for(var/atom/movable/overlay/A in (boom + boom_tips))
+				A.dispose()
+			src.dispose()

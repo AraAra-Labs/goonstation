@@ -190,6 +190,7 @@ menu "menu"
 		name = "&Distort"
 		command = ".winset \"mapwindow.map.zoom-mode=distort\""
 		category = "&Stretch Mode"
+		is-checked = true
 		can-check = true
 		group = "zoom"
 		saved-params = "is-checked"
@@ -289,6 +290,36 @@ menu "menu"
 		group = "fps"
 		saved-params = "is-checked"
 	elem
+		name = "&Window"
+		command = ""
+		category = "&Display"
+		saved-params = "is-checked"
+	elem "fullscreen"
+		name = "&Fullscreen"
+		command = ".winset \"fullscreen.is-checked=true?mainwindow.titlebar=false mainwindow.is-maximized=true:mainwindow.titlebar=true\""
+		category = "&Window"
+		can-check = true
+		saved-params = "is-checked"
+	elem "dark_mode"
+		name = "&Dark mode"
+		command = "sync-dark-mode"
+		category = "&Window"
+		can-check = true
+		saved-params = "is-checked"
+		is-checked = true
+	elem "hide_status_bar"
+		name = "&Hide status bar"
+		command = ".winset \"hide_status_bar.is-checked=true?mainwindow.statusbar=false:mainwindow.statusbar=true\""
+		category = "&Window"
+		can-check = true
+		saved-params = "is-checked"
+	elem "hide_menu"
+		name = "&Hide menu"
+		command = ".winset \"hide_menu.is-checked=true?mainwindow.menu='';menub.is-visible = true\""
+		category = "&Window"
+		can-check = true
+		saved-params = "is-checked"
+	elem
 		name = "&Effects"
 		command = ""
 		category = "&Game"
@@ -296,6 +327,13 @@ menu "menu"
 	elem "set_shadow"
 		name = "&Depth Shadowing"
 		command = "apply-depth-shadow"
+		category = "&Effects"
+		is-checked = true
+		can-check = true
+		saved-params = "is-checked"
+	elem "set_tint"
+		name = "&View Tint"
+		command = "apply-view-tint"
 		category = "&Effects"
 		is-checked = true
 		can-check = true
@@ -333,6 +371,14 @@ menu "menu"
 		command = ""
 		category = "&Interface"
 		saved-params = "is-checked"
+	elem "wasd_controls"
+		name = "&Modify Keybinds"
+		command = "modify-keybinds"
+		category = "&Interface"
+	elem
+		name = ""
+		command = ""
+		category = "&Interface"
 	elem "use_chui"
 		name = "&Use Chui (Styled Popups)"
 		command = "set-chui"
@@ -343,6 +389,13 @@ menu "menu"
 	elem "use_chui_custom_frames"
 		name = "Enable Chui's custom window frames"
 		command = "set-chui-custom-frames"
+		category = "&Interface"
+		is-checked = true
+		can-check = true
+		saved-params = "is-checked"
+	elem "use_hand_ghosts"
+		name = "Show item ghosts on mouse-over"
+		command = "set-hand-ghosts"
 		category = "&Interface"
 		is-checked = true
 		can-check = true
@@ -698,7 +751,7 @@ window "mainwindow"
 		saved-params = "pos;size;is-minimized;is-maximized"
 		on-size = "window-resize-event"
 		is-maximized = true
-		icon = 'icons\\ss13_64.png'
+		icon = 'icons\\goon_64.png'
 		macro = "base_macro"
 		menu = "menu"
 	elem "mainvsplit"
@@ -792,7 +845,7 @@ window "mapwindow"
 		saved-params = "icon-size"
 		on-show = ".winset\"mainwindow.mainvsplit.left=mapwindow\""
 		on-hide = ".winset\"mainwindow.mainvsplit.left=\""
-		style = "body { font-family: 'Verdana'; font-size: 7px; }\n.vga { font-family: 'PxPlus IBM VGA9'; font-size: 12px; } .ps2p { font-family: 'Press Start 2P'; font-size: 6px; }\n.pixel { font-family: 'Small Fonts'; font-size: 7px; }\n.ol{ -dm-text-outline: 1px black; }\n.sh { text-shadow: 1px 1px 0 black; }\n.l { text-align: left; }\n.c { text-align: center; }\n.r { text-align: right; }\n.vt { vertical-align: top; }\n.vm { vertical-align: middle; }\n.vb { vertical-align: bottom; }\n.reliq { font-family: 'Inhuman BB'; font-size: 12px; }"
+		style = "body { font-family: 'Verdana'; font-size: 7px; }\n.vga { font-family: 'PxPlus IBM VGA9'; font-size: 12px; } .ps2p { font-family: 'Press Start 2P'; font-size: 6px; }\n.pixel { font-family: 'Small Fonts'; font-size: 7px; }\n.xfont { font-family: 'XFont 6x9'; font-size: 6px; }\n.ol{ -dm-text-outline: 1px black; }\n.sh { text-shadow: 1px 1px 0 black; }\n.l { text-align: left; }\n.c { text-align: center; }\n.r { text-align: right; }\n.vt { vertical-align: top; }\n.vm { vertical-align: middle; }\n.vb { vertical-align: bottom; }\n.reliq { font-family: 'Inhuman BB'; font-size: 12px; }"
 	elem "mapSizeHelper"
 		type = BROWSER
 		pos = 0,0
@@ -868,7 +921,7 @@ window "pda2"
 		saved-params = "pos;size;is-minimized;is-maximized"
 		title = "Personal Data Assistant"
 		statusbar = false
-		can-resize = false
+		can-resize = true
 	elem "grido"
 		type = GRID
 		pos = 0,0
@@ -887,8 +940,8 @@ window "pda2"
 		type = BROWSER
 		pos = 0,0
 		size = 408x424
-		anchor1 = none
-		anchor2 = none
+		anchor1 = 0,0
+		anchor2 = 100,100
 		background-color = #6f7961
 		saved-params = ""
 
@@ -1439,45 +1492,65 @@ window "rpane"
 		command = ".winset \"rpanewindow.left=infowindow\""
 		group = "rpanemode"
 		button-type = pushbox
-	elem "bugreportb"
+	elem "menub"
 		type = BUTTON
-		pos = 380,5
+		pos = 135,5
 		size = 60x20
 		anchor1 = none
-		anchor2 = 100,0
+		anchor2 = none
+		is-visible = false
 		saved-params = "is-checked"
-		text = "Bug Report"
-		command = "bugreport"
-		group = "rpaneutil"
-	elem "wikib"
-		type = BUTTON
-		pos = 445,5
-		size = 60x20
-		anchor1 = none
-		anchor2 = 100,0
-		saved-params = "is-checked"
-		text = "Wiki"
-		command = "wiki"
-		group = "rpaneutil"
+		text = "Menu"
+		command = ".winset \"mainwindow.menu='menu'; hide_menu.is-checked=false; menub.is-visible = false\""
 	elem "mapb"
 		type = BUTTON
-		pos = 510,5
+		pos = 315,5
 		size = 60x20
-		anchor1 = none
-		anchor2 = 100,0
+		anchor1 = 100,0
+		anchor2 = none
 		saved-params = "is-checked"
 		text = "Map"
 		command = "map"
 		group = "rpaneutil"
+	elem "wikib"
+		type = BUTTON
+		pos = 380,5
+		size = 60x20
+		anchor1 = 100,0
+		anchor2 = none
+		saved-params = "is-checked"
+		text = "Wiki"
+		command = "wiki"
+		group = "rpaneutil"
+	elem "githubb"
+		type = BUTTON
+		pos = 445,5
+		size = 60x20
+		anchor1 = 100,0
+		anchor2 = none
+		saved-params = "is-checked"
+		text = "GitHub"
+		command = "github"
+		group = "rpaneutil"
 	elem "forumb"
 		type = BUTTON
-		pos = 575,5
+		pos = 510,5
 		size = 60x20
-		anchor1 = none
-		anchor2 = 100,0
+		anchor1 = 100,0
+		anchor2 = none
 		saved-params = "is-checked"
 		text = "Forum"
 		command = "forum"
+		group = "rpaneutil"
+	elem "bugreportb"
+		type = BUTTON
+		pos = 575,5
+		size = 60x20
+		anchor1 = 100,0
+		anchor2 = none
+		saved-params = "is-checked"
+		text = "Bug Report"
+		command = "bugreport"
 		group = "rpaneutil"
 
 window "browserwindow"

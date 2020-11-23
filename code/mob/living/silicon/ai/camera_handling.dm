@@ -6,7 +6,7 @@
 	//try to find the closest working camera in the same area, switch to it
 
 	var/area/A = get_area(src)
-	if (A && A.type == /area) return //lol @ dumping you at the mining magnet every fucking time. (or interrupting a track, wow rude)
+	if (A && area_space_nopower(A)) return //lol @ dumping you at the mining magnet every fucking time. (or interrupting a track, wow rude)
 	if(istype(usr, /mob/living/silicon/ai))
 		var/mob/living/silicon/ai/anAI = usr
 		if(anAI.tracker.tracking)
@@ -29,7 +29,6 @@
 
 	if(!best_cam)
 		return
-	//usr:cameraFollow = null
 	if(istype(usr, /mob/living/silicon/ai))
 		var/mob/living/silicon/ai/anAI = usr
 		anAI.tracker.cease_track()
@@ -63,13 +62,6 @@
 		creatures.Remove(SORT)
 
 		creatures = sortList(creatures)
-
-		/* lol bubblesort FU
-		for(var/i = 1; i <= creatures.len; i++)
-			for(var/j = i+1; j <= creatures.len; j++)
-				if(sorttext(creatures[i], creatures[j]) == -1)
-					creatures.Swap(i, j)
-		*/
 
 		//redisplay sorted list
 		target_name = input(usr, "Which creature should you track?") as null|anything in creatures
@@ -169,10 +161,8 @@
 	if (isdead(src) || !src.classic_move)
 		return
 
-	user.machine = src
-
 	var/list/L = list()
-	for (var/obj/machinery/camera/C in cameras)
+	for_by_tcl(C, /obj/machinery/camera)
 		L.Add(C)
 
 	L = camera_sort(L)
@@ -192,7 +182,6 @@
 	var/t = input(user, "Which camera should you change to?") as null|anything in D
 
 	if (!t || t == "Cancel")
-		//src.cameraFollow = null
 		src.tracker.cease_track()
 		src.switchCamera(null)
 		return 0
@@ -215,6 +204,7 @@
 	var/fail_delay = 50		// Same but in case we failed
 
 	New(var/mob/living/silicon/ai/A)
+		..()
 		owner = A
 		global.tracking_list += src
 
@@ -222,14 +212,13 @@
 		owner = null
 		tracking = null
 		global.tracking_list -= src
+		..()
 
 	proc/begin_track(mob/target as mob)
 		if(!owner || !target)
 			return
 
 		tracking = target
-		if(!owner.machine)
-			owner.machine = owner
 
 		if (!owner.deployed_to_eyecam)
 			if (!owner.deployed_to_eyecam)
@@ -261,15 +250,6 @@
 			var/turf/T = get_turf(tracking)
 			if (T.cameras && T.cameras.len)
 				failedToTrack = 0
-			//for(var/obj/machinery/camera/C in range(7, tracking))
-			//	if(C.network == owner.network && C.camera_status) //The goodest camera
-			//		failedToTrack = 0
-			//		owner.switchCamera(C)
-			//		break
-		/*
-		else
-			sleep(rand(0,1)) //Hey it went real fast this time! Bet it's a syndie
-		*/
 
 		if (failedToTrack)
 			cease_track_temporary()
@@ -291,9 +271,9 @@
 		//Target is inside a dummy
 		//Target is not at a turf
 		//Target is not on station level
-		return (target.loc.z == 1) \
+		return (target.loc?.z == 1) \
 				&& ((issilicon(target) && istype(target.loc, /turf) ) \
-				|| (iscritter(target) && istype(target.loc, /turf) ) \
+				|| (ismobcritter(target) && istype(target.loc, /turf) ) \
 				|| !((ishuman(target) \
 				&& istype(target:wear_id, /obj/item/card/id/syndicate)) \
 				|| (target:wear_id && istype(target:wear_id, /obj/item/device/pda2) && target:wear_id:ID_card && istype(target:wear_id:ID_card, /obj/item/card/id/syndicate)) \

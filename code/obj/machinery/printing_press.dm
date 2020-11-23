@@ -2,7 +2,7 @@
 	name = "printing press"
 	desc = "Some machinery that's supposed to be able to write on a lot of pages super quickly. It looks pretty old."
 	icon = 'icons/obj/64x32.dmi' //lets immortalise =atamusvaleo= in the code forever, i miss him
-	icon_state = "" //proper icon is set in update_icon
+	icon_state = "printing_press" //proper icon is set in update_icon
 	anchored = 1
 	density = 1
 	bound_width = 64 //the game just handles xtra wide objects already halleluiah
@@ -120,7 +120,7 @@
 				new/obj/effect/supplyexplosion(src.loc)
 				playsound(src.loc, 'sound/effects/ExplosionFirey.ogg', 100, 1)
 				for(var/mob/M in view(7, src.loc))
-					shake_camera(M, 20, 1)
+					shake_camera(M, 20, 16)
 
 				sleep(2 SECONDS)
 				new /obj/item/electronics/frame/press_frame(src.loc)

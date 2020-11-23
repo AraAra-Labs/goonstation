@@ -1,6 +1,6 @@
 /mob/dead/target_observer/hivemind_observer
 	var/datum/abilityHolder/changeling/hivemind_owner
-	var/can_exit_hivemind = 0
+	var/can_exit_hivemind_time = 0
 	var/last_attack = 0
 
 	say_understands(var/other)
@@ -71,7 +71,7 @@
 		if (src.mind)
 			mind.transfer_to(my_ghost)
 
-		var/ASLoc = observer_start.len ? pick(observer_start) : locate(1, 1, 1)
+		var/ASLoc = pick_landmark(LANDMARK_OBSERVER, locate(1, 1, 1))
 		if (target)
 			var/turf/T = get_turf(target)
 			if (T && (!isghostrestrictedz(T.z) || isghostrestrictedz(T.z) && (restricted_z_allowed(my_ghost, T) || my_ghost.client && my_ghost.client.holder)))
@@ -120,12 +120,13 @@
 
 /mob/dead/target_observer/hivemind_observer/verb/exit_hivemind()
 	set name = "Exit Hivemind"
-	set category = "Special Verbs"
+	set category = "Commands"
 	usr = src
 
-	if(can_exit_hivemind && hivemind_owner && hivemind_owner.master != src)
+	if(world.time >= can_exit_hivemind_time && hivemind_owner && hivemind_owner.master != src)
 		hivemind_owner.hivemind -= src
 		boutput(src, __red("You have parted with the hivemind."))
 		src.boot()
 	else
-		boutput(src, __red("You are not able to part from the hivemind at this time. You will be able to leave if your master goes inactive or chooses to release you of their own will."))
+		boutput(src, __red("You are not able to part from the hivemind at this time. You will be able to leave in [(can_exit_hivemind_time/10 - world.time/10)] seconds."))
+

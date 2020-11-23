@@ -3,7 +3,7 @@
 // - Staves
 // - Magic mirror
 
-/////////////////////////////////////////////////// Teleportation scroll ///////////////////////////////////
+// // // // // // // // // // Teleportation scroll // // // // // // // // // // // //
 
 /obj/item/teleportation_scroll
 	name = "Teleportation Scroll"
@@ -19,15 +19,15 @@
 	desc = "This isn't that old, you just spilled mugwort tea on it the other day."
 
 /obj/item/teleportation_scroll/attack_self(mob/user as mob)
-	user.machine = src
+	src.add_dialog(user)
 	var/dat = ""
 	if (!iswizard(user))
-		user.machine = null
-		boutput(user, "<span style=\"color:red\"><b>The text is illegible!</b></span>")
+		src.remove_dialog(user)
+		boutput(user, "<span class='alert'><b>The text is illegible!</b></span>")
 		return
 	if (!src.uses)
-		boutput(user, "<span style=\"color:blue\"><b>The depleted scroll vanishes in a puff of smoke!</b></span>")
-		user.machine = null
+		boutput(user, "<span class='notice'><b>The depleted scroll vanishes in a puff of smoke!</b></span>")
+		src.remove_dialog(user)
 		user.Browse(null,"window=scroll")
 		qdel(src)
 		return
@@ -46,7 +46,7 @@
 	if (!( ishuman(H)))
 		return 1
 	if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))))
-		usr.machine = src
+		src.add_dialog(usr)
 		if (href_list["spell_teleport"])
 			if (src.uses >= 1 && usr.teleportscroll(0, 1, src) == 1)
 				src.uses -= 1
@@ -78,12 +78,12 @@
 
 	New()
 		..()
-		BLOCK_ALL
+		BLOCK_SETUP(BLOCK_ALL)
 
 	handle_other_remove(var/mob/source, var/mob/living/carbon/human/target)
 		. = ..()
 		if (prob(75))
-			source.show_message(text("<span style=\"color:red\">\The [src] just barely slips out of your grip!</span>"), 1)
+			source.show_message(text("<span class='alert'>\The [src] just barely slips out of your grip!</span>"), 1)
 			. = 0
 
 	// Part of the parent for convenience.
@@ -93,13 +93,13 @@
 
 		switch (severity)
 			if (0)
-				affected_mob.visible_message("<span style=\"color:red\">[affected_mob] is knocked off-balance by the curse upon [src]!</span>")
+				affected_mob.visible_message("<span class='alert'>[affected_mob] is knocked off-balance by the curse upon [src]!</span>")
 				affected_mob.do_disorient(30, weakened = 1 SECOND, stunned = 0, disorient = 1 SECOND, remove_stamina_below_zero = 0)
 				affected_mob.stuttering += 2
 				affected_mob.take_brain_damage(2)
 
 			if (1)
-				affected_mob.visible_message("<span style=\"color:red\">[affected_mob]'s consciousness is overwhelmed by the curse upon [src]!</span>")
+				affected_mob.visible_message("<span class='alert'>[affected_mob]'s consciousness is overwhelmed by the curse upon [src]!</span>")
 				affected_mob.show_text("Horrible visions of depravity and terror flood your mind!", "red")
 				if (prob(50))
 					affected_mob.emote("scream")
@@ -109,11 +109,9 @@
 				affected_mob.take_brain_damage(6)
 
 			else
-				var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-				s.set_up(4, 1, affected_mob)
-				s.start()
-				affected_mob.visible_message("<span style=\"color:red\">The curse upon [src] rebukes [affected_mob]!</span>")
-				boutput(affected_mob, "<span style=\"color:red\">Horrible visions of depravity and terror flood your mind!</span>")
+				elecflash(affected_mob)
+				affected_mob.visible_message("<span class='alert'>The curse upon [src] rebukes [affected_mob]!</span>")
+				boutput(affected_mob, "<span class='alert'>Horrible visions of depravity and terror flood your mind!</span>")
 				affected_mob.emote("scream")
 				affected_mob.changeStatus("paralysis", 80)
 				affected_mob.changeStatus("stunned", 10 SECONDS)
@@ -127,10 +125,8 @@
 		if (!src || !istype(src) || !M || !istype(M))
 			return
 
-		src.visible_message("<span style=\"color:red\"><b>The [src.name] is suddenly warped away!</b></span>")
-		var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-		s.set_up(4, 1, get_turf(src))
-		s.start()
+		src.visible_message("<span class='alert'><b>The [src.name] is suddenly warped away!</b></span>")
+		elecflash(src)
 
 		if (ismob(src.loc))
 			var/mob/HH = src.loc
@@ -180,7 +176,7 @@
 		if (user.mind)
 			if (iswizard(user) || check_target_immunity(user))
 				if (user.mind.key != src.wizard_key && !check_target_immunity(user))
-					boutput(user, "<span style=\"color:red\">The [src.name] is magically attuned to another wizard! You can use it, but the staff will refuse your attempts to control or summon it.</span>")
+					boutput(user, "<span class='alert'>The [src.name] is magically attuned to another wizard! You can use it, but the staff will refuse your attempts to control or summon it.</span>")
 				..()
 				return
 			else
@@ -190,6 +186,11 @@
 
 	attack(mob/M as mob, mob/user as mob)
 		if (iswizard(user) && !iswizard(M) && !isdead(M) && !check_target_immunity(M))
+			if (M?.traitHolder?.hasTrait("training_chaplain"))
+				M.visible_message("<spab class='alert'>A divine light shields [M] from harm!</span>")
+				playsound(M, "sound/impact_sounds/Energy_Hit_1.ogg", 40, 1)
+				return
+
 			if (prob(20))
 				src.do_brainmelt(M, 1)
 			else if (prob(35))
@@ -215,7 +216,7 @@
 /obj/magicmirror
 	desc = "An old mirror. A bit eeky and ooky."
 	name = "Magic Mirror"
-	icon = 'icons/obj/decals.dmi'
+	icon = 'icons/obj/decals/misc.dmi'
 	icon_state = "rip"
 	anchored = 1.0
 	opacity = 0
@@ -231,7 +232,7 @@
 
 		// Teamwork, perhaps? The M.is_target check that used to be here doesn't cut it in the mixed game mode (Convair880).
 		for (var/datum/mind/M in ticker.minds)
-			if (M && M.special_role == "wizard" && M.current)
+			if (M?.special_role == "wizard" && M.current)
 				W_count++
 				T += "<hr>"
 				T += "<b>[M.current.real_name]'s objectives:</b>"
@@ -256,6 +257,6 @@
 		var/percentage
 		percentage = (corrupt / count) * 100
 		if (corrupt >= 2100)
-			. += "<br><span style=\"color:green\"><b>The Corruption</b> is at [percentage]%!</span>"
+			. += "<br><span class='success'><b>The Corruption</b> is at [percentage]%!</span>"
 		else
-			. += "<br><span style=\"color:red\"><b>The Corruption</b> is at [percentage]%!</span>"*/
+			. += "<br><span class='alert'><b>The Corruption</b> is at [percentage]%!</span>"*/

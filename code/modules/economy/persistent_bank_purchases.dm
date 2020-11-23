@@ -17,6 +17,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	new /datum/bank_purchaseable/human_item/food_synth,\
 	new /datum/bank_purchaseable/human_item/record,\
 	new /datum/bank_purchaseable/human_item/sparkler_box,\
+	new /datum/bank_purchaseable/human_item/dabbing_license,\
 	new /datum/bank_purchaseable/human_item/chem_hint,\
 
 	new /datum/bank_purchaseable/altjumpsuit,\
@@ -25,14 +26,12 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	new /datum/bank_purchaseable/bp_randoseru,\
 	new /datum/bank_purchaseable/bp_anello,\
 	new /datum/bank_purchaseable/nt_backpack,\
-	new /datum/bank_purchaseable/lizard,\
-	new /datum/bank_purchaseable/cow,\
-	new /datum/bank_purchaseable/skeleton,\
-	new /datum/bank_purchaseable/roach,\
+
 	new /datum/bank_purchaseable/limbless,\
 	new /datum/bank_purchaseable/corpse,\
 	new /datum/bank_purchaseable/space_diner,\
 	new /datum/bank_purchaseable/mail_order,\
+	new /datum/bank_purchaseable/missile_arrival,\
 	new /datum/bank_purchaseable/lunchbox,\
 
 	new /datum/bank_purchaseable/critter_respawn,\
@@ -68,7 +67,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			var/mob/living/carbon/human/H = M
 			equip_success = 1
 			var/obj/I = new path(H.loc)
-			I.name = "[H.real_name][pick(trinket_names)] [I.name]"
+			I.name = "[H.real_name][pick_string("trinkets.txt", "modifiers")] [I.name]"
 			I.quality = rand(5,80)
 			var/equipped = 0
 			if (istype(H.back, /obj/item/storage) && H.equip_if_possible(I, H.slot_in_backpack))
@@ -111,6 +110,16 @@ var/global/list/persistent_bank_purchaseables =	list(\
 					R.clothes["head"] = O
 					O.set_loc(R)
 					equip_success = 1
+				if(equip_success)
+					R.update_appearance()
+
+		if(isAI(M))
+			var/mob/living/silicon/ai/AI = M
+			if (ispath(path, /obj/item/clothing))
+				if(ispath(path,/obj/item/clothing/head))
+					AI.set_hat(new path(AI))
+					equip_success = 1
+
 
 
 		//The AI can't really wear items...
@@ -229,6 +238,11 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			cost = 1000
 			path = /obj/item/storage/sparkler_box
 
+		dabbing_license
+			name = "Dabbing License"
+			cost = 4200
+			path = /obj/item/card/id/dabbing_license
+
 		battlepass
 			name = "Battle Pass"
 			cost = 1000
@@ -236,7 +250,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 
 			Create(var/mob/living/M)
 				..(M)
-				if(M && M.mind)
+				if(M?.mind)
 					battle_pass_holders.Add(M.mind)
 				return 1
 
@@ -318,54 +332,6 @@ var/global/list/persistent_bank_purchaseables =	list(\
 
 			return 0
 
-	lizard
-		name = "Reptillian"
-		cost = 3000
-
-		Create(var/mob/living/M)
-			if (ishuman(M))
-				var/mob/living/carbon/human/H = M
-				if (H.bioHolder)
-					H.bioHolder.AddEffect("lizard")
-					return 1
-			return 0
-
-	cow
-		name = "Cow"
-		cost = 4000
-
-		Create(var/mob/living/M)
-			if (ishuman(M))
-				var/mob/living/carbon/human/H = M
-				if (H.bioHolder)
-					H.bioHolder.AddEffect("cow")
-					return 1
-			return 0
-
-	skeleton
-		name = "Skeleton"
-		cost = 5000
-
-		Create(var/mob/living/M)
-			if (ishuman(M))
-				var/mob/living/carbon/human/H = M
-				if (H.bioHolder)
-					H.bioHolder.AddEffect("skeleton")
-					return 1
-			return 0
-
-	roach
-		name = "Roach"
-		cost = 5000
-
-		Create(var/mob/living/M)
-			if (ishuman(M))
-				var/mob/living/carbon/human/H = M
-				if (H.bioHolder)
-					H.bioHolder.AddEffect("roach")
-					return 1
-			return 0
-
 	limbless
 		name = "No Limbs"
 		cost = 10000
@@ -383,17 +349,18 @@ var/global/list/persistent_bank_purchaseables =	list(\
 							H.limbs.l_leg.delete()
 						if (H.limbs.r_leg)
 							H.limbs.r_leg.delete()
-						boutput( H, "<span style='color:blue'><b>Your limbs magically disappear! Oh, no!</b></span>" )
+						boutput( H, "<span class='notice'><b>Your limbs magically disappear! Oh, no!</b></span>" )
 				return 1
 			return 0
 
 	corpse
 		name = "Corpse"
 		cost = 15000
+		carries_over = 0
 
 		Create(var/mob/living/M)
 			setdead(M)
-			boutput(M, "<span style='color:blue'><b>You magically keel over and die! Oh, no!</b></span>")
+			boutput(M, "<span class='notice'><b>You magically keel over and die! Oh, no!</b></span>")
 			return 1
 
 	space_diner
@@ -423,10 +390,29 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			if (istype(M.loc, /obj/storage)) // also for stowaways; we really should have a system for integrating this stuff
 				S = M.loc
 			else
-				S = new /obj/storage/crate(get_turf(M))
+				S = new /obj/storage/crate/packing(get_turf(M))
 				M.set_loc(S)
 				shippingmarket.receive_crate(S)
 				return 1
+
+	missile_arrival
+		name = "Missile Arrival"
+		cost = 20000
+
+		Create(var/mob/living/M)
+			if(istype(M.back, /obj/item/storage))
+				var/obj/item/storage/backpack = M.back
+				new /obj/item/tank/emergency_oxygen(backpack) // oh boy they'll need this if they are unlucky
+				backpack.hud.update()
+			var/mob/living/carbon/human/H = M
+			if(istype(H))
+				H.equip_new_if_possible(/obj/item/clothing/mask/breath, SLOT_WEAR_MASK)
+			SPAWN_DBG(0)
+				if(istype(M.loc, /obj/storage))
+					launch_with_missile(M.loc)
+				else
+					launch_with_missile(M)
+			return 1
 
 	critter_respawn
 		name = "Alt Ghost Critter"

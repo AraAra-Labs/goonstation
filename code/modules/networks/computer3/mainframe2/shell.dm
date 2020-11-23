@@ -393,7 +393,16 @@
 						if (!isnum(.) || . < 0)
 							continue
 
-						sleep ( max(0, min(., 30)) )
+						sleep(clamp(., 0, 30) SECONDS)
+						continue
+
+					if ("unset")
+						if (!length(command_list))
+							scriptvars = list()
+							continue
+						for (var/V in command_list)
+							if (lowertext(ckeyEx(V)) in scriptvars)
+								scriptvars -= lowertext(ckeyEx(V))
 						continue
 
 					if ("help", "man")
@@ -573,7 +582,7 @@
 
 		//Something something immersion something something 32-bit signed someting fixed point something.
 		script_clampvalue(var/clampnum)
-			//return round( min( max(text2num(clampnum), -2147483647), 2147483648) )
+			//return round( min( max(text2num(clampnum), -2147483647), 2147483648) ) // good riddance
 			return round( min( max(clampnum, -2147483647), 2147483600), 0.01 ) // 2147483648
 
 		script_isNumResult(var/current, var/result)
@@ -586,7 +595,7 @@
 		script_evaluate2(var/list/command_stream, return_bool)
 
 			stack.len = 0
-			while (command_stream && command_stream.len)
+			while (length(command_stream))
 				var/current_command = command_stream[1]
 				//boutput(world, "current_command = \[[current_command]]")
 				command_stream.Cut(1,2)
@@ -599,13 +608,14 @@
 					continue
 
 				var/result = null
+
 				switch ( lowertext(current_command) )
 					if ("+") //(1X 2X -- (1X + 2X))
 						if (stack.len < 2)
 							return ERR_STACK_UNDER
 
 						if (script_isNumResult(stack[stack.len], stack[stack.len-1]))
-							result = stack[stack.len] + stack[stack.len-1]
+							result = text2num(stack[stack.len]) + text2num(stack[stack.len-1])
 							stack[--stack.len] = script_clampvalue( result )
 
 						else
@@ -835,7 +845,7 @@
 							stack.len++
 							stack[stack.len] = stack[stack.len-1]
 
-					if ("&#39;")
+					if ("&#39;","'") // bodge alert, "'" added because this command doesnt seem to work at all
 						var/newString
 						while (command_stream.len)
 							if (command_stream[1] == "\'" || command_stream[1] == "&#39;")
@@ -895,6 +905,15 @@
 						//todo
 						continue
 
+					if ("#") // gets how many information turdnuggets you have stored up
+						stack.len++
+						stack[stack.len]="[stack.len-1]"
+
+					if ("del") //  removes the topmost item from the stack (most recently added)
+						if (!stack.len)
+							return ERR_STACK_UNDER
+						stack.len--
+
 					if ("value", "to") //Define/Set a variable value.
 						if (!stack.len)
 							return ERR_STACK_UNDER
@@ -908,6 +927,20 @@
 
 						scriptvars["[valueName]"] = stack[stack.len]
 						stack.len--
+
+					if (".s") // print the whole goddamn stack! stolen from forth, doesnt consume the stack.
+						message_user("<[stack.len]>") // does not check if its in a script or not
+						if(stack.len<1) 			  // piping "eval" to some other program and doing . or .s could be handy
+							continue
+						for(var/i = 1 to stack.len)
+							message_user("[stack[i]]")
+						message_user(" ") //honk.
+
+					if (".") // print JUST the most recent stack item. also stolen from forth
+						if(stack.len<1) // same as above, no script check "eval 3 2 . 4 | echo" -> "2" output
+							return ERR_STACK_UNDER
+						message_user("[stack[stack.len]]")
+						stack.len-- //consume it, because thats what forth does
 
 					else
 						//boutput(world, "\[[lowertext(ckeyEx(current_command))]] in script vars?")

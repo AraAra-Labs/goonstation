@@ -29,7 +29,7 @@
 		if (namecheck.len >= 2)
 			namecheck.Insert(2, H.client.preferences.name_middle)
 			G.fields["full_name"] = jointext(namecheck, " ")
-	G.fields["id"] = "[add_zero(num2hex(rand(1, 1.6777215E7)), 6)]"
+	G.fields["id"] = "[add_zero(num2hex(rand(1, 1.6777215E7), 0), 6)]"
 	M.fields["name"] = G.fields["name"]
 	M.fields["id"] = G.fields["id"]
 	S.fields["name"] = G.fields["name"]
@@ -44,7 +44,7 @@
 		G.fields["sex"] = "Male"
 
 	G.fields["age"] ="[H.bioHolder.age]"
-	G.fields["fingerprint"] = "[md5(H.bioHolder.Uid)]"
+	G.fields["fingerprint"] = "[H.bioHolder.uid_hash]"
 	G.fields["dna"] = H.bioHolder.Uid
 	G.fields["p_stat"] = "Active"
 	G.fields["m_stat"] = "Stable"
@@ -93,6 +93,11 @@
 
 	M.fields["traits"] = traitStr
 
+	if(!length(sec_note))
+		S.fields["notes"] = "No notes."
+	else
+		S.fields["notes"] = sec_note
+
 	if(H.traitHolder.hasTrait("jailbird"))
 		S.fields["criminal"] = "*Arrest*"
 		S.fields["mi_crim"] = pick(\
@@ -135,7 +140,20 @@
 								"Throwing explosive tomatoes at people.",\
 								"Caused multiple seemingly unrelated accidents.")
 		S.fields["ma_crim_d"] = "No details provided."
-		S.fields["notes"] = pick("Huge nerd.", "Total jerkface.", "Absolute dingus.", "Insanely endearing.", "Worse than clown.", "Massive crapstain.");
+
+		var/randomNote = pick("Huge nerd.", "Total jerkface.", "Absolute dingus.", "Insanely endearing.", "Worse than clown.", "Massive crapstain.");
+		if(S.fields["notes"] == "No notes.")
+			S.fields["notes"] = randomNote
+		else
+			S.fields["notes"] += " [randomNote]"
+
+		boutput(H, "<span class='notice'>You are currently on the run because you've committed the following crimes:</span>")
+		boutput(H, "<span class='notice'>- [S.fields["mi_crim"]]</span>")
+		boutput(H, "<span class='notice'>- [S.fields["ma_crim"]]</span>")
+
+		H.mind.store_memory("You've committed the following crimes before arriving on the station:")
+		H.mind.store_memory("- [S.fields["mi_crim"]]")
+		H.mind.store_memory("- [S.fields["ma_crim"]]")
 	else
 		S.fields["criminal"] = "None"
 		S.fields["mi_crim"] = "None"
@@ -143,10 +161,6 @@
 		S.fields["ma_crim"] = "None"
 		S.fields["ma_crim_d"] = "No major crime convictions."
 
-		if(!length(sec_note))
-			S.fields["notes"] = "No notes."
-		else
-			S.fields["notes"] = sec_note
 
 	B.fields["job"] = H.job
 	B.fields["current_money"] = 100.0
@@ -162,7 +176,7 @@
 	// Otherwise give them a default wage
 	else
 		var/datum/job/J = find_job_in_controller_by_string(G.fields["rank"])
-		if (J && J.wages)
+		if (J?.wages)
 			B.fields["wage"] = round(J.wages * wageMult)
 		else
 			B.fields["wage"] = 0
@@ -180,7 +194,7 @@
 
 		var/username = format_username(H.real_name)
 		if (!src.mainframe || !src.mainframe.hd || !(src.mainframe.hd in src.mainframe))
-			for (var/obj/machinery/networked/mainframe/newMainframe in machine_registry[MACHINES_MAINFRAMES])
+			for (var/obj/machinery/networked/mainframe/newMainframe as() in machine_registry[MACHINES_MAINFRAMES])
 				if (newMainframe.z != 1 || newMainframe.status)
 					continue
 
@@ -227,6 +241,7 @@
 	var/issuer_byond_key = null
 
 	New()
+		..()
 		SPAWN_DBG(1 SECOND)
 			statlog_ticket(src, usr)
 
@@ -248,6 +263,7 @@
 	var/approver_byond_key = null
 
 	New()
+		..()
 		generate_ID()
 		SPAWN_DBG(1 SECOND)
 			for(var/datum/data/record/B in data_core.bank) //gross

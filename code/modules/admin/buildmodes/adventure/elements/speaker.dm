@@ -14,7 +14,7 @@
 			speaker_anchored = (anchstr == "yes") ? 1 : 0
 			color_rgb = input("Color", "Color", "#ffffff") as color
 		message = input("Speaker message", "Speaker message") as text
-		boutput(usr, "<span style=\"color:blue\">Left click to place speaker, right click to simulate message. Ctrl+click anywhere to finish.</span>")
+		boutput(usr, "<span class='notice'>Left click to place speaker, right click to simulate message. Ctrl+click anywhere to finish.</span>")
 
 	build_click(var/mob/user, var/datum/buildmode_holder/holder, var/list/pa, var/atom/object)
 		if (pa.Find("left"))
@@ -27,7 +27,7 @@
 				speaker.name = speaker_name
 				speaker.speaker_type = speaker_type
 				speaker.icon_state = "speaker_[speaker_type]"
-				speaker.dir = holder.dir
+				speaker.set_dir(holder.dir)
 				speaker.anchored = speaker_anchored
 				speaker.message = message
 				if (speaker_type == "invisible")

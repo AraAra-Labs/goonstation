@@ -1,38 +1,9 @@
-/*
--- atom.changeStatus(statusId, duration, optional)
-If atom has status with [statusId], change by [duration]. (The change is relative to the current value, think +=)
-If atom does not have status, add it with given [duration].
-In both cases [optional] will be passed into either .onAdd or .onChange on the status effect. Useful for custom behaviour.
-Returns: The changed/added status effect or null on errors.
-
--- atom.setStatus(statusId, duration, optional)
-If atom has status with [statusId], set it to [duration]. (The change is absolute, think =)
-If atom does not have status, add it with given [duration].
-In both cases [optional] will be passed into either .onAdd or .onChange on the status effect. Useful for custom behaviour.
-Returns: The changed/added status effect or null on errors.
-
--- atom.getStatusDuration(statusId)
-Returns duration of status with given [statusId], or null if not found.
-
--- atom.hasStatus(statusId, optionalArgs = null)
-Returns first status with given [statusId] or null if not found.
-[optionalArgs] can be passed in for additional checks that are handled in the effects .onCheck proc. Useful if you want to check some custom conditions on status effects
-
--- atom.delStatus(var/status)
-Deletes the given status from the atom.
-[status] can either be a reference to a status effect or a status effect ID.
-
-Additional notes:
-Non-unique status effects (effects that can be applied several times to the same atom) can not be changed by normal means after they are added. Keep a reference if you need to change them.
-Status effect procs have comments in their base definition below. Check there if you want to know more about what they do.
-Status effects with a duration of INFINITE_STATUS (null) last indefinitely. (Shows as a duration of * in the UI) ((Keep in mind that null is distinct from 0))
-*/
 
 var/list/globalStatusPrototypes = list()
 var/list/globalStatusInstances = list()
 
-//Simple global list of groupname : amount, that tells the system how many effects of a group we can have active at most. See exclusiveGroup. Buffs above the max will not be applied.
-var/list/statusGroupLimits = list("Food"=4)
+/// Simple global list of groupname : amount, that tells the system how many effects of a group we can have active at most. See exclusiveGroup. Buffs above the max will not be applied.
+var/global/list/statusGroupLimits = list("Food"=4)
 
 /proc/testStatus()
 	var/inp = input(usr,"Which status?","Test status","airrit") as text
@@ -129,92 +100,96 @@ var/list/statusGroupLimits = list("Food"=4)
 		maptext = "<text align=center><FONT FACE=Arial COLOR=white SIZE=1>[str]</FONT></text>"
 		return
 
+/* BASE PROCS */
 
-/atom
-	var/list/statusEffects = null //List of status effects.
+/atom/var/list/statusEffects = null //List of status effects.
+/atom/var/list/statusLimits //only instantiated if we actually need it
 
-	proc/updateStatusUi() //Stub. Override for objects that need to update their ui with status information.
-		return
+/// Stub. Override for objects that need to update their ui with status effect information.
+/atom/proc/updateStatusUi()
+	return
 
-	proc/changeStatus(statusId, duration, optional)
-		var/datum/statusEffect/globalInstance = null
-		for(var/datum/statusEffect/status in globalStatusPrototypes)
-			if(status.id == statusId)
-				globalInstance = status
-				break
+/**
+	* If atom has status with {statusId}, change by {duration}.
+	*
+	* (The change is relative to the current value, think +=)
+	* If atom does not have status, add it with given {duration}.
+	* In both cases {optional} will be passed into either .onAdd or .onChange on the status effect. Useful for custom behaviour.
+	*
+	* * Returns: The changed/added status effect or null on errors.
+	*/
+/atom/proc/changeStatus(statusId, duration, optional)
+	var/datum/statusEffect/globalInstance = null
+	for(var/datum/statusEffect/status in globalStatusPrototypes)
+		if(status.id == statusId)
+			globalInstance = status
+			break
 
-		if(!globalInstance)
-			throw EXCEPTION("Unknown status type passed: [statusId]")
-			return null
-
-		if(!globalInstance.preCheck(src)) return null
-
-		if(hasStatus(statusId))
-			var/datum/statusEffect/S = hasStatus(statusId)
-			setStatus(statusId, (isnull(S.maxDuration) ? (S.duration + duration):(min(S.duration + duration, S.maxDuration))), optional)
-			return S
-		else
-			if(duration > 0)
-				return setStatus(statusId, (isnull(globalInstance.maxDuration) ? (duration):(min(duration, globalInstance.maxDuration))), optional)
-
+	if(!globalInstance)
+		throw EXCEPTION("Unknown status type passed: [statusId]")
 		return null
 
-	proc/setStatus(statusId, duration, optional)
-		if(statusEffects == null) statusEffects = list()
+	if(!globalInstance.preCheck(src)) return null
 
-		var/datum/statusEffect/globalInstance = null
-		for(var/datum/statusEffect/status in globalStatusPrototypes)
-			if(status.id == statusId)
-				globalInstance = status
-				break
+	if(hasStatus(statusId))
+		var/datum/statusEffect/S = hasStatus(statusId)
+		setStatus(statusId, (isnull(S.maxDuration) ? (S.duration + duration):(min(S.duration + duration, S.maxDuration))), optional)
+		return S
+	else
+		if(duration > 0)
+			return setStatus(statusId, (isnull(globalInstance.maxDuration) ? (duration):(min(duration, globalInstance.maxDuration))), optional)
 
-		if(globalInstance != null)
-			if(!globalInstance.preCheck(src)) return null
+	return null
 
-			var/groupFull = 0
-			var/groupCount = 0
-			if(globalInstance.exclusiveGroup != "" && statusGroupLimits.Find(globalInstance.exclusiveGroup))
-				for(var/datum/statusEffect/status in statusEffects)
-					if(status.exclusiveGroup == globalInstance.exclusiveGroup && status.id != statusId)
-						groupCount++
-				if(groupCount >= statusGroupLimits[globalInstance.exclusiveGroup])
-					groupFull = 1
+/**
+	* If atom has status with {statusId}, set it to {duration}.
+	*
+	* (The change is absolute, think =)
+	*
+	* If atom does not have status, add it with given {duration}.
+	*
+	* In both cases {optional} will be passed into either .onAdd or .onChange on the status effect. Useful for custom behaviour.
+	*
+	* * Returns: The changed/added status effect or null on errors.
+	*/
+/atom/proc/setStatus(statusId, duration, optional)
+	if(statusEffects == null) statusEffects = list()
 
-			if(globalInstance.unique) //unique, easy.
-				if(hasStatus(statusId))
-					//Update it
-					if(duration > 0 || isnull(duration))
-						var/datum/statusEffect/localInstance = hasStatus(statusId)
-						if (duration)
-							duration = localInstance.duration + localInstance.modify_change(duration - localInstance.duration)
-						localInstance.duration = (isnull(localInstance.maxDuration) ? (duration):(min(duration, localInstance.maxDuration)))
-						localInstance.onChange(optional)
-						src.updateStatusUi()
-						return localInstance
-					else
-						delStatus(statusId)
+	var/datum/statusEffect/globalInstance = null
+	for(var/datum/statusEffect/status in globalStatusPrototypes)
+		if(status.id == statusId)
+			globalInstance = status
+			break
+
+	if(globalInstance != null)
+		if(!globalInstance.preCheck(src)) return null
+
+		var/groupFull = 0
+		var/groupCount = 0
+		var/list/groupLimits = (length(src.statusLimits) ? src.statusLimits | statusGroupLimits : statusGroupLimits)
+		if(globalInstance.exclusiveGroup != "" && groupLimits.Find(globalInstance.exclusiveGroup))
+			for(var/datum/statusEffect/status in statusEffects)
+				if(status.exclusiveGroup == globalInstance.exclusiveGroup && status.id != statusId)
+					groupCount++
+			if(groupCount >= groupLimits[globalInstance.exclusiveGroup])
+				groupFull = 1
+
+		if(globalInstance.unique) //unique, easy.
+			if(hasStatus(statusId))
+				//Update it
+				if(duration > 0 || isnull(duration))
+					var/datum/statusEffect/localInstance = hasStatus(statusId)
+					if (duration)
+						duration = localInstance.duration + localInstance.modify_change(duration - localInstance.duration)
+					localInstance.duration = (isnull(localInstance.maxDuration) ? (duration):(min(duration, localInstance.maxDuration)))
+					localInstance.onChange(optional)
+					src.updateStatusUi()
+					return localInstance
 				else
-					if((duration > 0 || isnull(duration)) && !groupFull)
-						//Add it
-						var/datum/statusEffect/localInstance = new globalInstance.type()
-						localInstance.owner = src
-						if (duration)
-							duration = localInstance.duration + localInstance.modify_change(duration - localInstance.duration)
-							if (!duration) //if we ended up reducing it to 0, just clear it without ever applying
-								localInstance.owner = null
-								return null
-						localInstance.duration = (isnull(localInstance.maxDuration) ? (duration):(min(duration, localInstance.maxDuration)))
-						localInstance.archivedOwnerInfo = "OwnerName:[src.name] - OwnerType:[src.type] - ContLen:[src.contents.len] - StatusLen:[src.statusEffects.len]"
-						localInstance.onAdd(optional)
-						if(!statusEffects.Find(localInstance)) statusEffects.Add(localInstance)
-						if(!globalStatusInstances.Find(localInstance)) globalStatusInstances.Add(localInstance)
-						src.updateStatusUi()
-						return localInstance
-					else return null
+					delStatus(statusId)
 			else
-				//Not unique, no changing it. Only adding supported.
-				//Add it
 				if((duration > 0 || isnull(duration)) && !groupFull)
+					//Add it
 					var/datum/statusEffect/localInstance = new globalInstance.type()
 					localInstance.owner = src
 					if (duration)
@@ -222,7 +197,6 @@ var/list/statusGroupLimits = list("Food"=4)
 						if (!duration) //if we ended up reducing it to 0, just clear it without ever applying
 							localInstance.owner = null
 							return null
-
 					localInstance.duration = (isnull(localInstance.maxDuration) ? (duration):(min(duration, localInstance.maxDuration)))
 					localInstance.archivedOwnerInfo = "OwnerName:[src.name] - OwnerType:[src.type] - ContLen:[src.contents.len] - StatusLen:[src.statusEffects.len]"
 					localInstance.onAdd(optional)
@@ -232,90 +206,198 @@ var/list/statusGroupLimits = list("Food"=4)
 					return localInstance
 				else return null
 		else
-			throw EXCEPTION("Unknown status type passed: [statusId]")
-			return null
+			//Not unique, no changing it. Only adding supported.
+			//Add it
+			if((duration > 0 || isnull(duration)) && !groupFull)
+				var/datum/statusEffect/localInstance = new globalInstance.type()
+				localInstance.owner = src
+				if (duration)
+					duration = localInstance.duration + localInstance.modify_change(duration - localInstance.duration)
+					if (!duration) //if we ended up reducing it to 0, just clear it without ever applying
+						localInstance.owner = null
+						return null
 
-	proc/getStatusDuration(statusId)
-		.= null
-		if(statusEffects)
-			var/datum/statusEffect/status = 0
-			for(var/S in statusEffects) //dont typecheck as we loop through StatusEffects - Assume everything inside must be a statuseffect
-				status = S
-				if(status.id == statusId)
-					.= status.duration
-					break
+				localInstance.duration = (isnull(localInstance.maxDuration) ? (duration):(min(duration, localInstance.maxDuration)))
+				localInstance.archivedOwnerInfo = "OwnerName:[src.name] - OwnerType:[src.type] - ContLen:[src.contents.len] - StatusLen:[src.statusEffects.len]"
+				localInstance.onAdd(optional)
+				if(!statusEffects.Find(localInstance)) statusEffects.Add(localInstance)
+				if(!globalStatusInstances.Find(localInstance)) globalStatusInstances.Add(localInstance)
+				src.updateStatusUi()
+				return localInstance
+			else return null
+	else
+		throw EXCEPTION("Unknown status type passed: [statusId]")
+		return null
 
-	proc/hasStatus(statusId, optionalArgs = null)
-		.= null
-		if(statusEffects)
-			var/datum/statusEffect/status = 0
+/**
+	* Returns duration of status with given {statusId}, or null if not found.
+	*/
+/atom/proc/getStatusDuration(statusId)
+	.= null
+	if(statusEffects)
+		var/datum/statusEffect/status = 0
+		for(var/S in statusEffects) //dont typecheck as we loop through StatusEffects - Assume everything inside must be a statuseffect
+			status = S
+			if(status.id == statusId)
+				.= status.duration
+				break
+
+/**
+	* Returns first status with given {statusId} or null if not found.
+	*
+	* {optionalArgs} can be passed in for additional checks that are handled in the effects .onCheck proc.
+	* Useful if you want to check some custom conditions on status effects.
+	*/
+/atom/proc/hasStatus(statusId, optionalArgs = null)
+	if(statusEffects)
+		if (!islist(statusId))
+			var/datum/statusEffect/status
 			for(var/S in statusEffects) //dont typecheck as we loop through StatusEffects - Assume everything inside must be a statuseffect
 				status = S
 				if(status.id == statusId && ((optionalArgs && status.onCheck(optionalArgs)) || (!optionalArgs)))
-					.= status
-					break
+					return status
+		else
+			var/list/idlist = statusId
+			var/datum/statusEffect/status
+			for(var/S in statusEffects)
+				status = S
+				if((status.id in idlist) && ((optionalArgs && status.onCheck(optionalArgs)) || (!optionalArgs)))
+					return status
 
-	proc/delStatus(var/status)
-		if(statusEffects == null)
-			return null
+/**
+	* Returns a list of all the datum/statusEffect on source atom.
+	*
+	* {optionalArgs} can be passed in for additional checks that are handled in the effects .onCheck proc.
+	* Useful if you want to check some custom conditions on status effects.
+	*/
+/atom/proc/getStatusList(optionalArgs = null)
+	. = list()
+	if (statusEffects)
+		var/datum/statusEffect/status
+		for(var/S in statusEffects)
+			status = S
+			if((optionalArgs && status.onCheck(optionalArgs)) || (!optionalArgs))
+				.[status.id] = status
 
-		if(istext(status)) //ID was passed in.
-			for(var/datum/statusEffect/statcurr in statusEffects)
-				if(statcurr.id == status)
-					if(globalStatusInstances.Find(statcurr)) globalStatusInstances.Remove(statcurr)
-					statusEffects.Remove(statcurr)
-					statcurr.onRemove()
-		else if(istype(status, /datum/statusEffect)) //Instance was passed in.
-			if(statusEffects.Find(status))
-				if(globalStatusInstances.Find(status)) globalStatusInstances.Remove(status)
-				statusEffects.Remove(status)
-				var/datum/statusEffect/S = status
-				S.onRemove()
-
-		src.updateStatusUi()
-
+/**
+	* Deletes the given status from the atom.
+	*
+	* {status} can either be a reference to a status effect or a status effect ID.
+	*/
+/atom/proc/delStatus(var/status)
+	if(statusEffects == null)
 		return null
 
+	if(istext(status)) //ID was passed in.
+		for(var/datum/statusEffect/statcurr in statusEffects)
+			if(statcurr.id == status)
+				if(globalStatusInstances.Find(statcurr)) globalStatusInstances.Remove(statcurr)
+				statusEffects.Remove(statcurr)
+				statcurr.onRemove()
+	else if(istype(status, /datum/statusEffect)) //Instance was passed in.
+		if(statusEffects.Find(status))
+			if(globalStatusInstances.Find(status)) globalStatusInstances.Remove(status)
+			statusEffects.Remove(status)
+			var/datum/statusEffect/S = status
+			S.onRemove()
+
+	src.updateStatusUi()
+
+	return null
+
+/// Our datum that keeps track of an individual status effect.
 /datum/statusEffect
+
+	/// Unique ID of the status effect
 	var/id = ""
+	/// Tooltip name to display
 	var/name = ""
+	/// Icon state to display.
 	var/icon_state = ""
-	var/desc = ""		//Tooltip desc
-	var/duration = 0 //In deciseconds (tenths of a second, same as ticks just sane). A duration of NULL is infinite. (This is distinct from 0)
-	var/atom/owner = null //Owner of the status effect
+	/// Tooltip desc
+	var/desc = ""
+	/// In deciseconds (tenths of a second, same as ticks just sane). A duration of NULL is infinite. (This is distinct from 0)
+	var/duration = 0
+	/// Owner of the status effect
+	var/atom/owner = null
 	var/archivedOwnerInfo = ""
-	var/unique = 1 //If true, this status effect can only have one instance on any given object.
-	var/visible = 1 //Is this visible in the status effect bar?
-	var/exclusiveGroup = "" //optional name of a group of buffs. players can only have a certain number of buffs of a given group - any new applications fail. useful for food buffs etc.
-	var/maxDuration = null //If non-null, duration of the effect will be clamped to be max. this amount.
-	var/move_triggered = 0 //has an on-move effect
+	/// If true, this status effect can only have one instance on any given object.
+	var/unique = 1
+	/// Is this visible in the status effect bar?
+	var/visible = 1
+	/// optional name of a group of buffs. players can only have a certain number of buffs of a given group - any new applications fail. useful for food buffs etc.
+	var/exclusiveGroup = ""
+	/// If non-null, duration of the effect will be clamped to be max. this amount.
+	var/maxDuration = null
+	/// has an on-move effect
+	var/move_triggered = 0
+	/// Has a movement-modifying effect
+	var/datum/movement_modifier/movement_modifier
 
 
-	proc/preCheck(var/atom/A) //Used to run a custom check before adding status to an object. For when you want something to be flat out immune or something. ret = 1 allow, 0 = do not allow
+	/**
+		* Used to run a custom check before adding status to an object. For when you want something to be flat out immune or something.
+		*
+		* * return = 1 allow, 0 = do not allow
+		*/
+	proc/preCheck(var/atom/A)
 		return 1
 
 	proc/modify_change(var/change)
 		.= change
 
-	proc/onAdd(var/optional=null) //Called when the status is added to an object. owner is already set at this point. Has the optional arg from setStatus passed in.
+	/**
+		* Called when the status is added to an object. owner is already set at this point.
+		*
+		* optional {optional} - arg from setStatus (passed in)
+		*/
+	proc/onAdd(var/optional=null)
+		if (movement_modifier && ismob(owner))
+			var/mob/mob_owner = owner
+			APPLY_MOVEMENT_MODIFIER(mob_owner, movement_modifier, src.type)
 		return
 
-	proc/onRemove() //Called when the status is removed from the object. owner is still set at this point.
+	/**
+		* Called when the status is removed from the object. owner is still set at this point.
+		*/
+	proc/onRemove()
+		if (movement_modifier && ismob(owner))
+			var/mob/mob_owner = owner
+			REMOVE_MOVEMENT_MODIFIER(mob_owner, movement_modifier, src.type)
 		return
 
-	proc/onUpdate(var/timedPassed) //Called every tick by the status controller. Argument is the actual time since the last update call.
+	/**
+		* Called every tick by the status controller.
+		*
+		* required {timePassed} - the actual time since the last update call.
+		*/
+	proc/onUpdate(var/timePassed)
 		return
 
-	proc/onChange(var/optional=null) //Called when the status is changed using setStatus. Called after duration is updated etc. Has the optional arg from setStatus passed in.
+	/**
+		* Called when the status is changed using setStatus. Called after duration is updated etc.
+		*
+		* optional {optional} - arg from setStatus (passed in)
+		*/
+	proc/onChange(var/optional=null)
 		return
 
-	proc/onCheck(var/optional=null) //Called by hasStatus. Used to handle additional checks with the optional arg in that proc.
+	/**
+		* Called by hasStatus. Used to handle additional checks with the optional arg in that proc.
+		*/
+	proc/onCheck(var/optional=null)
 		return 1
 
-	proc/getTooltip() //Used to generate tooltip. Can be changed to have dynamic tooltips.
+	/**
+		* Used to generate tooltip. Can be changed to have dynamic tooltips.
+		*/
+	proc/getTooltip()
 		return desc
 
-	proc/getExamine() //Information that should show up when an object has this effect and is examined.
+	/**
+		* Information that should show up when an object has this effect and is examined.
+		*/
+	proc/getExamine()
 		return null
 
 	proc/clicked(list/params)
@@ -327,7 +409,19 @@ var/list/statusGroupLimits = list("Food"=4)
 	disposing()
 		if (owner)
 			owner.statusEffects -= src
+		src.owner = null
 		..()
+
+	defibbed
+		id = "defibbed"
+		name = "Defibrillated"
+		desc = "You've been zapped in a way your heart seems to like."
+		icon_state = "heart+"
+		unique = 1
+		maxDuration = 12 SECONDS // Just slightly longer than a defib's charge cycle
+
+		getTooltip()
+			return "You've been zapped in a way your heart seems to like!<br>You feel more resistant to cardiac arrest, and more likely for subsequent defibrillating shocks to restart your heart if it stops!"
 
 	maxhealth
 		id = "maxhealth"
@@ -342,15 +436,17 @@ var/list/statusGroupLimits = list("Food"=4)
 				var/mob/M = owner
 				change = optional
 				M.max_health += change
+				health_update_queue |= M
 			return
 
 		onRemove()
 			if(ismob(owner))
 				var/mob/M = owner
 				M.max_health -= change
+				health_update_queue |= M
 			return
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 			icon_state = "[change > 0 ? "heart+":"heart-"]"
 			name = "Max. health [change > 0 ? "increased":"reduced"]"
 			return
@@ -363,6 +459,7 @@ var/list/statusGroupLimits = list("Food"=4)
 				M.max_health -= change
 				change = optional
 				M.max_health += change
+				health_update_queue |= M
 			return
 
 		getTooltip()
@@ -371,17 +468,17 @@ var/list/statusGroupLimits = list("Food"=4)
 		//Technically the base class can handle either but we need to separate these.
 		increased
 			id = "maxhealth+"
-			onUpdate(var/timedPassed)
+			onUpdate(var/timePassed)
 				if(change < 0) //Someone fucked this up; remove effect.
 					duration = 1
-				return ..(timedPassed)
+				return ..(timePassed)
 
 		decreased
 			id = "maxhealth-"
-			onUpdate(var/timedPassed)
+			onUpdate(var/timePassed)
 				if(change > 0) //Someone fucked this up; remove effect.
 					duration = 1
-				return ..(timedPassed)
+				return ..(timePassed)
 
 	simplehot //Simple heal over time.
 		var/tickCount = 0
@@ -391,8 +488,8 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/heal_burn = 0
 		icon_state = "+"
 
-		onUpdate(var/timedPassed)
-			tickCount += timedPassed
+		onUpdate(var/timePassed)
+			tickCount += timePassed
 			var/times = (tickCount / tickSpacing)
 			if(times >= 1 && ismob(owner))
 				tickCount -= (round(times) * tickSpacing)
@@ -410,8 +507,8 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/damage_type = DAMAGE_STAB
 		icon_state = "-"
 
-		onUpdate(var/timedPassed)
-			tickCount += timedPassed
+		onUpdate(var/timePassed)
+			tickCount += timePassed
 			var/times = (tickCount / tickSpacing)
 			if(times >= 1 && ismob(owner))
 				tickCount -= (round(times) * tickSpacing)
@@ -426,6 +523,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		desc = ""
 		icon_state = "radiation1"
 		unique = 1
+		visible = 0
 
 		tickSpacing = 3 SECONDS
 
@@ -438,10 +536,10 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/stageTime = 10 SECONDS
 
 		getTooltip()
-			return "You are [howMuch]irradiated.<br>Taking [damage_tox] toxin damage every [tickSpacing/10] sec.<br>Damage reduced by radiation resistance on gear."
+			return "You are [howMuch]irradiated.<br>Taking [damage_tox] toxin damage every [tickSpacing/(1 SECOND)] sec.<br>Damage reduced by radiation resistance on gear."
 
 		preCheck(var/atom/A)
-			if(issilicon(A)) return 0
+			if(issilicon(A) || isobserver(A) || isintangible(A)) return 0
 			return 1
 
 		onAdd(var/optional=null)
@@ -460,16 +558,30 @@ var/list/statusGroupLimits = list("Food"=4)
 			icon_state = "radiation[stage]"
 			return
 
-		onUpdate(var/timedPassed)
-			counter += timedPassed
+		onUpdate(var/timePassed)
+			if(locate(/obj/item/implant/health) in owner)
+				src.visible = 1
+			else
+				src.visible = 0
+
+			counter += timePassed
 			if(counter >= stageTime)
 				counter -= stageTime
 				stage = max(stage-1, 1)
 
+			var/mob/M = null
+			if(ismob(owner))
+				M = owner
+				SEND_SIGNAL(M, COMSIG_MOB_GEIGER_TICK, stage)
+				if(locate(/obj/item/implant/health) in M)
+					src.visible = 1
+				else
+					src.visible = 0
+
 			var/prot = 1
-			if(istype(owner, /mob/living/carbon/human))
-				var/mob/living/carbon/human/H = owner
-				prot = (1 - (H.get_rad_protection() / 100))
+			if(istype(owner, /mob/living))
+				var/mob/living/L = owner
+				prot = (1 - (L.get_rad_protection() / 100))
 
 			switch(stage)
 				if(1)
@@ -480,67 +592,64 @@ var/list/statusGroupLimits = list("Food"=4)
 					damage_tox = (2 * prot)
 					howMuch = "significantly "
 					var/chance = (2 * prot)
-					if(prob(chance) && ismob(owner))
-						var/mob/M = owner
+					if(prob(chance) && M)
 						if (M.bioHolder && !M.bioHolder.HasEffect("revenant"))
 							M.changeStatus("weakened", 3 SECONDS)
-							boutput(M, "<span style=\"color:red\">You feel weak.</span>")
+							boutput(M, "<span class='alert'>You feel weak.</span>")
 							M.emote("collapse")
 				if(3)
 					damage_tox = (3 * prot)
 					howMuch = "very much "
-					if (ismob(owner))
-						var/mob/M = owner
+					if (M)
 						var/mutChance = (1 * prot)
 
-						if (M.traitHolder && M.traitHolder.hasTrait("stablegenes"))
+						if (M.traitHolder?.hasTrait("stablegenes"))
 							mutChance = 0
 						if (mutChance < 1) mutChance = 0
 
 						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
-							boutput(M, "<span style=\"color:red\">You mutate!</span>")
-							M:bioHolder:RandomEffect("either")
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 				if(4)
 					damage_tox = (4 * prot)
 					howMuch = "extremely "
-					if (ismob(owner))
-						var/mob/M = owner
+					if (M)
 						var/mutChance = (2 * prot)
 
-						if (M.traitHolder && M.traitHolder.hasTrait("stablegenes"))
+						if (M.traitHolder?.hasTrait("stablegenes"))
 							mutChance = (1 * prot)
 						if (mutChance < 1) mutChance = 0
 
 						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
-							boutput(M, "<span style=\"color:red\">You mutate!</span>")
-							M:bioHolder:RandomEffect("either")
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 				if(5)
 					damage_tox = (4.5 * prot)
 					howMuch = "horribly "
-					if (ismob(owner))
-						var/mob/M = owner
+					if (M)
 						var/mutChance = (3 * prot)
 
-						if (M.traitHolder && M.traitHolder.hasTrait("stablegenes"))
+						if (M.traitHolder?.hasTrait("stablegenes"))
 							mutChance = (2 * prot)
 						if (mutChance < 1) mutChance = 0
 
 						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
-							boutput(M, "<span style=\"color:red\">You mutate!</span>")
-							M:bioHolder:RandomEffect("either")
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 
 			icon_state = "radiation[stage]"
 
-			return ..(timedPassed)
+			return ..(timePassed)
 
 	simpledot/n_radiation
-		id = "neutron_radiation"
+		id = "n_radiation"
 		name = "Neutron Irradiated"
 		desc = ""
-		icon_state = "radiation1"
+		icon_state = "nradiation1"
 		unique = 1
+		visible = 0
 
-		tickSpacing = 1.5 SECONDS
+		tickSpacing = 2 SECONDS
 
 		damage_tox = 2
 		damage_brute = 2
@@ -549,69 +658,116 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/howMuch = ""
 		var/stage = 0
 		var/counter = 0
-		var/stageTime = 10 SECONDS
+		var/stageTime = 20 SECONDS
 
 		getTooltip()
-			return "You are [howMuch]irradiated by neutrons.<br>Taking [damage_tox] toxin damage every [tickSpacing/10] sec and [damage_brute] brute damage every [tickSpacing/10] sec."
+			return "You are [howMuch]irradiated by neutrons.<br>Taking [damage_tox] toxin damage every [tickSpacing/(1 SECOND)] sec and [damage_brute] brute damage every [tickSpacing/(1 SECOND)] sec.<br>Damage reduced by radiation resistance on gear."
 
 		preCheck(var/atom/A)
+			if(issilicon(A) || isobserver(A) || isintangible(A)) return 0
 			return 1
+
+		proc/update_lights(add = 1)
+			owner.remove_simple_light("neutron_rad")
+			owner.remove_medium_light("neutron_rad")
+			if(add)
+				if(stage < 4)
+					owner.add_simple_light("neutron_rad", list(4, 62, 155, stage * 50))
+				else
+					owner.add_medium_light("neutron_rad", list(4, 62, 155, stage * 50))
+
 
 		onAdd(var/optional=null)
 			if(!isnull(optional) && optional >= stage)
 				stage = optional
 			else
 				stage = 5
-			icon_state = "radiation[stage]"
+			update_lights()
 			return
+
+		onRemove()
+			update_lights(0)
+			. = ..()
 
 		onChange(var/optional=null)
 			if(!isnull(optional) && optional >= stage)
 				stage = optional
 			else
 				stage = 5
-			icon_state = "radiation[stage]"
+			icon_state = "nradiation[stage]"
+			update_lights()
 			return
 
-		onUpdate(var/timedPassed)
-			counter += timedPassed
+		onUpdate(var/timePassed)
+			counter += timePassed
+
 			if(counter >= stageTime)
 				counter -= stageTime
 				stage = max(stage-1, 1)
+				update_lights()
+
+			var/mob/M = null
+			if(ismob(owner))
+				M = owner
+				SEND_SIGNAL(M, COMSIG_MOB_GEIGER_TICK, stage)
+				if(locate(/obj/item/implant/health) in M)
+					src.visible = 1
+				else
+					src.visible = 0
 
 			var/prot = 1
-			if(istype(owner, /mob/living/carbon/human))
-				prot = (1 - (0 / 100))
+			if(istype(owner, /mob/living))
+				var/mob/living/L = owner
+				prot = (1 - (L.get_rad_protection() / 100))
+
+			damage_tox = (stage * prot)
+			damage_brute = ((stage/2) * prot)
 
 			switch(stage)
 				if(1)
-					damage_tox = (1 * prot)
-					damage_brute = (1 * prot)
 					howMuch = ""
-
 				if(2)
-					damage_tox = (2 * prot)
-					damage_brute = (2 * prot)
 					howMuch = "significantly "
-
+					var/chance = (2 * prot)
+					if(prob(chance) && M)
+						if (M.bioHolder && !M.bioHolder.HasEffect("revenant"))
+							M.changeStatus("weakened", 5 SECONDS)
+							boutput(M, "<span class='alert'>You feel weak.</span>")
+							M.emote("collapse")
 				if(3)
-					damage_tox = (3 * prot)
-					damage_brute = (3 * prot)
 					howMuch = "very much "
-
+					if (M)
+						var/mutChance = (3 * prot)
+						if (M.traitHolder?.hasTrait("stablegenes"))
+							mutChance = 0
+						if (mutChance < 1) mutChance = 0
+						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 				if(4)
-					damage_tox = (4 * prot)
-					damage_brute = (4 * prot)
 					howMuch = "extremely "
-
+					if (M)
+						var/mutChance = (4 * prot)
+						if (M.traitHolder?.hasTrait("stablegenes"))
+							mutChance = (3 * prot)
+						if (mutChance < 1) mutChance = 0
+						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 				if(5)
-					damage_tox = (5 * prot)
-					damage_brute = (5 * prot)
 					howMuch = "horribly "
+					if (M)
+						var/mutChance = (5 * prot)
+						if (M.traitHolder?.hasTrait("stablegenes"))
+							mutChance = (4 * prot)
+						if (mutChance < 1) mutChance = 0
+						if (prob(mutChance) && (M.bioHolder && !M.bioHolder.HasEffect("revenant")))
+							boutput(M, "<span class='alert'>You mutate!</span>")
+							M.bioHolder.RandomEffect("either")
 
-			icon_state = "radiation[stage]"
+			icon_state = "nradiation[stage]"
 
-			return ..(timedPassed)
+			return ..(timePassed)
 
 	simpledot/burning
 		id = "burning"
@@ -632,7 +788,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/image/onfire = null
 
 		getTooltip()
-			return "You are [howMuch]on fire.<br>Taking [damage_burn] burn damage every [tickSpacing/10] sec.<br>Damage reduced by heat resistance on gear. Click this statuseffect to resist."
+			return "You are [howMuch]on fire.<br>Taking [damage_burn] burn damage every [tickSpacing/(1 SECOND)] sec.<br>Damage reduced by heat resistance on gear. Click this statuseffect to resist."
 
 		clicked(list/params)
 			if (H)
@@ -709,9 +865,9 @@ var/list/statusGroupLimits = list("Food"=4)
 					.=1
 			.=0
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 
-			counter += timedPassed
+			counter += timePassed
 			switchStage(getStage())
 
 			var/prot = 1
@@ -733,7 +889,7 @@ var/list/statusGroupLimits = list("Food"=4)
 					damage_burn = 3.5 * prot
 					howMuch = "extremely "
 
-			return ..(timedPassed)
+			return ..(timePassed)
 
 	stuns
 		modify_change(var/change)
@@ -748,7 +904,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		onRemove()
 			..()
 			if(!owner) return
-			if (!owner.hasStatus("stunned") && !owner.hasStatus("weakened") && !owner.hasStatus("paralysis") && !owner.hasStatus("pinned")) //consider later : a way to group effects to check a bunch in one proc call and save sonme cpu
+			if (!owner.hasStatus(list("stunned", "weakened", "paralysis", "pinned")))
 				if (isliving(owner))
 					var/mob/living/L = owner
 					L.force_laydown_standup()
@@ -761,6 +917,18 @@ var/list/statusGroupLimits = list("Food"=4)
 			unique = 1
 			maxDuration = 30 SECONDS
 
+			onAdd(var/optional=null)
+				. = ..()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					APPLY_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+
+			onRemove()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					REMOVE_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+				. = ..()
+
 		weakened
 			id = "weakened"
 			name = "Knocked-down"
@@ -768,6 +936,18 @@ var/list/statusGroupLimits = list("Food"=4)
 			icon_state = "weakened"
 			unique = 1
 			maxDuration = 30 SECONDS
+
+			onAdd(var/optional=null)
+				. = ..()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					APPLY_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+
+			onRemove()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					REMOVE_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+				. = ..()
 
 			pinned
 				id = "pinned"
@@ -809,10 +989,22 @@ var/list/statusGroupLimits = list("Food"=4)
 		paralysis
 			id = "paralysis"
 			name = "Unconscious"
-			desc = "You are unconcious.<br>Unable to take any actions, blinded."
+			desc = "You are unconscious.<br>Unable to take any actions, blinded."
 			icon_state = "paralysis"
 			unique = 1
 			maxDuration = 30 SECONDS
+
+			onAdd(var/optional=null)
+				. = ..()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					APPLY_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+
+			onRemove()
+				if (ismob(owner))
+					var/mob/mob_owner = owner
+					REMOVE_MOB_PROPERTY(mob_owner, PROP_CANTMOVE, src.type)
+				. = ..()
 
 		dormant
 			id = "dormant"
@@ -829,6 +1021,13 @@ var/list/statusGroupLimits = list("Food"=4)
 		icon_state = "staggered"
 		unique = 1
 		maxDuration = 5 SECONDS
+		movement_modifier = /datum/movement_modifier/staggered_or_blocking
+
+		onAdd(var/optional=null)
+			.=..()
+			if (ishuman(owner))
+				var/mob/living/carbon/human/H = owner
+				H.sustained_moves = 0
 
 	blocking
 		id = "blocking"
@@ -838,6 +1037,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		unique = 1
 		duration = INFINITE_STATUS
 		maxDuration = null
+		movement_modifier = /datum/movement_modifier/staggered_or_blocking
 
 		clicked(list/params)
 			if (ishuman(owner))
@@ -851,15 +1051,18 @@ var/list/statusGroupLimits = list("Food"=4)
 		icon_state = "slowed"
 		unique = 1
 		var/howMuch = 10
+		movement_modifier = new /datum/movement_modifier/status_slowed
 
 		onAdd(var/optional=null)
 			if(optional)
 				howMuch = optional
+				movement_modifier.additive_slowdown = optional
 			return ..(optional)
 
 		onChange(var/optional=null)
 			if(optional)
 				howMuch = optional
+				movement_modifier.additive_slowdown = optional
 			return ..(optional)
 
 	disorient
@@ -872,14 +1075,36 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/counter = 0
 		var/sound = "sound/effects/electric_shock_short.ogg"
 		var/count = 7
+		movement_modifier = /datum/movement_modifier/disoriented
 
-		onUpdate(var/timedPassed)
-			counter += timedPassed
-			if (counter >= count && owner && !owner.hasStatus("weakened") && !owner.hasStatus("paralysis"))
+		onUpdate(var/timePassed)
+			counter += timePassed
+			if (counter >= count && owner && !owner.hasStatus(list("weakened", "paralysis")) )
 				counter -= count
 				playsound(get_turf(owner), sound, 17, 1, 0.4, 1.6)
 				violent_twitch(owner)
-			.=..(timedPassed)
+			.=..(timePassed)
+
+	// Basically disorient, but only does the animation and its maxDuration is
+	// upped a bit to synchronize with other stuns.
+	cyborg_disorient
+		id = "cyborg-disorient"
+		name = "Disoriented"
+		icon_state = "disorient"
+		visible = 0
+		unique = 1
+		maxDuration = 30 SECONDS
+		var/counter = 0
+		var/sound = "sound/effects/electric_shock_short.ogg"
+		var/count = 7
+
+		onUpdate(var/timePassed)
+			counter += timePassed
+			if (counter >= count && owner)
+				counter -= count
+				playsound(get_turf(owner), sound, 17, 1, 0.4, 1.6)
+				violent_twitch(owner)
+			.=..(timePassed)
 
 	drunk
 		id = "drunk"
@@ -895,9 +1120,9 @@ var/list/statusGroupLimits = list("Food"=4)
 			changeState()
 			return ..(optional)
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 			changeState()
-			return ..(timedPassed)
+			return ..(timePassed)
 
 		proc/changeState()
 			if(owner?.reagents)
@@ -929,6 +1154,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		desc = "You are hastened.<br>Movement speed is increased."
 		icon_state = "hastened"
 		unique = 1
+		movement_modifier = /datum/movement_modifier/hastened
 
 	cloaked
 		id = "cloaked"
@@ -946,8 +1172,8 @@ var/list/statusGroupLimits = list("Food"=4)
 			animate(owner,alpha=255,flags=ANIMATION_PARALLEL, time=30)
 			return
 
-		onUpdate(var/timedPassed)
-			wait += timedPassed
+		onUpdate(var/timePassed)
+			wait += timePassed
 			if(owner.alpha > 33 && wait > 40)
 				animate(owner, alpha=30,flags=ANIMATION_PARALLEL, time=30)
 				wait = 0
@@ -1043,16 +1269,18 @@ var/list/statusGroupLimits = list("Food"=4)
 			if(H.buckled)
 				H.buckled.attack_hand(H)
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 			if (H && !H.buckled)
 				owner.delStatus("buckled")
 			else
 				if (sleepcount > 0)
-					sleepcount -= timedPassed
+					sleepcount -= timePassed
 					if (sleepcount <= 0)
 						if (H.hasStatus("resting") && istype(H.buckled,/obj/stool/bed))
 							var/obj/stool/bed/B = H.buckled
 							B.sleep_in(H)
+						else
+							sleepcount = 3 SECONDS
 
 			.=..()
 
@@ -1064,18 +1292,27 @@ var/list/statusGroupLimits = list("Food"=4)
 		unique = 1
 		duration = INFINITE_STATUS
 		maxDuration = null
-		var/mob/living/carbon/human/H
+		var/mob/living/L
 
 		onAdd(var/optional=null)
-			if (ishuman(owner))
-				H = owner
+			if (isliving(owner))
+				L = owner
+				if (L.getStatusDuration("burning"))
+					if (!actions.hasAction(L, "fire_roll"))
+						L.last_resist = world.time + 25
+						actions.start(new/datum/action/fire_roll(), L)
+					else
+						return
 			else
 				owner.delStatus("resting")
 
 		clicked(list/params)
-			H.delStatus("resting")
-			H.force_laydown_standup()
-			H.hud.update_resting()
+			if(ON_COOLDOWN(src.owner, "toggle_rest", REST_TOGGLE_COOLDOWN)) return
+			L.delStatus("resting")
+			L.force_laydown_standup()
+			if (ishuman(L))
+				var/mob/living/carbon/human/H = L
+				H.hud.update_resting()
 
 	ganger
 		id = "ganger"
@@ -1088,7 +1325,10 @@ var/list/statusGroupLimits = list("Food"=4)
 		var/const/max_health = 30
 		var/const/max_stam = 60
 		var/const/regen_stam = 5
+		var/const/max_dist = 50
 		var/mob/living/carbon/human/H
+		var/datum/gang/gang
+		var/on_turf = 0
 
 		onAdd(var/optional=null)
 			if (ishuman(owner))
@@ -1096,16 +1336,53 @@ var/list/statusGroupLimits = list("Food"=4)
 			else
 				owner.delStatus("ganger")
 			H.max_health += max_health
+			health_update_queue |= H
 			H.add_stam_mod_max("ganger_max", max_stam)
 			H.add_stam_mod_regen("ganger_regen", regen_stam)
+			if (ismob(owner))
+				var/mob/M = owner
+				if (M.mind)
+					gang = M.mind.gang
 
 		onRemove()
 			H.max_health -= max_health
+			health_update_queue |= H
 			H.remove_stam_mod_max("ganger_max")
 			H.remove_stam_mod_regen("ganger_regen")
+			gang = null
+
+		onUpdate(var/timePassed)
+			var/area/cur_area = get_area(H)
+			if (cur_area?.gang_owners == gang && prob(50))
+				on_turf = 1
+
+				//get distance divided by max distance and invert it. Result will be between 0 and 1
+				var/buff_mult = round(1-(min(get_dist(owner,gang.locker), max_dist) / max_dist), 0.1)
+				if (buff_mult <=0)
+					buff_mult = 0.1
+
+				var/mob/living/carbon/human/H
+				if(ishuman(owner))
+					H = owner
+					H.HealDamage("All", 10*buff_mult, 0, 0)
+					if (H.bleeding && prob(100*buff_mult))
+						repair_bleeding_damage(H, 5, 1)
+
+					var/list/statusList = H.getStatusList()
+
+					if(statusList["paralysis"])
+						H.changeStatus("paralysis", -3*buff_mult)
+					if(statusList["stunned"])
+						H.changeStatus("stunned", -3*buff_mult)
+					if(statusList["weakened"])
+						H.changeStatus("weakened", -3*buff_mult)
+			else
+				on_turf = 0
+
+			return
 
 		getTooltip()
-			return "Your max health, max stamina, and stamina regen have been increased because of the pride you feel while wearing your uniform."
+			return "Your max health, max stamina, and stamina regen have been increased because of the pride you feel while wearing your uniform. [on_turf?"You are on home turf and receiving healing and stun reduction buffs when nearer your locker.":""]"
 
 	janktank
 		id = "janktank"
@@ -1115,6 +1392,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		duration = 9 MINUTES
 		maxDuration = 18 MINUTES
 		unique = 1
+		movement_modifier = /datum/movement_modifier/janktank
 		var/change = 1 //Effective change to maxHealth
 
 		onAdd(var/optional=null) //Optional is change.
@@ -1135,23 +1413,21 @@ var/list/statusGroupLimits = list("Food"=4)
 				M.remove_stun_resist_mod("janktank")
 			return
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 			var/mob/living/carbon/human/H
 			if(ishuman(owner))
 				H = owner
-			H.take_oxygen_deprivation(-1)
-			H.HealDamage("All", 2, 0, 0)
-			if (prob(60))
-				H.HealDamage("All", 1, 1, 1)
-				if (H.bleeding)
-					repair_bleeding_damage(H, 10, 1)
-			if (prob(10))
-				H.make_jittery(2)
+				H.take_oxygen_deprivation(-1)
+				H.HealDamage("All", 2, 0, 0)
+				if (prob(60))
+					H.HealDamage("All", 1, 1, 1)
+					if (H.bleeding)
+						repair_bleeding_damage(H, 10, 1)
+				if (prob(10))
+					H.make_jittery(2)
 
-			if (H.misstep_chance)
-				H.change_misstep_chance(-5)
-
-			H.updatehealth()
+				if (H.misstep_chance)
+					H.change_misstep_chance(-5)
 			return
 
 	gang_drug_withdrawl
@@ -1170,7 +1446,7 @@ var/list/statusGroupLimits = list("Food"=4)
 				change = optional
 			return
 
-		onUpdate(var/timedPassed)
+		onUpdate(var/timePassed)
 			var/mob/living/carbon/human/M
 			if(ishuman(owner))
 				M = owner
@@ -1181,8 +1457,6 @@ var/list/statusGroupLimits = list("Food"=4)
 			if (prob(20))
 				violent_twitch(owner)
 				M.make_jittery(rand(6,9))
-
-			M.updatehealth()
 			return
 
 	mutiny
@@ -1203,11 +1477,13 @@ var/list/statusGroupLimits = list("Food"=4)
 			else
 				owner.delStatus("mutiny")
 			H.max_health += max_health
+			health_update_queue |= H
 			H.add_stam_mod_max("mutiny_max", max_stam)
 			H.add_stam_mod_regen("mutiny_regen", regen_stam)
 
 		onRemove()
 			H.max_health -= max_health
+			health_update_queue |= H
 			H.remove_stam_mod_max("mutiny_max")
 			H.remove_stam_mod_regen("mutiny_regen")
 
@@ -1233,11 +1509,13 @@ var/list/statusGroupLimits = list("Food"=4)
 			else
 				owner.delStatus("revspirit")
 			H.max_health += max_health
+			health_update_queue |= H
 			H.add_stam_mod_max("revspirit_max", max_stam)
 			H.add_stam_mod_regen("revspirit_regen", regen_stam)
 
 		onRemove()
 			H.max_health -= max_health
+			health_update_queue |= H
 			H.remove_stam_mod_max("revspirit_max")
 			H.remove_stam_mod_regen("revspirit_regen")
 
@@ -1276,7 +1554,7 @@ var/list/statusGroupLimits = list("Food"=4)
 		if (prob(5))
 			var/damage = rand(1,5)
 			var/bleed = rand(3,5)
-			H.visible_message("<span style=\"color:red\">[H] [damage > 3 ? "vomits" : "coughs up"] blood!</span>", "<span style=\"color:red\">You [damage > 3 ? "vomit" : "cough up"] blood!</span>")
+			H.visible_message("<span class='alert'>[H] [damage > 3 ? "vomits" : "coughs up"] blood!</span>", "<span class='alert'>You [damage > 3 ? "vomit" : "cough up"] blood!</span>")
 			playsound(H.loc, "sound/impact_sounds/Slimy_Splat_1.ogg", 50, 1)
 			H.TakeDamage(zone="All", brute=damage)
 			bleed(H, damage, bleed)

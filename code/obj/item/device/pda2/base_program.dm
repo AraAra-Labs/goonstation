@@ -17,6 +17,7 @@
 		extension = "PSCAN"
 
 	New(obj/holding as obj)
+		..()
 		if(holding)
 			src.holder = holding
 
@@ -86,8 +87,7 @@
 			if(!src.master || !src.holder)
 				return
 
-			. = " | <a href='byond://?src=\ref[src];quit=1'>Main Menu</a>"
-			. += " | <a href='byond://?src=\ref[src.master];refresh=1'>Refresh</a>"
+			. = "<a href='byond://?src=\ref[src];quit=1'>Main Menu</a> | <a href='byond://?src=\ref[src.master];refresh=1'>Refresh</a>"
 
 
 		post_signal(datum/signal/signal, newfreq)
@@ -163,10 +163,10 @@
 			if(master.active_program == src)
 				master.active_program = null
 			return 1
-		usr.machine = src.master
+		src.master.add_dialog(usr)
 
 		if (href_list["close"])
-			usr.machine = null
+			src.master.remove_dialog(usr)
 			usr.Browse(null, "window=pda2_\ref[src]")
 			return 0
 		if (href_list["quit"])

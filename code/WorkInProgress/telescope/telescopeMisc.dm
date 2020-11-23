@@ -15,10 +15,9 @@ var/list/magnet_locations = list()
 
 	New()
 		..()
-		mechanics = new(src)
-		mechanics.master = src
-		mechanics.addInput("send", "mechcompsend")
-		mechanics.addInput("recieve", "mechcomprecieve")
+		AddComponent(/datum/component/mechanics_holder)
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"send", "mechcompsend")
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"recieve", "mechcomprecieve")
 
 	attack_ai(mob/user as mob)
 		return attack_hand(user)
@@ -44,7 +43,7 @@ var/list/magnet_locations = list()
 			</body>
 			"}
 
-		user.machine = src
+		src.add_dialog(user)
 		add_fingerprint(user)
 		user.Browse(html, "window=lrporter;size=250x380;can_resize=0;can_minimize=0;can_close=1;override_setting=1")
 		onclose(user, "lrporter", src)
@@ -75,10 +74,12 @@ var/list/magnet_locations = list()
 
 	proc/lrtsend(var/place)
 		if (place && src.is_good_location(place))
-			var/turf/target = null //set later
-			for (var/obj/landmark/lrt/potential in landmarks)
-				if (potential.name == place) //if the place we want to go has a matching landmark
-					target = potential.held_turf
+			var/turf/target = null
+			for(var/turf/T in landmarks[LANDMARK_LRT])
+				var/name = landmarks[LANDMARK_LRT][T]
+				if(name == place)
+					target = T
+					break
 			if (!target) //we didnt find a turf to send to
 				return 0
 			src.busy = 1
@@ -98,10 +99,12 @@ var/list/magnet_locations = list()
 
 	proc/lrtrecieve(var/place)
 		if (place && src.is_good_location(place))
-			var/turf/target = null //set later
-			for (var/obj/landmark/lrt/potential in landmarks)
-				if (potential.name == place) //if the place we want to go has a matching landmark
-					target = potential.held_turf
+			var/turf/target = null
+			for(var/turf/T in landmarks[LANDMARK_LRT])
+				var/name = landmarks[LANDMARK_LRT][T]
+				if(name == place)
+					target = T
+					break
 			if (!target) //we didnt find a turf to send to
 				return 0
 			src.busy = 1
@@ -222,7 +225,7 @@ var/list/magnet_locations = list()
 	ChaseAttack(atom/M)
 		if(target && !attacking)
 			attacking = 1
-			src.visible_message("<span style=\"color:red\"><b>[src]</b> floats towards [M]!</span>")
+			src.visible_message("<span class='alert'><b>[src]</b> floats towards [M]!</span>")
 			walk_to(src, src.target,1,4)
 			var/tturf = get_turf(M)
 			Shoot(tturf, src.loc, src)
@@ -234,7 +237,7 @@ var/list/magnet_locations = list()
 		if(target && !attacking)
 			attacking = 1
 			//playsound(src.loc, "sound/machines/whistlebeep.ogg", 55, 1)
-			src.visible_message("<span style=\"color:red\"><b>[src]</b> shreds [M]!</span>")
+			src.visible_message("<span class='alert'><b>[src]</b> shreds [M]!</span>")
 
 			var/tturf = get_turf(M)
 			Shoot(tturf, src.loc, src)
@@ -249,7 +252,7 @@ var/list/magnet_locations = list()
 
 	CritterDeath()
 		if(prob(20) && alive)
-			src.visible_message("<span style=\"color:red\"><b>[src]</b> begins to reassemble!</span>")
+			src.visible_message("<span class='alert'><b>[src]</b> begins to reassemble!</span>")
 			var/turf/T = src.loc
 			SPAWN_DBG(5 SECONDS)
 				new/obj/critter/gunbot/drone/buzzdrone/naniteswarm(T)

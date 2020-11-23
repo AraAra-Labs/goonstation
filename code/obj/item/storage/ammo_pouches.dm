@@ -43,7 +43,7 @@
 	clock
 		name = "9mm rounds pouch"
 		icon_state = "ammopouch-double"
-		spawn_contents = list(/obj/item/ammo/bullets/nine_mm_NATO = 3)
+		spawn_contents = list(/obj/item/ammo/bullets/nine_mm_NATO = 5)
 
 
 	powercell_medium
@@ -69,6 +69,17 @@
 		name = "revolver speedloader pouch"
 		icon_state = "ammopouch-double"
 		spawn_contents = list(/obj/item/ammo/bullets/a357=5)
+
+	grenade_round
+		name = "grenade round pouch"
+		slots = 4
+		spawn_contents = list(/obj/item/ammo/bullets/grenade_round/explosive = 2,
+		/obj/item/ammo/bullets/grenade_round/high_explosive = 2)
+
+	rpg
+		name = "MPRT rocket pouch"
+		slots = 4
+		spawn_contents = list(/obj/item/ammo/bullets/rpg = 2)
 
 /obj/item/storage/grenade_pouch
 	name = "grenade pouch"
@@ -99,6 +110,17 @@
 		name = "smoke grenade pouch"
 		spawn_contents = list(/obj/item/old_grenade/smoke = 6)
 
+	mixed_standard
+		name = "mixed grenade pouch"
+		spawn_contents = list(/obj/item/chem_grenade/flashbang = 2,
+		/obj/item/old_grenade/stinger/frag = 2,
+		/obj/item/old_grenade/stinger = 2)
+
+	mixed_explosive
+		name = "mixed grenade pouch"
+		spawn_contents = list(/obj/item/old_grenade/stinger/frag = 3,
+		/obj/item/old_grenade/stinger = 3)
+
 // dumb idiot gannets shouldn't have called these "ammo_pouches" if he was gonna make pouches for non-ammo things. wow.
 
 /obj/item/storage/medical_pouch
@@ -119,6 +141,18 @@
 	slots = 6
 	does_not_open_in_pocket = 0
 	spawn_contents = list(/obj/item/handcuffs/ = 3,\
-	/obj/item/ammo/power_cell/med_power,\
+	/obj/item/ammo/power_cell/high_power,\
 	/obj/item/device/flash,\
 	/obj/item/instrument/whistle)
+
+/obj/item/storage/ntso_pouch
+	name = "tacticool pouch"
+	desc = "A dump pouch for various security accessories, partially-loaded magazines, or maybe even a snack! Attaches to virtually any webbing system through an incredibly complex and very patented Nanotrasen design."
+	icon_state = "ammopouch-large"
+	w_class = 2.00
+	slots = 5
+	does_not_open_in_pocket = 0
+	spawn_contents = list(/obj/item/handcuffs/ = 1,
+	/obj/item/handcuffs/guardbot = 2,
+	/obj/item/device/flash,
+	/obj/item/reagent_containers/food/snacks/candy/candyheart)

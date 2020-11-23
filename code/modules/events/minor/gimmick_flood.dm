@@ -1,6 +1,6 @@
 /datum/random_event/minor/gimmick_flood
 	name = "Random Flood"
-	disabled = !ASS_JAM
+	disabled = 1 // disabled for now as we dismantle old Ass Jam stuff, find a reason to enable it later, this would be a good player-triggerable event. -warc
 	weight = 30
 	customization_available = 1
 	var/reagent_type = null
@@ -15,10 +15,10 @@
 			var/list/L = list()
 			var/searchFor = input(usr, "Look for a part of the reagent name (or leave blank for all)", "Add reagent") as null|text
 			if(searchFor)
-				for(var/R in childrentypesof(/datum/reagent))
+				for(var/R in concrete_typesof(/datum/reagent))
 					if(findtext("[R]", searchFor)) L += R
 			else
-				L = childrentypesof(/datum/reagent)
+				L = concrete_typesof(/datum/reagent)
 
 			if(L.len == 1)
 				reagent_type = L[1]
@@ -40,20 +40,20 @@
 		..()
 
 		if(isnull(src.reagent_type))
-			reagent_type = pick(childrentypesof(/datum/reagent))
+			reagent_type = pick(concrete_typesof(/datum/reagent))
 
 		var/datum/reagent/reagent = new reagent_type()
 
 		if(isnull(src.target))
 			if(prob(60) || !by_type[/obj/machinery/drainage] || !by_type[/obj/machinery/drainage].len)
 				src.target = pick(get_area_turfs(/area/station)) // don't @ me
-				target.visible_message("<span style=\"color:red\"><b>A rift to a [reagent.name] dimension suddenly warps into existence!</b></span>")
+				target.visible_message("<span class='alert'><b>A rift to a [reagent.name] dimension suddenly warps into existence!</b></span>")
 			else
 				var/obj/machinery/drainage/drain = pick(by_type[/obj/machinery/drainage])
 				drain.clogged = 60 // about 3 minutes
 				drain.update_icon()
 				src.target = get_turf(drain)
-				target.visible_message("<span style=\"color:red\"><b>\The [drain] overflows with [reagent.name]!</b></span>")
+				target.visible_message("<span class='alert'><b>\The [drain] overflows with [reagent.name]!</b></span>")
 
 		if(!amount)
 			amount = pick(50, 100, 200, 500, 1000, 2000, 5000)

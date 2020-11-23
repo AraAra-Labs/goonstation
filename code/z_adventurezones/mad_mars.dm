@@ -102,7 +102,7 @@
 		if(!src.randomized) return
 		src.generate_edges()
 		if(prob(30))
-			src.dir = pick(NORTH,SOUTH,EAST,WEST)
+			src.set_dir(pick(NORTH,SOUTH,EAST,WEST))
 		if(prob(1))
 			new /obj/shrub/redweed(src)
 	t1
@@ -305,12 +305,13 @@
 	name = "Inactive Robot"
 	desc = "It looks like it hasn't been in service for decades."
 	icon_state = "mars_bot"
+	death_text = "%src% collapses!"
 	density = 1
 	health = 55
 	aggressive = 1
 	defensive = 1
 	wanderer = 0
-	opensdoors = 1
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_ANY
 	atkcarbon = 1
 	atksilicon = 1
 	firevuln = 1
@@ -346,7 +347,7 @@
 						playsound(src.loc, 'sound/voice/screams/robot_scream.ogg', 50, 1)
 						startup = 0
 						wanderer = 1
-					src.visible_message("<span style=\"color:red\">The <b>[src]</b> charges at [C:name]!</span>")
+					src.visible_message("<span class='alert'>The <b>[src]</b> charges at [C:name]!</span>")
 					src.speak(pick("DooN'T Wor##y I'M hERE!!!","LawwSS UpdAA&$.A.!!.!","CANIHELPYO&£%SIR","REsREACH!!!!!","NATAS&$%LIAHLLA ERROR CODE #736"))
 					playsound(src.loc, 'sound/machines/glitch3.ogg', 50, 1)
 					icon_state = "mars_bot"
@@ -369,7 +370,7 @@
 
 
 	Move()
-		..()
+		. = ..()
 		playsound(src.loc, 'sound/effects/airbridge_dpl.ogg', 30, 10, -2)
 
 
@@ -386,12 +387,7 @@
 
 	CritterDeath()
 		if (!src.alive) return
-		src.icon_state += "-dead"
-		src.alive = 0
-		src.anchored = 0
-		src.set_density(0)
-		walk_to(src,0)
-		src.visible_message("<b>[src]</b> collapses!")
+		..()
 		playsound(src.loc, 'sound/voice/screams/robot_scream.ogg', 50, 1)
 		speak("aaaaaaalkaAAAA##AAAAAAAAAAAAAAAAA'ERRAAAAAAAA!!!")
 
@@ -411,31 +407,31 @@
 	attackby(obj/item/P as obj, mob/user as mob)
 		if (istype(P, /obj/item/mars_roverpart))
 			if ((istype(P, /obj/item/mars_roverpart/wheel))&&(!wheel))
-				boutput(user, "<span style=\"color:blue\">You attach the wheel to the rover's chassis.</span>")
+				boutput(user, "<span class='notice'>You attach the wheel to the rover's chassis.</span>")
 				overlays += image('icons/misc/worlds.dmi', "rover_puzzle_wheel")
 				wheel = 1
 			if ((istype(P, /obj/item/mars_roverpart/oxy))&&(!oxy))
-				boutput(user, "<span style=\"color:blue\">You connect the life support module to the rover.</span>")
+				boutput(user, "<span class='notice'>You connect the life support module to the rover.</span>")
 				overlays += image('icons/misc/worlds.dmi', "rover_puzzle_oxy")
 				oxy = 1
 			if ((istype(P, /obj/item/mars_roverpart/glass))&&(!glass))
-				boutput(user, "<span style=\"color:blue\">You attach the glass to the rover.</span>")
+				boutput(user, "<span class='notice'>You attach the glass to the rover.</span>")
 				overlays += image('icons/misc/worlds.dmi', "rover_puzzle_window")
 				glass = 1
 			if ((istype(P, /obj/item/mars_roverpart/battery))&&(!battery))
-				boutput(user, "<span style=\"color:blue\">You wire the battery to the rover.</span>")
+				boutput(user, "<span class='notice'>You wire the battery to the rover.</span>")
 				overlays += image('icons/misc/worlds.dmi', "rover_puzzle_cell")
 				battery = 1
 			if ((istype(P, /obj/item/mars_roverpart/motherboard))&&(!motherboard))
-				boutput(user, "<span style=\"color:blue\">You wire the motherboard to the rover.</span>")
+				boutput(user, "<span class='notice'>You wire the motherboard to the rover.</span>")
 				motherboard = 1
 			playsound(user, 'sound/items/Deconstruct.ogg', 65, 1)
 			qdel(P)
 			if((wheel)&&(oxy)&&(battery)&&(glass)&&(motherboard))
 				var/obj/vehicle/marsrover/R = new /obj/vehicle/marsrover(loc)
-				R.dir = WEST
+				R.set_dir(WEST)
 				playsound(src.loc, 'sound/machines/rev_engine.ogg', 50, 1)
-				boutput(user, "<span style=\"color:blue\">The rover has been completed!</span>")
+				boutput(user, "<span class='notice'>The rover has been completed!</span>")
 				qdel(src)
 
 /obj/item/mars_roverpart
@@ -467,7 +463,7 @@
 		pickup(mob/user)
 			..()
 			if(!pickedup)
-				boutput(user, "<span style=\"color:red\">Uh oh.</span>")
+				boutput(user, "<span class='alert'>Uh oh.</span>")
 				for(var/obj/critter/marsrobot/M in oview(4,src))
 					M.active = 1
 					M.seek_target()
@@ -515,7 +511,7 @@
 		update()
 		return
 	if(selfdismount)
-		boutput(rider, "<span style=\"color:blue\">You dismount from the [src].</span>")
+		boutput(rider, "<span class='notice'>You dismount from the [src].</span>")
 		for (var/mob/C in AIviewers(src))
 			if(C == rider)
 				continue
@@ -543,10 +539,10 @@
 
 	if(target == user && !user.stat)	// if drop self, then climbed in
 		msg = "[user.name] climbs onto the [src]."
-		boutput(user, "<span style=\"color:blue\">You climb onto the [src].</span>")
+		boutput(user, "<span class='notice'>You climb onto the [src].</span>")
 	else if(target != user && !user.restrained())
 		msg = "[user.name] helps [target.name] onto the [src]!"
-		boutput(user, "<span style=\"color:blue\">You help [target.name] onto the [src]!</span>")
+		boutput(user, "<span class='notice'>You help [target.name] onto the [src]!</span>")
 	else
 		return
 
@@ -697,7 +693,7 @@
 	desc = "A 2030's-era security robot. Uh oh."
 	icon = 'icons/misc/critter.dmi'
 	icon_state = "mars_sec_bot"
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atksilicon = 1
 	var/overheat = 0
 	var/datum/projectile/my_bullet = new/datum/projectile/bullet/revolver_38
@@ -794,7 +790,7 @@
 		if (..() || (status & (NOPOWER|BROKEN)))
 			return
 
-		user.machine = src
+		src.add_dialog(user)
 		add_fingerprint(user)
 
 		var/dat = "<center><h4>Vault Computer</h4></center>"
@@ -810,7 +806,7 @@
 	Topic(href, href_list)
 		if(..())
 			return
-		usr.machine = src
+		src.add_dialog(usr)
 		src.add_fingerprint(usr)
 
 		if (href_list["unlock"])
@@ -819,13 +815,11 @@
 				for(var/area/marsoutpost/vault/V in world)
 					V.overlays += image(icon = 'icons/effects/alert.dmi', icon_state = "blue", layer = EFFECTS_LAYER_1)
 					LAGCHECK(LAG_LOW)
-				for(var/X in by_type[/obj/machinery/door/poddoor])
-					var/obj/machinery/door/poddoor/P = X
+				for_by_tcl(P, /obj/machinery/door/poddoor)
 					if (P.id == "mars_vault")
-						SPAWN_DBG( 0 )
+						SPAWN_DBG(0)
 							P.open()
-				for(var/X in by_type[/obj/item/storage/secure/ssafe/marsvault])
-					var/obj/item/storage/secure/ssafe/marsvault/M = X
+				for_by_tcl(M, /obj/item/storage/secure/ssafe/marsvault)
 					M.disabled = 0
 
 				playsound(src.loc, 'sound/machines/engine_alert1.ogg', 50, 1)

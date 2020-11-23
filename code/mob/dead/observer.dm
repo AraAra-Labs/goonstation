@@ -4,7 +4,8 @@
 	icon = 'icons/mob/mob.dmi'
 	icon_state = "ghost"
 	layer = NOLIGHT_EFFECTS_LAYER_BASE
-	//event_handler_flags = 0//USE_FLUID_ENTER  //maybe? //Gerhazo : commented out due to ghosts having an interaction with the ectoplasmic destabilizer, this made their collision with the projectile not work
+	plane = PLANE_NOSHADOW_ABOVE
+	event_handler_flags = USE_CANPASS | IMMUNE_MANTA_PUSH | USE_FLUID_ENTER //maybe?
 	density = 0
 	canmove = 1
 	blinded = 0
@@ -18,7 +19,6 @@
 	var/delete_on_logout_reset = 1
 	var/obj/item/clothing/head/wig/wig = null
 	var/in_point_mode = 0
-
 	var/datum/hud/ghost_observer/hud
 
 	mob_flags = MOB_HEARS_ALL
@@ -27,9 +27,11 @@
 	corpse = null
 	if (istype(src.abilityHolder, /datum/abilityHolder/ghost_observer))
 		src.abilityHolder:remove_all_abilities()
-		src.abilityHolder.owner = null
+		src.abilityHolder.dispose()
+		src.abilityHolder = null
 	if (hud)
-		hud.disposing()
+		hud.dispose()
+		hud = null
 
 	..()
 
@@ -88,8 +90,13 @@
 	P.pixel_x = target.pixel_x
 	P.pixel_y = target.pixel_y
 	P.color = "#5c00e6"
-	P.invisibility = src.invisibility
 
+#ifdef HALLOWEEN
+	//ghost points have a 20% chance to be seen by the living.
+	P.invisibility = prob(80) ? src.invisibility : 0
+#else
+	P.invisibility = src.invisibility
+#endif
 	src = null // required to make sure its deleted
 	SPAWN_DBG (20)
 		P.invisibility = 101
@@ -149,8 +156,14 @@
 /mob/dead/observer/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if (src.icon_state != "doubleghost" && istype(mover, /obj/projectile))
 		var/obj/projectile/proj = mover
-		if (istype(proj.proj_data, /datum/projectile/energy_bolt_antighost))
+		if (proj.proj_data.hits_ghosts)
 			return 0
+#ifdef HALLOWEEN
+	if (istype(src.abilityHolder, /datum/abilityHolder/ghost_observer))
+		var/datum/abilityHolder/ghost_observer/GH = src.abilityHolder
+		if (GH.spooking)
+			GH.stop_spooking()
+#endif
 
 	return 1
 
@@ -158,11 +171,23 @@
 	if (src.icon_state == "doubleghost")
 		return
 
+#ifdef HALLOWEEN
+	if (istype(src.abilityHolder, /datum/abilityHolder/ghost_observer))
+		var/datum/abilityHolder/ghost_observer/GH = src.abilityHolder
+		if (GH.spooking)
+			GH.stop_spooking()
+			//animate(src, )	explode?
+			src.visible_message("<span class='alert'><b>[src] is busted! Maybe?!</b></span>","<span class='alert'>You are knocked out of your powerful state and feel dead again!</span>")
+			log_shot(P,src)
+			return
+#endif
+
 	src.icon_state = "doubleghost"
-	src.visible_message("<span style=\"color:red\"><b>[src] is busted!</b></span>","<span style=\"color:red\">You are demateralized into a state of further death!</span>")
+	src.visible_message("<span class='alert'><b>[src] is busted!</b></span>","<span class='alert'>You are demateralized into a state of further death!</span>")
+
 
 	if (wig)
-		wig.loc = src.loc
+		wig.set_loc(src.loc)
 	new /obj/item/reagent_containers/food/snacks/ectoplasm(get_turf(src))
 	overlays.len = 0
 	log_shot(P,src)
@@ -228,6 +253,8 @@
 		abilityHolder.owner = src
 
 	updateButtons()
+	if (render_special)
+		render_special.set_centerlight_icon("nightvision", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
 
 	SPAWN_DBG(0.5 SECONDS)
 		if (src.mind && istype(src.mind.purchased_bank_item, /datum/bank_purchaseable/golden_ghost))
@@ -245,9 +272,11 @@
 	if(!isdead(src))
 		if (src.hibernating == 1)
 			var/confirm = alert("Are you sure you want to ghost? You won't be able to exit cryogenic storage, and will be an observer the rest of the round.", "Observe?", "Yes", "No")
-			if(confirm)
+			if(confirm == "Yes")
 				src.ghostize()
 				qdel(src)
+			else
+				return
 		else if(prob(5))
 			src.show_text("You strain really hard. I mean, like, really, REALLY hard but you still can't become a ghost!", "blue")
 		else
@@ -261,15 +290,12 @@
 	RETURN_TYPE(/mob/dead/observer)
 	if(src.key || src.client)
 		if(src.mind && src.mind.damned) // Wow so much sin. Off to hell with you.
-			src.hell_respawn(src.mind)
+			INVOKE_ASYNC(src, /mob.proc/hell_respawn, src.mind)
 			return null
 		var/mob/dead/observer/O = new/mob/dead/observer(src)
+		O.bioHolder.CopyOther(src.bioHolder, copyActiveEffects = 0)
 		if (isghostrestrictedz(O.z) && !restricted_z_allowed(O, get_turf(O)) && !(src.client && src.client.holder))
-			var/OS = observer_start.len ? pick(observer_start) : locate(150, 150, 1)
-			if (OS)
-				O.set_loc(OS)
-			else
-				O.z = 1
+			O.set_loc(pick_landmark(LANDMARK_OBSERVER, locate(150, 150, 1)))
 		if (client) client.color = null  //needed for mesons dont kill me thx - ZeWaka
 		if (src.client && src.client.holder && src.stat !=2)
 			// genuinely not sure what this is here for since we're setting the
@@ -292,15 +318,28 @@
 
 
 /mob/dead/observer/movement_delay()
-	if (src.client && src.client.check_key(KEY_RUN))
+#ifdef HALLOWEEN
+	if (istype(src.abilityHolder, /datum/abilityHolder/ghost_observer))
+		var/datum/abilityHolder/ghost_observer/GAH = src.abilityHolder
+		if (GAH.spooking)
+			return movement_delay_modifier + 1.5
+
+	if (src?.client.check_key(KEY_RUN))
 		return 0.4 + movement_delay_modifier
 	else
 		return 0.75 + movement_delay_modifier
 
-/mob/dead/observer/build_keymap(client/C)
-	var/datum/keymap/keymap = ..()
-	keymap.merge(client.get_keymap("human"))
-	return keymap
+#else
+	if (src?.client.check_key(KEY_RUN))
+		return 0.4 + movement_delay_modifier
+	else
+		return 0.75 + movement_delay_modifier
+
+#endif
+
+/mob/dead/observer/build_keybind_styles(client/C)
+	..()
+	C.apply_keybind("human")
 
 /mob/dead/observer/is_spacefaring()
 	return 1
@@ -348,11 +387,6 @@
 		O.wig.wear_image.color = src.bioHolder.mobAppearance.customization_first_color
 
 
-
-		var/datum/bioHolder/newbio = new/datum/bioHolder(O)
-		newbio.CopyOther(src.bioHolder, copyActiveEffects = 0)
-		O.bioHolder = newbio
-
 	return O
 
 /mob/living/silicon/robot/ghostize()
@@ -369,7 +403,7 @@
 	client.images.Remove(health_mon_icons)
 	if (!health_shown)
 		health_shown = 1
-		if(client && client.images)
+		if(client?.images)
 			for(var/image/I in health_mon_icons)
 				if (I && src && I.loc != src.loc)
 					client.images.Add(I)
@@ -381,7 +415,7 @@
 	set name = "Toggle Arrest Status"
 	if (!arrest_shown)
 		arrest_shown = 1
-		if(client && client.images)
+		if(client?.images)
 			for(var/image/I in arrestIconsAll)
 				if(I && src && I.loc != src.loc)
 					client.images.Add(I)
@@ -398,7 +432,7 @@
 	set category = "Ghost"
 
 	if(!mind || !mind.dnr)
-		boutput( usr, "<span style='color:red'>You must enable DNR to use this.</span>" )
+		boutput( usr, "<span class='alert'>You must enable DNR to use this.</span>" )
 		return
 
 	if(!ticker || !ticker.centralized_ai_laws)
@@ -412,6 +446,7 @@
 /mob/dead/observer/Logout()
 	..()
 	if(last_client)
+		health_shown = 0
 		last_client.images.Remove(health_mon_icons)
 
 	if(!src.key && delete_on_logout)
@@ -433,7 +468,7 @@
 	if(!canmove) return
 
 	if (NewLoc && isghostrestrictedz(src.z) && !restricted_z_allowed(src, NewLoc) && !(src.client && src.client.holder && !src.client.holder.tempmin))
-		var/OS = observer_start.len ? pick(observer_start) : locate(1, 1, 1)
+		var/OS = pick_landmark(LANDMARK_OBSERVER, locate(1, 1, 1))
 		if (OS)
 			src.set_loc(OS)
 		else
@@ -443,12 +478,12 @@
 	if (!isturf(src.loc))
 		src.set_loc(get_turf(src))
 	if (NewLoc)
-		dir = get_dir(loc, NewLoc)
+		set_dir(get_dir(loc, NewLoc))
 		src.set_loc(NewLoc)
 		OnMove()
 		return
 
-	dir = direct
+	set_dir(direct)
 	if((direct & NORTH) && src.y < world.maxy)
 		src.y++
 	if((direct & SOUTH) && src.y > 1)
@@ -478,7 +513,7 @@
 /mob/dead/observer/proc/reenter_corpse()
 	set category = null
 	set name = "Re-enter Corpse"
-	if(!corpse)
+	if(!corpse || corpse.disposed)
 		alert("You don't have a corpse!")
 		return
 	if(src.client && src.client.holder && src.client.holder.state == 2)
@@ -513,7 +548,7 @@
 			continue
 		L+=T
 
-	if (L && L.len) //ZeWaka: Fix for pick() from empty list
+	if (length(L)) //ZeWaka: Fix for pick() from empty list
 		usr.set_loc(pick(L))
 		OnMove()
 	else
@@ -538,7 +573,7 @@
 	// ooooo its a secret, oooooo!!
 
 	if(!mind || !mind.dnr)
-		boutput( usr, "<span style='color:red'>You must enable DNR to use this.</span>" )
+		boutput( usr, "<span class='alert'>You must enable DNR to use this.</span>" )
 		return
 
 	var/x = input("Enter view width in tiles: (Capped at 59)", "Width", 15)
@@ -553,7 +588,15 @@
 
 	var/atom/plane = client.get_plane(PLANE_LIGHTING)
 	if (plane)
-		plane.alpha = plane.alpha ? 0 : 255
+		switch(plane.alpha)
+			if(255)
+				render_special.set_centerlight_icon("")
+				plane.alpha = 254 // I'm sorry
+			if(254)
+				plane.alpha = 0
+			if(0)
+				plane.alpha = 255
+				render_special.set_centerlight_icon("nightvision", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
 	else
 		boutput( usr, "Well, I want to, but you don't have any lights to fix!" )
 
@@ -628,7 +671,7 @@
 
 	// Same thing you could do with the old auth disk. The bomb is equally important
 	// and should appear at the top of any unsorted list  (Convair880).
-	if (ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/nuclear))
+	if (ticker?.mode && istype(ticker.mode, /datum/game_mode/nuclear))
 		var/datum/game_mode/nuclear/N = ticker.mode
 		if (N.the_bomb && istype(N.the_bomb, /obj/machinery/nuclearbomb/))
 			var/name = "Nuclear bomb"
@@ -640,8 +683,21 @@
 				namecounts[name] = 1
 			creatures[name] = N.the_bomb
 
-	for (var/X in by_type[/obj/observable])
-		var/obj/observable/O = X
+
+	if (ticker?.mode && istype(ticker.mode, /datum/game_mode/football))
+		var/datum/game_mode/football/F = ticker.mode
+		if (F.the_football && istype(F.the_football, /obj/item/football/the_big_one))
+			var/name = "THE FOOTBALL"
+			if (name in names)
+				namecounts[name]++
+				name = "[name] ([namecounts[name]])"
+			else
+				names.Add(name)
+				namecounts[name] = 1
+			creatures[name] = F.the_football
+
+
+	for_by_tcl(O, /obj/observable)
 		LAGCHECK(LAG_LOW)
 		var/name = O.name
 		if (name in names)
@@ -652,8 +708,7 @@
 			namecounts[name] = 1
 		creatures[name] = O
 
-	for (var/X in by_type[/obj/item/ghostboard])
-		var/obj/item/ghostboard/GB = X
+	for_by_tcl(GB, /obj/item/ghostboard)
 		LAGCHECK(LAG_LOW)
 		var/name = "Ouija board"
 		if (name in names)
@@ -664,8 +719,7 @@
 			namecounts[name] = 1
 		creatures[name] = GB
 
-	for (var/X in by_type[/obj/item/gnomechompski])
-		var/obj/item/gnomechompski/G = X
+	for_by_tcl(G, /obj/item/gnomechompski)
 		var/name = "Gnome Chompski"
 		if (name in names)
 			namecounts[name]++
@@ -675,8 +729,7 @@
 			namecounts[name] = 1
 		creatures[name] = G
 
-	for (var/X in by_type[/obj/cruiser_camera_dummy])
-		var/obj/cruiser_camera_dummy/CR = X
+	for_by_tcl(CR, /obj/cruiser_camera_dummy)
 		var/name = CR.name
 		if (name in names)
 			namecounts[name]++
@@ -686,8 +739,7 @@
 			namecounts[name] = 1
 		creatures[name] = CR
 
-	for (var/X in by_type[/obj/item/reagent_containers/food/snacks/prison_loaf])
-		var/obj/item/reagent_containers/food/snacks/prison_loaf/L = X
+	for_by_tcl(L, /obj/item/reagent_containers/food/snacks/prison_loaf)
 		var/name = L.name
 		if (name != "strangelet loaf")
 			continue
@@ -718,9 +770,13 @@
 		if(!istype(O))
 			creatures -= name
 		else
-			var/turf/T = get_turf(O)
-			if(!T || isghostrestrictedz(T.z))
-				creatures -= name
+			// let people observe these regardless of where they are. who cares
+			// there's probably a way to do this better (some bots have no-camera mode for example)
+			// which would work but someone else can fix it later. jhon madden
+			if (!istype(O, /obj/machinery/nuclearbomb) && !istype(O, /obj/item/football/the_big_one))
+				var/turf/T = get_turf(O)
+				if(!T || isghostrestrictedz(T.z))
+					creatures -= name
 
 	eye_name = input("Please, select a target!", "Observe", null, null) as null|anything in creatures
 
@@ -750,7 +806,7 @@ mob/dead/observer/proc/insert_observer(var/atom/target)
 	newobs.my_ghost = src
 	delete_on_logout_reset = delete_on_logout
 	delete_on_logout = 0
-	if (target && target.invisibility)
+	if (target?.invisibility)
 		newobs.see_invisible = target.invisibility
 	if (src.corpse)
 		corpse.ghost = newobs
@@ -760,6 +816,4 @@ mob/dead/observer/proc/insert_observer(var/atom/target)
 		src.client.mob = newobs
 	set_loc(newobs)
 	if (isghostrestrictedz(newobs.z) && !restricted_z_allowed(newobs, get_turf(newobs)) && !(src.client && src.client.holder))
-		var/OS = observer_start.len ? pick(observer_start) : locate(150, 150, 1)
-		if (OS)
-			newobs.set_loc(OS)
+		newobs.set_loc(pick_landmark(LANDMARK_OBSERVER, locate(150, 150, 1)))

@@ -4,7 +4,7 @@
 /obj/machinery/filter_control/New()
 	..()
 	SPAWN_DBG(0.5 SECONDS)	//wait for world
-		for(var/obj/machinery/inlet/filter/F in machine_registry[MACHINES_INLETS])
+		for(var/obj/machinery/inlet/filter/F as() in machine_registry[MACHINES_INLETS])
 			if(F.control == src.control)
 				F.f_mask = src.f_mask
 		desc = "A remote control for a filter: [control]"
@@ -17,7 +17,7 @@
 		return ..()
 	if (isscrewingtool(W))
 		src.add_fingerprint(user)
-		user.show_message(text("<span style=\"color:red\">Now [] the panel...</span>", (src.locked) ? "unscrewing" : "reattaching"), 1)
+		user.show_message(text("<span class='alert'>Now [] the panel...</span>", (src.locked) ? "unscrewing" : "reattaching"), 1)
 		sleep(3 SECONDS)
 		src.locked =! src.locked
 		src.updateicon()
@@ -26,13 +26,13 @@
 		status ^= BROKEN
 		src.add_fingerprint(user)
 		for(var/mob/O in viewers(user, null))
-			O.show_message(text("<span style=\"color:red\">[] has []activated []!</span>", user, (stat&BROKEN) ? "de" : "re", src), 1)
+			O.show_message(text("<span class='alert'>[] has []activated []!</span>", user, (stat&BROKEN) ? "de" : "re", src), 1)
 		src.updateicon()
 		return
 	if(istype(W, /obj/item/weapon/card/emag) && !emagged)
 		emagged++
 		for(var/mob/O in viewers(user, null))
-			O.show_message(text("<span style=\"color:red\">[] has shorted out the []'s access system with an electromagnetic card!</span>", user, src), 1)
+			O.show_message(text("<span class='alert'>[] has shorted out the []'s access system with an electromagnetic card!</span>", user, src), 1)
 		src.updateicon()
 		return src.attack_hand(user)
 	return src.attack_hand(user)
@@ -56,12 +56,12 @@
 
 	var/list/gases = list("O2", "N2", "Plasma", "CO2", "N2O")
 	var/dat
-	user.machine = src
+	src.add_dialog(user)
 
 	var/IGoodConnection = 0
 	var/IBadConnection = 0
 
-	for(var/obj/machinery/inlet/filter/F in machine_registry[MACHINES_INLETS])
+	for(var/obj/machinery/inlet/filter/F as() in machine_registry[MACHINES_INLETS])
 		if((F.control == src.control) && !(F.stat && (NOPOWER|BROKEN)))
 			IGoodConnection++
 		else if(F.control == src.control)
@@ -90,16 +90,16 @@
 	if(..())
 		return
 	if ((((get_dist(src, usr) <= 1 || usr.telekinesis == 1) || isAI(usr)) && isturf(src.loc)))
-		usr.machine = src
+		src.add_dialog(usr)
 		if (src.allowed(usr) || src.emagged && !(status & BROKEN))
 			if (href_list["tg"])	//someone modified the html so I added a check here
 				// toggle gas
 				src.f_mask ^= text2num(href_list["tg"])
-				for(var/obj/machinery/inlet/filter/FI in machine_registry[MACHINES_INLETS])
+				for(var/obj/machinery/inlet/filter/FI as() in machine_registry[MACHINES_INLETS])
 					if(FI.control == src.control)
 						FI.f_mask ^= text2num(href_list["tg"])
 		else
-			usr.see("<span style=\"color:red\">Access Denied ([src.name] operation restricted to authorized atmospheric technicians.)</span>")
+			usr.see("<span class='alert'>Access Denied ([src.name] operation restricted to authorized atmospheric technicians.)</span>")
 		AutoUpdateAI(src)
 		src.updateUsrDialog()
 		src.add_fingerprint(usr)
@@ -125,7 +125,7 @@
 			return
 
 	var/GoodConnection = 0
-	for(var/obj/machinery/inlet/filter/F in machine_registry[MACHINES_INLETS])
+	for(var/obj/machinery/inlet/filter/F as() in machine_registry[MACHINES_INLETS])
 		if((F.control == src.control) && !(F.stat && (NOPOWER|BROKEN)))
 			GoodConnection++
 			break

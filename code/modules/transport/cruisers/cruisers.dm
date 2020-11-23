@@ -36,7 +36,7 @@
 	density = 1
 	anchored = 1
 	dir = 1
-	plane = -10
+	plane = PLANE_FLOOR
 	var/obj/cruiser_shield_visual/shield_obj
 
 	var/image/frames
@@ -188,18 +188,21 @@
 		return
 
 	New()
+		..()
 		if(interior_type)
 			interior_area = locate(interior_type)
 			interior_area.ship = src
 		if(!interior_area)
 			del(src)
 
-		SubscribeToProcess()
-
 		shield_obj = new(src.loc)
 		var/matrix/mtx = new
 		var/scale = 0.75
-		var/turf/center = get_turf(locate(/obj/landmark/cruiser_entrance) in interior_area)
+		var/turf/center
+		for(var/turf/T in landmarks[LANDMARK_CRUISER_ENTRANCE])
+			if(T.loc == interior_area)
+				center = T
+				break
 		var/turf/wow
 		for(var/turf/t in interior_area.contents)
 			if(!wow || (t.x < wow.x || t.y < wow.y))
@@ -237,15 +240,15 @@
 		engine = new/obj/item/shipcomponent/engine(src)
 		life_support = new/obj/item/shipcomponent/life_support(src)
 
-		pods_and_cruisers += src
+		START_TRACKING_CAT(TR_CAT_PODS_AND_CRUISERS)
 
 	disposing()
-		pods_and_cruisers -= src
+		STOP_TRACKING_CAT(TR_CAT_PODS_AND_CRUISERS)
 
 		del(camera)
 		if(interior_area)
 			interior_area = null
-		return
+		..()
 
 	attack_hand(mob/user as mob)
 		return MouseDrop_T(user, user)
@@ -257,7 +260,7 @@
 	Move(NewLoc,Dir=0,step_x=0,step_y=0)
 		var/preserve_dir = src.dir
 		. = ..(NewLoc,Dir,step_x,step_y)
-		dir = preserve_dir
+		set_dir(preserve_dir)
 		camera.set_loc(locate(src.x + 2, src.y + 2, src.z))
 		shield_obj.set_loc(src.loc)
 		return
@@ -298,16 +301,16 @@
 		switch(firemode)
 			if(CRUISER_FIREMODE_BOTH)
 				firemode = CRUISER_FIREMODE_ALT
-				boutput(usr, "<span style=\"color:red\">Fire mode now: Alternate</span>")
+				boutput(usr, "<span class='alert'>Fire mode now: Alternate</span>")
 			if(CRUISER_FIREMODE_ALT)
 				firemode = CRUISER_FIREMODE_LEFT
-				boutput(usr, "<span style=\"color:red\">Fire mode now: Left only</span>")
+				boutput(usr, "<span class='alert'>Fire mode now: Left only</span>")
 			if(CRUISER_FIREMODE_LEFT)
 				firemode = CRUISER_FIREMODE_RIGHT
-				boutput(usr, "<span style=\"color:red\">Fire mode now: Right only</span>")
+				boutput(usr, "<span class='alert'>Fire mode now: Right only</span>")
 			if(CRUISER_FIREMODE_RIGHT)
 				firemode = CRUISER_FIREMODE_BOTH
-				boutput(usr, "<span style=\"color:red\">Fire mode now: Simultaneous</span>")
+				boutput(usr, "<span class='alert'>Fire mode now: Simultaneous</span>")
 		return
 
 	Bump(atom/O)
@@ -692,7 +695,7 @@
 				walk(src, src.dir, base_speed + stall)
 				flying = src.dir
 		else
-			src.dir = direction
+			src.set_dir(direction)
 		return
 
 	proc/getProjectileOrigins()
@@ -776,12 +779,16 @@
 				unsubscribe_interior(user)
 				user.set_eye(user)
 		else
-			boutput(usr, "<span style=\"color:red\">The exit is blocked.</span>")
+			boutput(usr, "<span class='alert'>The exit is blocked.</span>")
 		return
 
 	proc/enterShip(atom/movable/O as obj, mob/user as mob)
 		if(!interior_area || O == src) return
-		var/entrance = get_turf(locate(/obj/landmark/cruiser_entrance) in interior_area)
+		var/turf/entrance
+		for(var/turf/T in landmarks[LANDMARK_CRUISER_ENTRANCE])
+			if(T.loc == interior_area)
+				entrance = T
+				break
 
 		if(entrance)
 			if(get_dist(O, getExitLoc()) <= 1)
@@ -791,9 +798,9 @@
 					if(O:client)
 						subscribe_interior(O)
 						O:set_eye(src)
-				boutput(user, "<span style=\"color:red\">You put [O] into [src].</span>")
+				boutput(user, "<span class='alert'>You put [O] into [src].</span>")
 			else
-				boutput(user, "<span style=\"color:red\">[O] is too far away from [src]'s airlock.</span>")
+				boutput(user, "<span class='alert'>[O] is too far away from [src]'s airlock.</span>")
 		return
 
 	proc/shakeCruiser(duration, strength=1, delay=0.2)
@@ -850,6 +857,8 @@
 	var/image/barBot
 
 	New()
+		..()
+		UnsubscribeProcess()
 		barTop = image('icons/obj/ship.dmi',src,"statpanel1",src.layer+1)
 		barTop.color = "#8A1919"
 
@@ -1041,7 +1050,7 @@
 				break
 		if(check_blocked && blocked && !ignore_blocked)
 			if(user)
-				boutput(user, "<span style=\"color:red\">Something is preventing the [src] from opening.</span>")
+				boutput(user, "<span class='alert'>Something is preventing the [src] from opening.</span>")
 		else
 			ready = 0
 			SPAWN_DBG(1 SECOND) ready = 1
@@ -1055,7 +1064,7 @@
 	proc/close(var/mob/user = null)
 		if(!open) return
 		if(rebooting)
-			boutput(user, "<span style=\"color:red\">This device is currently disabled.</span>")
+			boutput(user, "<span class='alert'>This device is currently disabled.</span>")
 			return
 		ready = 0
 		SPAWN_DBG(1 SECOND) ready = 1
@@ -1094,7 +1103,7 @@
 	name = "Left turret slot"
 	install_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship)
+		if(interior?.ship)
 			for(var/atom/movable/A in src.loc)
 				if(istype(A, container_type))
 					A.set_loc(interior.ship)
@@ -1103,7 +1112,7 @@
 		return
 	uninstall_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship && interior.ship.turret_left)
+		if(interior?.ship?.turret_left)
 			interior.ship.turret_left.set_loc(src.loc)
 			interior.ship.turret_left = null
 		return
@@ -1112,7 +1121,7 @@
 	name = "Right turret slot"
 	install_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship)
+		if(interior?.ship)
 			for(var/atom/movable/A in src.loc)
 				if(istype(A, container_type))
 					A.set_loc(interior.ship)
@@ -1121,7 +1130,7 @@
 		return
 	uninstall_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship && interior.ship.turret_right)
+		if(interior?.ship?.turret_right)
 			interior.ship.turret_right.set_loc(src.loc)
 			interior.ship.turret_right = null
 		return
@@ -1133,7 +1142,7 @@
 	health_max = 75
 	install_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship)
+		if(interior?.ship)
 			for(var/atom/movable/A in src.loc)
 				if(istype(A, container_type))
 					A.set_loc(interior.ship)
@@ -1142,7 +1151,7 @@
 		return
 	uninstall_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship && interior.ship.engine)
+		if(interior?.ship?.engine)
 			interior.ship.engine.set_loc(src.loc)
 			interior.ship.engine = null
 		return
@@ -1158,7 +1167,7 @@
 
 	install_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship)
+		if(interior?.ship)
 			for(var/atom/movable/A in src.loc)
 				if(istype(A, container_type))
 					A.set_loc(interior.ship)
@@ -1168,7 +1177,7 @@
 
 	uninstall_component()
 		var/area/ship_interior/interior = get_area(src)
-		if(interior && interior.ship && interior.ship.life_support)
+		if(interior?.ship?.life_support)
 			interior.ship.life_support.set_loc(src.loc)
 			interior.ship.life_support = null
 		return
@@ -1196,12 +1205,12 @@
 		if ((!( istype(G, /obj/item/grab) ) || !( ismob(G.affecting) )))
 			return
 		if (!G.state)
-			boutput(user, "<span style=\"color:red\">You need a tighter grip!</span>")
+			boutput(user, "<span class='alert'>You need a tighter grip!</span>")
 			return
 		var/mob/M = G.affecting
 		var/area/ship_interior/interior = get_area(src)
 		if(interior.ship)
-			user.visible_message("<span style=\"color:red\"><b>[user] throws [M] out of \the [src]!", "<span style=\"color:red\"><b>You throw [M] out of \the [src]!</b></span>")
+			user.visible_message("<span class='alert'><b>[user] throws [M] out of \the [src]!", "<span class='alert'><b>You throw [M] out of \the [src]!</b></span>")
 			interior.ship.leaveShip(M)
 			M.changeStatus("weakened", 2 SECONDS)
 		qdel(G)
@@ -1283,6 +1292,7 @@
 		return "Reboot complete."
 
 	New()
+		..()
 		interior = get_area(src)
 		icon_state = icon_state_empty
 		AbHolder = new()
@@ -1290,15 +1300,13 @@
 		AbHolder.addAbility(/datum/targetable/cruiser/toggle_interior)
 		for(var/T in abilities)
 			AbHolder.addAbility(T)
-		SubscribeToProcess()
-		return
 
 	attack_hand(mob/user as mob)
 		if(broken)
-			boutput(user, "<span style=\"color:red\">This pod is broken and must be repaired before it can be used again.</span>")
+			boutput(user, "<span class='alert'>This pod is broken and must be repaired before it can be used again.</span>")
 			return
 		if(using)
-			boutput(user, "<span style=\"color:red\">This pod is already being used.</span>")
+			boutput(user, "<span class='alert'>This pod is already being used.</span>")
 			return
 		else
 			enterPod(user)
@@ -1306,12 +1314,11 @@
 	MouseDrop_T(atom/movable/O as obj, mob/user as mob)
 		if(ismob(O) && O:client)
 			attack_hand(O)
-		return
 
 	proc/enterPod(mob/user as mob)
 		var/obj/machinery/cruiser/C = interior.ship
 		if(rebooting)
-			boutput(user, "<span style=\"color:red\">This device is currently disabled.</span>")
+			boutput(user, "<span class='alert'>This device is currently disabled.</span>")
 			return
 		using = user
 		user.set_loc(src)

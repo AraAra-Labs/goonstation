@@ -145,6 +145,10 @@ Contents:
 	slot_card = null
 	slot_ears = null
 
+	special_setup(mob/M, no_special_spawn)
+		. = ..()
+
+
 // Objects
 
 /obj/item/dojohammer
@@ -172,16 +176,16 @@ Contents:
 	attackby(obj/item/H as obj, mob/user as mob)
 		if (istype(H, /obj/item/dojohammer))
 			if (prob(85))
-				boutput(user, "<span style=\"color:blue\">You pound the [src] with the [H].</span>")
+				boutput(user, "<span class='notice'>You pound the [src] with the [H].</span>")
 				playsound(loc, "sound/impact_sounds/Metal_Clang_1.ogg", 60, 1)
 			else
 				if (prob(50))
-					boutput(user, "<span style=\"color:blue\">The steel groans and bends under your swings, forming a menacing blade!</span>")
+					boutput(user, "<span class='notice'>The steel groans and bends under your swings, forming a menacing blade!</span>")
 					playsound(loc, "sound/items/blade_pull.ogg", 60, 1)
 					new /obj/item/bloodthirsty_blade(src.loc)
 					del(src)
 				else
-					boutput(user, "<span style=\"color:blue\">The steel grows brittle under your swings, but takes on a tremendously sharp edge!</span>")
+					boutput(user, "<span class='notice'>The steel grows brittle under your swings, but takes on a tremendously sharp edge!</span>")
 					playsound(loc, "sound/items/blade_pull.ogg", 60, 1)
 					new /obj/item/fragile_sword(src.loc)
 					del(src)
@@ -576,3 +580,24 @@ Contents:
 
 /turf/unsimulated/floor/dojo/sand/circle
 	icon_state = "sand_circ"
+
+// Simulated variants of turfs
+
+/turf/simulated/floor/dojo/sand
+	name = "zen garden"
+	icon = 'icons/turf/dojo.dmi'
+	icon_state = "sand"
+
+	horizontal
+		icon_state = "sand_horiz"
+
+	vertical
+		icon_state = "sand_vert"
+
+	circle
+		icon_state = "sand_circ"
+
+/turf/simulated/floor/dojo/stone
+	name = "stone"
+	icon = 'icons/turf/dojo.dmi'
+	icon_state = "stone"

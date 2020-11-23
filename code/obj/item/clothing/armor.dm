@@ -100,13 +100,11 @@
 		return
 
 	examine()
-		set src in oview(2)
-		..()
+		. = ..()
 		if (src.payload)
-			boutput(usr, "<span style=\"color:red\">Looks like the payload is a [src.payload].</span>")
+			. += "<span class='alert'>Looks like the payload is a [src.payload].</span>"
 		else
-			boutput(usr, "<span style=\"color:red\">There doesn't appear to be a payload attached.</span>")
-		return
+			. += "<span class='alert'>There doesn't appear to be a payload attached.</span>"
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		src.add_fingerprint(user)
@@ -222,13 +220,13 @@
 		if (!src.grenade && !src.grenade_old && !src.pipebomb && !src.beaker)
 			return
 		if (!isdead(wearer) || (wearer.suiciding && prob(60))) // Don't abuse suiciding.
-			wearer.visible_message("<span style=\"color:red\"><b>[wearer]'s suicide bomb vest clicks softly, but nothing happens.</b></span>")
+			wearer.visible_message("<span class='alert'><b>[wearer]'s suicide bomb vest clicks softly, but nothing happens.</b></span>")
 			return
 
 		if (!src.payload)
 			src.payload = "*unknown or null*"
 
-		wearer.visible_message("<span style=\"color:red\"><b>[wearer]'s suicide bomb vest clicks loudly!</b></span>")
+		wearer.visible_message("<span class='alert'><b>[wearer]'s suicide bomb vest clicks loudly!</b></span>")
 		message_admins("[key_name(wearer)]'s suicide bomb vest triggers (Payload: [src.payload]) at [log_loc(wearer)].")
 		logTheThing("bombing", wearer, null, "'s suicide bomb vest triggers (<b>Payload:</b> [src.payload])[src.payload == "beaker" ? " [log_reagents(src.beaker)]" : ""] at [log_loc(wearer)].")
 
@@ -259,6 +257,20 @@
 			// Icon_state and payload don't change because the beaker isn't used up.
 
 		return
+
+/obj/item/clothing/suit/armor/makeshift
+	name = "makeshift armor"
+	desc = "A standard cyborg chest modified to function as uncomfortable, somewhat flimsy improvised armor."
+	icon_state = "makeshift"
+	item_state = "makeshift"
+	body_parts_covered = TORSO
+
+	setupProperties()
+		..()
+		setProperty("coldprot", 10)
+		setProperty("meleeprot", 4)
+		setProperty("rangedprot", 0.8)
+		setProperty("movespeed", 0.5)
 
 /obj/item/clothing/suit/armor/captain
 	name = "captain's armor"
@@ -316,7 +328,7 @@
 		setProperty("meleeprot", 12)
 		setProperty("rangedprot", 3)
 		setProperty("pierceprot",25)
-		setProperty("disorient_resist", 25)
+		setProperty("disorient_resist", 45)
 		setProperty("movespeed", 2)
 
 /obj/item/clothing/suit/armor/death_commando
@@ -394,14 +406,16 @@
 		setProperty("rangedprot", 2)
 		setProperty("disorient_resist", 10)
 		setProperty("movespeed", 0.6)
+		setProperty("exploprot", 60)
 
 /obj/item/clothing/suit/armor/hoscape
-	name = "head of securitys cape"
-	desc = "A rather dashing cape."
+	name = "Head of Security's cape"
+	desc = "A lightly-armored and stylish cape, made of heat-resistant materials. It probably won't keep you warm, but it would make a great security blanket!"
 	icon_state = "hos-cape"
 	item_state = "hos-cape"
-
 	setupProperties()
 		..()
-		setProperty("meleeprot", 7)
-		setProperty("rangedprot", 1.5)
+		setProperty("meleeprot", 3)
+		setProperty("rangedprot", 0.7)
+		setProperty("coldprot", 5)
+		setProperty("heatprot", 35)

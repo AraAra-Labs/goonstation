@@ -18,6 +18,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	contraband = 4
 	hide_attack = 2 //Point blanking... gross
 	pickup_sfx = "sound/items/pickup_gun.ogg"
+	inventory_counter_enabled = 1
 
 	var/continuous = 0 //If 1, fire pixel based while button is held.
 	var/c_interval = 3 //Interval between shots while button is held.
@@ -44,18 +45,15 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	var/add_residue = 0 // Does this gun add gunshot residue when fired (Convair880)?
 
 	var/charge_up = 0 //Does this gun have a charge up time and how long is it? 0 = normal instant shots.
-#if ASS_JAM
-	var/shoot_delay = 0
-#else
 	var/shoot_delay = 4
-#endif
+
+	var/muzzle_flash = null //set to a different icon state name if you want a different muzzle flash when fired, flash anims located in icons/mob/mob.dmi
 
 	buildTooltipContent()
-		var/Tcontent = ..()
+		. = ..()
 		if(current_projectile)
-			Tcontent += "<br><img style=\"display:inline;margin:0\" src=\"[resource("images/tooltips/ranged.png")]\" width=\"10\" height=\"10\" /> Bullet Power: [current_projectile.power] - [current_projectile.ks_ratio * 100]% lethal"
-
-		return Tcontent
+			. += "<br><img style=\"display:inline;margin:0\" src=\"[resource("images/tooltips/ranged.png")]\" width=\"10\" height=\"10\" /> Bullet Power: [current_projectile.power] - [current_projectile.ks_ratio * 100]% lethal"
+		lastTooltipContent = .
 
 	New()
 		SPAWN_DBG(2 SECONDS)
@@ -99,7 +97,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	if(!c_firing)
 		c_firing = 1
 		SPAWN_DBG(0)
-			while(src && src.c_mouse_down)
+			while(src?.c_mouse_down)
 				pixelaction(src.c_target.target, src.c_target.params, src.c_target.user, 0, 1)
 				suppress_fire_msg = 1
 				sleep(src.c_interval)
@@ -137,27 +135,27 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 /*
 /obj/item/gun/proc/emag(obj/item/A as obj, mob/user as mob)
 	if(istype(A, /obj/item/card/emag))
-		boutput(user, "<span style=\"color:red\">No lock to break!</span>")
+		boutput(user, "<span class='alert'>No lock to break!</span>")
 		return 1
 	return 0
 */
 /obj/item/gun/emag_act(var/mob/user, var/obj/item/card/emag/E)
 	if (user)
-		boutput(user, "<span style=\"color:red\">No lock to break!</span>")
+		boutput(user, "<span class='alert'>No lock to break!</span>")
 	return 0
 
 /obj/item/gun/attack_self(mob/user as mob)
 	if(src.projectiles && src.projectiles.len > 1)
 		src.current_projectile_num = ((src.current_projectile_num) % src.projectiles.len) + 1
 		src.current_projectile = src.projectiles[src.current_projectile_num]
-		boutput(user, "<span style=\"color:blue\">you set the output to [src.current_projectile.sname].</span>")
+		boutput(user, "<span class='notice'>you set the output to [src.current_projectile.sname].</span>")
 	return
 
 /datum/action/bar/icon/guncharge
 	duration = 150
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	id = "guncharge"
-	icon = 'icons/obj/items/items.dmi'
+	icon = 'icons/obj/items/tools/screwdriver.dmi'
 	icon_state = "screwdriver"
 	var/obj/item/gun/ownerGun
 	var/pox
@@ -200,17 +198,31 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		shoot(target_turf, user_turf, user, pox, poy)
 
 	//if they're holding a gun in each hand... why not shoot both!
-	if (can_dual_wield && (!charge_up) && ishuman(user))
-		if(user.hand && istype(user.r_hand, /obj/item/gun) && user.r_hand:can_dual_wield)
-			if (user.r_hand:canshoot())
-				user.next_click = max(user.next_click, world.time + user.r_hand:shoot_delay)
-			SPAWN_DBG(0.2 SECONDS)
-				user.r_hand:shoot(target_turf,user_turf,user, pox+rand(-2,2), poy+rand(-2,2))
-		else if(!user.hand && istype(user.l_hand, /obj/item/gun)&& user.l_hand:can_dual_wield)
-			if (user.l_hand:canshoot())
-				user.next_click = max(user.next_click, world.time + user.l_hand:shoot_delay)
-			SPAWN_DBG(0.2 SECONDS)
-				user.l_hand:shoot(target_turf,user_turf,user, pox+rand(-2,2), poy+rand(-2,2))
+	if (can_dual_wield && (!charge_up))
+		if(ishuman(user))
+			if(user.hand && istype(user.r_hand, /obj/item/gun) && user.r_hand:can_dual_wield)
+				if (user.r_hand:canshoot())
+					user.next_click = max(user.next_click, world.time + user.r_hand:shoot_delay)
+				SPAWN_DBG(0.2 SECONDS)
+					user.r_hand:shoot(target_turf,user_turf,user, pox+rand(-2,2), poy+rand(-2,2))
+			else if(!user.hand && istype(user.l_hand, /obj/item/gun)&& user.l_hand:can_dual_wield)
+				if (user.l_hand:canshoot())
+					user.next_click = max(user.next_click, world.time + user.l_hand:shoot_delay)
+				SPAWN_DBG(0.2 SECONDS)
+					user.l_hand:shoot(target_turf,user_turf,user, pox+rand(-2,2), poy+rand(-2,2))
+		else if(ismobcritter(user))
+			var/mob/living/critter/M = user
+			var/list/obj/item/gun/guns = list()
+			for(var/datum/handHolder/H in M.hands)
+				if(H.item && H.item != src && istype(H.item, /obj/item/gun) && H.item:can_dual_wield)
+					if (H.item:canshoot())
+						guns += H.item
+						user.next_click = max(user.next_click, world.time + H.item:shoot_delay)
+			SPAWN_DBG(0)
+				for(var/obj/item/gun/gun in guns)
+					sleep(0.2 SECONDS)
+					gun.shoot(target_turf,user_turf,user, pox+rand(-2,2), poy+rand(-2,2))
+
 
 	return 1
 
@@ -268,7 +280,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 
 	if (!canshoot())
 		if (!silenced)
-			M.visible_message("<span style=\"color:red\"><B>[user] tries to shoot [user == M ? "[him_or_her(user)]self" : M] with [src] point-blank, but it was empty!</B></span>")
+			M.visible_message("<span class='alert'><B>[user] tries to shoot [user == M ? "[him_or_her(user)]self" : M] with [src] point-blank, but it was empty!</B></span>")
 			playsound(user, "sound/weapons/Gunclick.ogg", 60, 1)
 		else
 			user.show_text("*click* *click*", "red")
@@ -281,12 +293,17 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	if (!src.silenced)
 		for (var/mob/O in AIviewers(M, null))
 			if (O.client)
-				O.show_message("<span style=\"color:red\"><B>[user] shoots [user == M ? "[him_or_her(user)]self" : M] point-blank with [src]!</B></span>")
+				O.show_message("<span class='alert'><B>[user] shoots [user == M ? "[him_or_her(user)]self" : M] point-blank with [src]!</B></span>")
 	else
-		user.show_text("<span style=\"color:red\">You silently shoot [user == M ? "yourself" : M] point-blank with [src]!</span>") // Was non-functional (Convair880).
+		user.show_text("<span class='alert'>You silently shoot [user == M ? "yourself" : M] point-blank with [src]!</span>") // Was non-functional (Convair880).
 
 	if (!process_ammo(user))
 		return
+
+	if (src.muzzle_flash)
+		if (isturf(user.loc))
+			muzzle_flash_attack_particle(user, user.loc, M, src.muzzle_flash)
+
 
 	if(slowdown)
 		SPAWN_DBG(-1)
@@ -308,14 +325,13 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	spread = max(spread, spread_angle)
 
 	for (var/i = 0; i < current_projectile.shot_number; i++)
-		var/obj/projectile/P = initialize_projectile_pixel_spread(user, current_projectile, M, 0, 0, spread)
+		var/obj/projectile/P = initialize_projectile_pixel_spread(user, current_projectile, M, 0, 0, spread, alter_proj = new/datum/callback(src, .proc/alter_projectile))
 		if (!P)
 			return
 		if (user == M)
 			P.shooter = null
 			P.mob_shooter = user
 
-		alter_projectile(P)
 		P.forensic_ID = src.forensic_ID // Was missing (Convair880).
 		if(get_dist(user,M) <= 1)
 			hit_with_existing_projectile(P, M) // Includes log entry.
@@ -351,10 +367,15 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		return
 	if (!process_ammo(user))
 		return
-	if (!istype(target, /turf) || !istype(start, /turf))
+	if (!isturf(target) || !isturf(start))
 		return
 	if (!istype(src.current_projectile,/datum/projectile/))
 		return
+
+	if (src.muzzle_flash)
+		if (isturf(user.loc))
+			var/turf/origin = user.loc
+			muzzle_flash_attack_particle(user, origin, target, src.muzzle_flash)
 
 	if (ismob(user))
 		var/mob/M = user
@@ -380,18 +401,17 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		spread += 5 * how_drunk
 	spread = max(spread, spread_angle)
 
-	var/obj/projectile/P = shoot_projectile_ST_pixel_spread(user, current_projectile, target, POX, POY, spread)
+	var/obj/projectile/P = shoot_projectile_ST_pixel_spread(user, current_projectile, target, POX, POY, spread, alter_proj = new/datum/callback(src, .proc/alter_projectile))
 	if (P)
-		alter_projectile(P)
 		P.forensic_ID = src.forensic_ID
 
 	if(user && !suppress_fire_msg)
 		if(!src.silenced)
 			for(var/mob/O in AIviewers(user, null))
-				O.show_message("<span style=\"color:red\"><B>[user] fires [src] at [target]!</B></span>", 1, "<span style=\"color:red\">You hear a gunshot</span>", 2)
+				O.show_message("<span class='alert'><B>[user] fires [src] at [target]!</B></span>", 1, "<span class='alert'>You hear a gunshot</span>", 2)
 		else
 			if (ismob(user)) // Fix for: undefined proc or verb /obj/item/mechanics/gunholder/show text().
-				user.show_text("<span style=\"color:red\">You silently fire the [src] at [target]!</span>") // Some user feedback for silenced guns would be nice (Convair880).
+				user.show_text("<span class='alert'>You silently fire the [src] at [target]!</span>") // Some user feedback for silenced guns would be nice (Convair880).
 
 		var/turf/T = target
 		logTheThing("combat", user, null, "fires \a [src] from [log_loc(user)], vector: ([T.x - user.x], [T.y - user.y]), dir: <I>[dir2text(get_dir(user, target))]</I>, projectile: <I>[P.name]</I>[P.proj_data && P.proj_data.type ? ", [P.proj_data.type]" : null]")
@@ -408,21 +428,15 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	return 0
 
 /obj/item/gun/examine()
-	set src in usr
-	set category = "Local"
-
 	if (src.artifact)
-		boutput(usr, "You have no idea what the hell this thing is!")
-		return
-
-	..()
-	return
+		return list("You have no idea what the hell this thing is!")
+	return ..()
 
 /obj/item/gun/proc/update_icon()
 	return 0
 
 /obj/item/gun/proc/process_ammo(var/mob/user)
-	boutput(user, "<span style=\"color:red\">*click* *click*</span>")
+	boutput(user, "<span class='alert'>*click* *click*</span>")
 	if (!src.silenced)
 		playsound(user, "sound/weapons/Gunclick.ogg", 60, 1)
 	return 0
@@ -450,18 +464,19 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		return 0
 
 	src.process_ammo(user)
-	user.visible_message("<span style='color:red'><b>[user] places [src] against [his_or_her(user)] head!</b></span>")
+	user.visible_message("<span class='alert'><b>[user] places [src] against [his_or_her(user)] head!</b></span>")
 	var/dmg = user.get_brute_damage() + user.get_burn_damage()
 	src.shoot_point_blank(user, user)
 	var/new_dmg = user.get_brute_damage() + user.get_burn_damage()
 	if (new_dmg >= (dmg + 20)) // it did some appreciable amount of damage
 		user.TakeDamage("head", 500, 0)
-		user.updatehealth()
 	else if (new_dmg < (dmg + 20))
-		user.visible_message("<span style='color:red'>[user] hangs their head in shame because they chose such a weak gun.</span>")
+		user.visible_message("<span class='alert'>[user] hangs their head in shame because they chose such a weak gun.</span>")
 	return 1
 
 /obj/item/gun/on_spin_emote(var/mob/living/carbon/human/user as mob)
+	. = ..(user)
 	if ((user.bioHolder && user.bioHolder.HasEffect("clumsy") && prob(50)) || (user.reagents && prob(user.reagents.get_reagent_amount("ethanol") / 2)) || prob(5))
-		user.visible_message("<span style=\"color:red\"><b>[user] accidentally shoots [him_or_her(user)]self with [src]!</b></span>")
+		user.visible_message("<span class='alert'><b>[user] accidentally shoots [him_or_her(user)]self with [src]!</b></span>")
 		src.shoot_point_blank(user, user)
+		JOB_XP(user, "Clown", 3)

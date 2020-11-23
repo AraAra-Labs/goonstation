@@ -3,7 +3,7 @@
 	desc = "A simple phaser designed for scout vehicles."
 	var/r_gunner = 0
 	var/mob/gunner = null
-	var/datum/projectile/current_projectile = new/datum/projectile/laser/light
+	var/datum/projectile/current_projectile = new/datum/projectile/laser/light/pod
 	var/firerate = 8
 	var/isfiring = 0
 	var/weapon_score = 0.1
@@ -11,6 +11,8 @@
 
 	var/uses_ammunition = 0
 	var/remaining_ammunition = 0
+	var/muzzle_flash = null
+
 
 	icon = 'icons/obj/podweapons.dmi'		//remove this line.  or leave it. Could put these sprites in ship.dmi like how the original is
 	icon_state = "class-a"
@@ -20,7 +22,7 @@
 	opencomputer(mob/user as mob)
 		if(user.loc != src.ship)
 			return
-		user.machine = src
+		src.add_dialog(user)
 
 		var/dat = "<TT><B>[src] Console</B><BR><HR><BR>"
 		if(src.active)
@@ -41,7 +43,7 @@
 			return
 
 		if (usr.loc == ship)
-			usr.machine = src
+			src.add_dialog(usr)
 
 			if (href_list["gunner"])
 				MakeGunner(usr)
@@ -49,7 +51,7 @@
 
 			src.add_fingerprint(usr)
 			for(var/mob/M in ship)
-				if ((M.client && M.machine == src))
+				if (M.using_dialog_of(src))
 					src.opencomputer(M)
 		else
 			usr.Browse(null, "window=ship_main_weapon")
@@ -87,6 +89,7 @@
 	desc = "A phaser designed for scout vehicles. Features a more focused energy discharge, leading to an increased range."
 	current_projectile = new/datum/projectile/laser/light/longrange
 	icon_state = "class-a"
+	muzzle_flash = "muzzle_flash_phaser"
 
 /obj/item/shipcomponent/mainweapon/mining
 	name = "Plasma Cutter System"
@@ -116,14 +119,16 @@
 	current_projectile = new/datum/projectile/energy_bolt
 	firerate = 10
 	icon_state = "combat-taser"
+	muzzle_flash = "muzzle_flash_elec"
 
 /obj/item/shipcomponent/mainweapon/phaser
 	name = "Mk 1.5 Light Phaser"
 	desc = "A basic, light weight phaser designed for scout vehicles."
 	weapon_score = 0.3
 	appearanceString = "pod_weapon_ltlaser"
-	current_projectile = new/datum/projectile/laser/light
+	current_projectile = new/datum/projectile/laser/light/pod
 	icon_state = "class-a"
+	muzzle_flash = "muzzle_flash_phaser"
 
 /obj/item/shipcomponent/mainweapon/laser
 	name = "Mk.2 Scout Laser"
@@ -133,6 +138,7 @@
 	power_used = 100
 	current_projectile = new/datum/projectile/laser
 	icon_state = "mk-2-scout"
+	muzzle_flash = "muzzle_flash_laser"
 
 /obj/item/shipcomponent/mainweapon/russian
 	name = "Svet-Oruzhiye Mk.4"
@@ -140,6 +146,7 @@
 	current_projectile = new/datum/projectile/laser/glitter
 	firerate = 5
 	icon_state = "strelka"
+	muzzle_flash = "muzzle_flash_laser"
 
 /obj/item/shipcomponent/mainweapon/disruptor_light
 	name = "Mk.3 Disruptor"
@@ -147,6 +154,7 @@
 	weapon_score = 0.6
 	current_projectile = new/datum/projectile/disruptor
 	icon_state = "disruptor-l"
+	muzzle_flash = "muzzle_flash_plaser"
 
 /obj/item/shipcomponent/mainweapon/precursor
 	name = "IRIDIUM Spheroid Projector"
@@ -157,13 +165,14 @@
 	firerate = 25
 
 /obj/item/shipcomponent/mainweapon/gun
-	name = "SPK-12 Ballistic System"
+	name = "SPE-12 Ballistic System"
 	desc = "A one of it's kind kinetic podweapon, designed to fire shotgun rounds similar to those in a SPES-12."
 	weapon_score = 1.25
 	current_projectile = new/datum/projectile/bullet/a12
 	appearanceString = "pod_weapon_gun_off"
 	firerate = 10
 	icon_state = "spes"
+	muzzle_flash = "muzzle_flash"
 
 /obj/item/shipcomponent/mainweapon/laser_ass // hehhh
 	name = "Mk.4 Assault Laser"
@@ -173,6 +182,7 @@
 	appearanceString = "pod_weapon_emitter"
 	current_projectile = new/datum/projectile/laser/asslaser
 	icon_state = "assult-laser"
+	muzzle_flash = "muzzle_flash_laser"
 
 /obj/item/shipcomponent/mainweapon/rockdrills
 	name = "Rock Drilling Rig"
@@ -206,6 +216,7 @@
 	appearanceString = "pod_weapon_bfg"
 	firerate = 100
 	icon_state = "grenade-launcher"
+	muzzle_flash = "muzzle_flash_launch"
 
 /obj/item/shipcomponent/mainweapon/UFO
 	name = "UFO Blaster"
@@ -222,7 +233,7 @@
 	opencomputer(mob/user as mob)
 		if(user.loc != src.ship)
 			return
-		user.machine = src
+		src.add_dialog(user)
 
 		var/dat = "<TT><B>Weapon Console</B><BR><HR>"
 		if(src.active)
@@ -245,7 +256,7 @@
 			return
 
 		if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))) || (issilicon(usr)))
-			usr.machine = src
+			src.add_dialog(usr)
 
 		if (href_list["heat"])
 			current_projectile = ufo
@@ -276,9 +287,9 @@
 				if(isfiring) return
 				isfiring = 1
 				var/obj/decal/D = new/obj/decal(ship.loc)
-				D.dir = ship.dir
+				D.set_dir(ship.dir)
 				if (shot_dir_override > 1)
-					D.dir = shot_dir_override
+					D.set_dir(shot_dir_override)
 
 				D.name = "metal foam spray"
 				D.icon = 'icons/obj/chemical.dmi'
@@ -294,7 +305,7 @@
 					step_towards(D, get_step(D, D.dir))
 					var/location = get_turf(D)
 					for(var/mob/M in AIviewers(5, location))
-						boutput(M, "<span style=\"color:red\">[ship] spews out a metalic foam!</span>")
+						boutput(M, "<span class='alert'>[ship] spews out a metalic foam!</span>")
 					var/list/bandaidfix = list("iron" = 3, "fluorosurfactant" = 1, "acid" = 1)
 					var/datum/effects/system/foam_spread/s = new()
 					s.set_up(5, location, bandaidfix, 1) // Aborts if reagent list is null (even for metal foam), but I'm not gonna touch foam_spread.dm (Convair880).
@@ -310,7 +321,7 @@
 	opencomputer(mob/user as mob)
 		if(user.loc != src.ship)
 			return
-		user.machine = src
+		src.add_dialog(user)
 
 		var/dat = "<TT><B>Weapon Console</B><BR><HR>"
 		if(src.active)
@@ -333,7 +344,7 @@
 			return
 
 		if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))) || (issilicon(usr)))
-			usr.machine = src
+			src.add_dialog(usr)
 
 		if (href_list["foam"])
 			mode = 0
@@ -345,3 +356,25 @@
 
 		opencomputer(usr)
 		return
+
+
+/datum/projectile/laser/pod
+	dissipation_rate = 2
+	dissipation_delay = 16
+	projectile_speed = 32
+
+/datum/projectile/laser/light/pod
+	impact_range = 2
+	dissipation_rate = 1
+	dissipation_delay = 14
+	projectile_speed = 32
+
+/datum/projectile/disruptor
+	impact_range = 4
+	dissipation_delay = 16
+	projectile_speed = 32
+
+/datum/projectile/disruptor/high
+	impact_range = 4
+	dissipation_delay = 16
+	projectile_speed = 32

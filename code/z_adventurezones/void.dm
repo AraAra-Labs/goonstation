@@ -12,12 +12,13 @@ CONTENTS:
 /area/crunch
 	name = "somewhere"
 	icon_state = "purple"
-	filler_turf = "/turf/simulated/floor/void"
+	filler_turf = "/turf/unsimulated/floor/void"
 	sound_environment = 21
 	skip_sims = 1
 	sims_score = 15
 	sound_group = "void"
 	sound_loop = 'sound/ambience/spooky/Void_Song.ogg'
+	ambient_light = rgb(6.9, 4.20, 6.9)
 
 	New()
 		..()
@@ -190,12 +191,12 @@ CONTENTS:
 			UpdateOverlays(overlays_list["lscreen[operating]"], "lscreen")
 			UpdateOverlays(overlays_list["rscreen[operating]"], "rscreen")
 
-			if(chair1 && chair1.buckled_guy)
+			if(chair1?.buckled_guy)
 				UpdateOverlays(overlays_list["l_dial_[operating]"], "l_dial")
 			else
 				UpdateOverlays(overlays_list["l_dial_idle"], "l_dial")
 
-			if(chair2 && chair2.buckled_guy)
+			if(chair2?.buckled_guy)
 				UpdateOverlays(overlays_list["r_dial_[operating]"], "r_dial")
 			else
 				UpdateOverlays(overlays_list["r_dial_idle"], "r_dial")
@@ -217,7 +218,7 @@ CONTENTS:
 
 	proc/display_ui(var/mob/user)
 		var/T
-		user.machine = src
+		src.add_dialog(user)
 		if(active)
 			if(!used)
 				T = {"<span style="display: block">
@@ -231,8 +232,8 @@ CONTENTS:
 					<A HREF='?src=\ref[src];refresh_chair_connection=1'>Re-establish</A>
 					<h3>Mental Interfaces</h3>
 					<table border=1><tr>
-						<th>Interface #1<td><B>[chair1 && chair1.buckled_guy ? "<font color=green>Connected</font>" : "<font color=red>Disconnected</font>"]</B><tr>
-						<th>Interface #2<td><B>[chair2 && chair2.buckled_guy ? "<font color=green>Connected</font>" : "<font color=red>Disconnected</font>"]</B><tr>
+						<th>Interface #1<td><B>[chair1?.buckled_guy ? "<font color=green>Connected</font>" : "<font color=red>Disconnected</font>"]</B><tr>
+						<th>Interface #2<td><B>[chair2?.buckled_guy ? "<font color=green>Connected</font>" : "<font color=red>Disconnected</font>"]</B><tr>
 					</table>
 					<A HREF='?src=\ref[src];refresh_mind_connection=1'>Re-establish</A><BR><BR>
 					<A HREF='?src=\ref[src];execute_swap=1'><B><font bold=5 size=7>Activate</font></B></A></span>"}
@@ -341,7 +342,7 @@ CONTENTS:
 		while(active && !activating && remain_active-- > 0) //So it will shut itself down after a while
 
 		if(remain_active <= 0)
-			src.visible_message("<span style=\"color:red\">You hear a quiet click as \the [src] deactivates itself.</span>")
+			src.visible_message("<span class='alert'>You hear a quiet click as \the [src] deactivates itself.</span>")
 			deactivate()
 
 
@@ -458,14 +459,14 @@ CONTENTS:
 
 			if(success)
 				playsound(src.loc, 'sound/effects/electric_shock.ogg', 50,1)
-				src.visible_message("<span style=\"color:red\">\The [src] emits a loud crackling sound and the smell of ozone fills the air!</span>")
+				src.visible_message("<span class='alert'>\The [src] emits a loud crackling sound and the smell of ozone fills the air!</span>")
 				loop_duration = 7 //Something is amiss oh no!
 				remain_active = min(remain_active, 100)
 				remain_active_max = 100
 				used = 1
 			else
 				playsound(src.loc, 'sound/machines/buzz-two.ogg', 50,1)
-				src.visible_message("<span style=\"color:red\">\The [src] emits a whirring and clicking noise followed by an angry beep!</span>")
+				src.visible_message("<span class='alert'>\The [src] emits a whirring and clicking noise followed by an angry beep!</span>")
 
 		SPAWN_DBG(5 SECONDS)
 			operating = 0

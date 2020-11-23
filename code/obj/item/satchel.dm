@@ -5,14 +5,16 @@
 	icon_state = "satchel"
 	flags = ONBELT
 	w_class = 1
+	event_handler_flags = USE_FLUID_ENTER | NO_MOUSEDROP_QOL
 	var/maxitems = 50
 	var/list/allowed = list(/obj/item/)
 	var/itemstring = "items"
+	inventory_counter_enabled = 1
 
 
 	New()
-		src.satchel_updateicon()
 		..()
+		src.satchel_updateicon()
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		var/proceed = 0
@@ -21,25 +23,27 @@
 				proceed = 1
 				break
 		if (!proceed)
-			boutput(user, "<span style=\"color:red\">[src] cannot hold that kind of item!</span>")
+			boutput(user, "<span class='alert'>[src] cannot hold that kind of item!</span>")
 			return
 
 		if (src.contents.len < src.maxitems)
 			user.u_equip(W)
 			W.set_loc(src)
 			W.dropped()
-			boutput(user, "<span style=\"color:blue\">You put [W] in [src].</span>")
-			if (src.contents.len == src.maxitems) boutput(user, "<span style=\"color:blue\">[src] is now full!</span>")
+			boutput(user, "<span class='notice'>You put [W] in [src].</span>")
+			if (src.contents.len == src.maxitems) boutput(user, "<span class='notice'>[src] is now full!</span>")
 			src.satchel_updateicon()
-		else boutput(user, "<span style=\"color:red\">[src] is full!</span>")
+			tooltip_rebuild = 1
+		else boutput(user, "<span class='alert'>[src] is full!</span>")
 
 	attack_self(var/mob/user as mob)
 		if (src.contents.len)
 			var/turf/T = user.loc
 			for (var/obj/item/I in src.contents)
 				I.set_loc(T)
-			boutput(user, "<span style=\"color:blue\">You empty out [src].</span>")
+			boutput(user, "<span class='notice'>You empty out [src].</span>")
 			src.satchel_updateicon()
+			tooltip_rebuild = 1
 		else ..()
 
 	attack_hand(mob/user as mob)
@@ -54,12 +58,12 @@
 				var/obj/item/getItem = null
 
 				if (src.contents.len > 1)
-					if (usr.a_intent == INTENT_GRAB)
+					if (user.a_intent == INTENT_GRAB)
 						getItem = src.search_through(user)
 
 					else
-						user.visible_message("<span style=\"color:blue\"><b>[user]</b> rummages through \the [src].</span>",\
-						"<span style=\"color:blue\">You rummage through \the [src].</span>")
+						user.visible_message("<span class='notice'><b>[user]</b> rummages through \the [src].</span>",\
+						"<span class='notice'>You rummage through \the [src].</span>")
 
 						getItem = pick(src.contents)
 
@@ -67,10 +71,11 @@
 					getItem = src.contents[1]
 
 				if (getItem)
-					user.visible_message("<span style=\"color:blue\"><b>[usr]</b> takes \a [getItem.name] out of \the [src].</span>",\
-					"<span style=\"color:blue\">You take \a [getItem.name] from [src].</span>")
+					user.visible_message("<span class='notice'><b>[user]</b> takes \a [getItem.name] out of \the [src].</span>",\
+					"<span class='notice'>You take \a [getItem.name] from [src].</span>")
 					user.put_in_hand_or_drop(getItem)
-
+					src.satchel_updateicon()
+			tooltip_rebuild = 1
 		return ..(user)
 
 	proc/search_through(mob/user as mob)
@@ -79,8 +84,8 @@
 			return
 
 		// attack_hand does all the checks for if you can do this
-		user.visible_message("<span style=\"color:blue\"><b>[user]</b> looks through through \the [src]...</span>",\
-		"<span style=\"color:blue\">You look through \the [src].</span>")
+		user.visible_message("<span class='notice'><b>[user]</b> looks through through \the [src]...</span>",\
+		"<span class='notice'>You look through \the [src].</span>")
 		var/list/satchel_contents = list()
 		var/list/has_dupes = list()
 		var/temp = ""
@@ -112,11 +117,11 @@
 				proceed = 1
 				break
 		if (!proceed)
-			boutput(user, "<span style=\"color:red\">\The [src] can't hold that kind of item.</span>")
+			boutput(user, "<span class='alert'>\The [src] can't hold that kind of item.</span>")
 			return
 
 		if (src.contents.len < src.maxitems)
-			user.visible_message("<span style=\"color:blue\">[user] begins quickly filling \the [src].</span>")
+			user.visible_message("<span class='notice'>[user] begins quickly filling \the [src].</span>")
 			var/staystill = user.loc
 			var/interval = 0
 			for(var/obj/item/I in view(1,user))
@@ -129,11 +134,12 @@
 					sleep(0.2 SECONDS)
 				if (user.loc != staystill) break
 				if (src.contents.len >= src.maxitems)
-					boutput(user, "<span style=\"color:blue\">\The [src] is now full!</span>")
+					boutput(user, "<span class='notice'>\The [src] is now full!</span>")
 					break
-			boutput(user, "<span style=\"color:blue\">You finish filling \the [src].</span>")
-		else boutput(user, "<span style=\"color:red\">\The [src] is already full!</span>")
+			boutput(user, "<span class='notice'>You finish filling \the [src].</span>")
+		else boutput(user, "<span class='alert'>\The [src] is already full!</span>")
 		src.satchel_updateicon()
+		tooltip_rebuild = 1
 
 	proc/satchel_updateicon()
 		var/perc
@@ -157,6 +163,7 @@
 				src.overlays += image('icons/obj/items/items.dmi', "satcounter5")
 
 		signal_event("icon_updated")
+		src.inventory_counter?.update_number(src.contents.len)
 
 	get_desc()
 		return "It contains [src.contents.len]/[src.maxitems] [src.itemstring]."
@@ -246,5 +253,12 @@
 				playsound(get_turf(src), "sound/misc/lightswitch.ogg", 50, pitch = 0.9)
 				icon_state = "figurinecase"
 
-
+/obj/item/satchel/figurines/full
+	New()
+		. = ..()
+		for(var/i = 0, i < maxitems, i++)
+			var/obj/item/toy/figure/F = new()
+			F.set_loc(src)
+			src.satchel_updateicon()
+		tooltip_rebuild = 1
 

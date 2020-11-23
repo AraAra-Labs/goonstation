@@ -13,6 +13,8 @@
 /mob/living/intangible/flock/trace/New(atom/loc, datum/flock/F)
 	..()
 
+	src.abilityHolder = new /datum/abilityHolder/flockmind(src)
+
 	src.real_name = "[pick(consonants_upper)][pick(vowels_lower)].[pick(vowels_lower)]"
 
 	if(istype(F))
@@ -20,6 +22,7 @@
 		src.flock.addTrace(src)
 	else
 		src.death() // f u
+	src.abilityHolder.addAbility(/datum/targetable/flockmindAbility/createStructure)
 
 /mob/living/intangible/flock/trace/proc/describe_state()
 	var/state = list()
@@ -55,7 +58,7 @@
 	stat(null, " ")
 	if(src.flock)
 		stat("Flock:", src.flock.name)
-		stat("Drones:", src.flock.units.len)
+		stat("Drones:", length(src.flock.units))
 	else
 		stat("Flock:", "none")
 		stat("Drones:", 0)
@@ -64,12 +67,12 @@
 	if (..(parent))
 		return 1
 	if (src.flock && src.flock.units && src.flock.units.len <= 0)
-		boutput(src, "<span class='text-red'>There are no more drones left in the flock to compute your consciousness!</span>")
+		boutput(src, "<span class='alert'>There are no more drones left in the flock to compute your consciousness!</span>")
 		src.death() // get rekt
 
 /mob/living/intangible/flock/trace/death(gibbed)
 	if(src.client)
-		boutput(src, "<span class='text-red'>You cease to exist abruptly.</span>")
+		boutput(src, "<span class='alert'>You cease to exist abruptly.</span>")
 	if(src.flock)
 		src.flock.removeTrace(src)
 	src.invisibility = 0
@@ -77,8 +80,8 @@
 	src.canmove = 0
 	flick("flocktrace-death", src)
 	src.ghostize()
-	sleep(2 SECONDS) // wait for the animation to finish
-	qdel(src)
+	spawn(2 SECONDS) // wait for the animation to finish
+		qdel(src)
 
 /mob/living/intangible/flock/trace/ghostize()
 	var/mob/dead/observer/O = ..()

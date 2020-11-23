@@ -75,8 +75,9 @@
 	var/source_car = null
 
 	New(var/atom/spawnloc, var/spawndir, var/atom/sourcecar)
+		..()
 		src.set_loc(spawnloc)
-		src.dir = spawndir
+		src.set_dir(spawndir)
 		source_car = sourcecar
 		SPAWN_DBG(7.5 SECONDS)
 			playsound(src, "sound/mksounds/itemdestroy.ogg",45, 0)
@@ -106,8 +107,9 @@
 	var/source_car = null
 
 	New(var/atom/spawnloc, var/spawndir, var/atom/sourcecar)
+		..()
 		src.set_loc(spawnloc)
-		src.dir = spawndir
+		src.set_dir(spawndir)
 		source_car = sourcecar
 		SPAWN_DBG(7.5 SECONDS)
 			playsound(src, "sound/mksounds/itemdestroy.ogg",45, 0)
@@ -199,6 +201,10 @@
 	var/obj/racing_clowncar/owner
 
 	disposing()
+		if(owner?.powerup == src)
+			if(owner?.driver?.client)
+				owner.driver.client.screen -= src
+			owner.powerup = null
 		owner = null
 		..()
 
@@ -360,8 +366,6 @@
 
 	var/mob/living/carbon/human/driver = null
 
-	New()
-
 	proc/random_powerup()
 		var/list/powerups = childrentypesof(/obj/powerup/)
 		if(!powerups.len) return
@@ -386,7 +390,7 @@
 		if(!ishuman(usr)) return
 
 		if(driver)
-			boutput(usr, "<span style=\"color:red\">Car already occupied by [driver.name].</span>")
+			boutput(usr, "<span class='alert'>Car already occupied by [driver.name].</span>")
 			return
 
 		var/mob/M = usr
@@ -434,7 +438,7 @@
 
 		SPAWN_DBG(0)
 			for(var/i=0, i<magnitude, i++)
-				src.dir = turn(src.dir, 90)
+				src.set_dir(turn(src.dir, 90))
 				sleep(0.1 SECONDS)
 		return
 
@@ -457,7 +461,7 @@
 //				R.overlays -= image('icons/mob/robots.dmi', "up-speed")
 
 	proc/drive(var/direction, var/speed)
-		dir = direction
+		set_dir(direction)
 		driving = 1
 		walk(src, dir, speed)
 
@@ -471,7 +475,7 @@
 		if(user != driver || cant_control) return
 
 		if(direction == turn(src.dir,180))
-			dir = direction
+			set_dir(direction)
 			stop()
 		else
 			drive(direction, speed)
@@ -480,7 +484,7 @@
 		if(super && istype(A,/obj/racing_clowncar))
 			var/obj/racing_clowncar/R = A
 			if(!R.super)
-				R.dir = pick(turn(src.dir,90),turn(src.dir,-90))
+				R.set_dir(pick(turn(src.dir,90),turn(src.dir,-90)))
 				step(R,R.dir)
 				R.spin(6)
 		return
@@ -507,12 +511,7 @@
 		..()
 		returndir = dir
 		if(returnpoint)
-			for (var/obj/landmark/A in landmarks)//world)
-				LAGCHECK(LAG_LOW)
-				if (A.name == returnpoint)
-					returnloc = A.loc
-					return
-			returnloc = null
+			returnloc = pick_landmark(returnpoint)
 
 	enter()
 		set src in oview(1)
@@ -520,7 +519,7 @@
 		if(!ishuman(usr)) return
 
 		if(driver)
-			boutput(usr, "<span style=\"color:red\">Car already occupied by [driver.name].</span>")
+			boutput(usr, "<span class='alert'>Car already occupied by [driver.name].</span>")
 			return
 
 		var/mob/M = usr
@@ -567,8 +566,8 @@
 
 	proc/returntoline()
 		if(returnloc)
-			loc = returnloc
-			dir = returndir
+			set_loc(returnloc)
+			set_dir(returndir)
 
 /obj/racing_clowncar/kart/red
 

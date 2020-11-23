@@ -65,7 +65,7 @@
 	icon_state = "gnome"
 	w_class = 4.0
 	stamina_damage = 40
-	stamina_cost = 40
+	stamina_cost = 20
 	stamina_crit_chance = 5
 	var/last_laugh = 0
 
@@ -73,7 +73,7 @@
 		..()
 		processing_items.Add(src)
 		START_TRACKING
-		BLOCK_TANK
+		BLOCK_SETUP(BLOCK_TANK)
 
 	disposing()
 		. = ..()
@@ -81,12 +81,12 @@
 
 	attack_self(mob/user as mob)
 		if(last_laugh + 50 < world.time)
-			user.visible_message("<span style='color: blue'><b>[user]</b> hugs Gnome Chompski!</span>","<span style='color: blue'>You hug Gnome Chompski!</span>")
+			user.visible_message("<span class='notice'><b>[user]</b> hugs [src]!</span>","<span class='notice'>You hug [src]!</span>")
 			playsound(src.loc,"sound/misc/gnomechuckle.ogg" ,50,1)
 			last_laugh = world.time
 
 	process()
-		if(prob(75)) // Takes around 12 seconds for ol chompski to vanish
+		if(prob(50) || current_state < GAME_STATE_PLAYING) // Takes around 12 seconds for ol chompski to vanish
 			return
 		// No teleporting if youre in a crate
 		if(istype(src.loc,/obj/storage) || istype(src.loc,/mob/living))
@@ -97,10 +97,10 @@
 				return
 		//oh boy time to move
 		playsound(src.loc,"sound/misc/gnomechuckle.ogg" ,50,1)
-		var/obj/crate = lockers_and_crates[rand(lockers_and_crates.len + 1)]
+		var/obj/crate = pick(by_type[/obj/storage])
 		while(crate.z != 1)
-			crate = lockers_and_crates[rand(lockers_and_crates.len + 1)]
-		src.loc = crate
+			crate = pick(by_type[/obj/storage])
+		src.set_loc(crate)
 
 
 
@@ -115,13 +115,13 @@
 	throw_range = 5
 	desc = "A tube made of cardboard. Extremely non-threatening."
 	w_class = 1.0
-	stamina_damage = 1
+	stamina_damage = 5
 	stamina_cost = 1
 
 	New()
 		..()
 		src.setItemSpecial(/datum/item_special/swipe)
-		BLOCK_ROD
+		BLOCK_SETUP(BLOCK_ROD)
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if(issnippingtool(W))
@@ -133,7 +133,7 @@
 	suicide(var/mob/user as mob)
 		if (!src.user_can_suicide(user))
 			return 0
-		user.visible_message("<span style='color:red'><b>[user] attempts to beat [him_or_her(user)]self to death with the cardboard tube, but fails!</b></span>")
+		user.visible_message("<span class='alert'><b>[user] attempts to beat [him_or_her(user)]self to death with the cardboard tube, but fails!</b></span>")
 		user.suiciding = 0
 		return 1
 
@@ -147,8 +147,8 @@
 	throw_range = 5
 	desc = "A sheet of creased cardboard."
 	w_class = 1.0
-	stamina_damage = 1
-	stamina_cost = 1
+	stamina_damage = 0
+	stamina_cost = 0
 
 	attack_self(mob/user as mob)
 		boutput(user, __blue("You deftly fold [src] into a party hat!."))
@@ -199,7 +199,7 @@
 	item_state = "rubber_chicken"
 	w_class = 2.0
 	stamina_damage = 10
-	stamina_cost = 10
+	stamina_cost = 5
 	stamina_crit_chance = 3
 
 /obj/item/module
@@ -242,11 +242,12 @@
 	icon = 'icons/misc/aprilfools.dmi'
 	icon_state = "brick"
 	item_state = "brick"
+	force = 8
 	w_class = 1
 	throwforce = 10
 	rand_pos = 1
 	stamina_damage = 40
-	stamina_cost = 35
+	stamina_cost = 20
 	stamina_crit_chance = 5
 /*
 /obj/item/saxophone
@@ -359,12 +360,12 @@
 
 
 		if (istype(ghost_to_toss))
-			ghost_to_toss.loc = soul_stuff
+			ghost_to_toss.set_loc(soul_stuff)
 
 		soul_stuff.throw_at(., 10, 1)
 		SPAWN_DBG (10)
 			if (soul_stuff && ghost_to_toss)
-				ghost_to_toss.loc = soul_stuff.loc
+				ghost_to_toss.set_loc(soul_stuff.loc)
 
 		some_poor_fucker.throw_at(., 1, 1)
 		some_poor_fucker.weakened += 2
@@ -414,11 +415,11 @@
 
 /obj/item/trumpet/dootdoot/proc/dootize(var/mob/living/carbon/human/S)
 	if (istype(S.mutantrace, /datum/mutantrace/skeleton))
-		S.visible_message("<span style=\"color:blue\"><b>[S.name]</b> claks in appreciation!</span>")
+		S.visible_message("<span class='notice'><b>[S.name]</b> claks in appreciation!</span>")
 		playsound(S.loc, "sound/items/Scissor.ogg", 50, 0)
 		return
 	else
-		S.visible_message("<span style=\"color:red\"><b>[S.name]'s skeleton rips itself free upon hearing the song of its people!</b></span>")
+		S.visible_message("<span class='alert'><b>[S.name]'s skeleton rips itself free upon hearing the song of its people!</b></span>")
 		if (S.gender == "female")
 			playsound(get_turf(S), 'sound/voice/screams/female_scream.ogg', 50, 0)
 		else
@@ -441,7 +442,7 @@
 
 /obj/item/trumpet/dootdoot/attack_self(var/mob/living/carbon/human/user as mob)
 	if (spam_flag == 1)
-		boutput(user, "<span style=\"color:red\">The trumpet needs time to recharge its spooky strength!</span>")
+		boutput(user, "<span class='alert'>The trumpet needs time to recharge its spooky strength!</span>")
 		return
 	else
 		spam_flag = 1
@@ -488,7 +489,7 @@
 	var/text2speech = 1
 
 	attack_hand(mob/user as mob)
-		user.visible_message("<span style=\"color:blue\">[user] taps [src].</span>")
+		user.visible_message("<span class='notice'>[user] taps [src].</span>")
 
 	New()
 		..()
@@ -520,7 +521,7 @@
 	icon_state = "box_captain"
 
 	attack_hand(mob/user as mob)
-		user.visible_message("<span style=\"color:blue\">[user] taps [src].</span>")
+		user.visible_message("<span class='notice'>[user] taps [src].</span>")
 */
 /obj/item/hell_horn
 	name = "decrepit instrument"
@@ -558,16 +559,16 @@
 
 	New()
 		..()
-		BLOCK_ALL
+		BLOCK_SETUP(BLOCK_ALL)
 
 	attack(mob/M as mob, mob/user as mob)
 		src.add_fingerprint(user)
 
 		playsound(get_turf(M), "sound/musical_instruments/Bikehorn_1.ogg", 50, 1, -1)
 		playsound(get_turf(M), "sound/misc/boing/[rand(1,6)].ogg", 20, 1)
-		user.visible_message("<span style='color:red'><B>[user] bonks [M] on the head with [src]!</B></span>",\
-							"<span style='color:red'><B>You bonk [M] on the head with [src]!</B></span>",\
-							"<span style='color:red'>You hear something squeak.</span>")
+		user.visible_message("<span class='alert'><B>[user] bonks [M] on the head with [src]!</B></span>",\
+							"<span class='alert'><B>You bonk [M] on the head with [src]!</B></span>",\
+							"<span class='alert'>You hear something squeak.</span>")
 
 
 	earthquake
@@ -590,13 +591,13 @@
 	flags = FPRINT | TABLEPASS | OPENCONTAINER | ONBELT | NOSPLASH
 	var/emagged = 0
 	var/last_used = 0
-	var/list/safe_smokables = list("nicotine", "THC")
+	var/list/safe_smokables = list("nicotine", "THC", "CBD")
 	var/datum/effects/system/bad_smoke_spread/smoke
 	var/range = 1
 
 	New()
 		..()
-		if (usr && usr.loc)
+		if (usr?.loc)
 			src.smoke = new /datum/effects/system/bad_smoke_spread/
 			src.smoke.attach(src)
 			src.smoke.set_up(1, 0, usr.loc)
@@ -621,7 +622,7 @@
 				var/mob/M = src.loc
 				M.show_text("[src] identifies and removes a non-smokable substance.", "red")
 			else
-				src.visible_message("<span style=\"color:red\">[src] identifies and removes a non-smokable substance.</span>")
+				src.visible_message("<span class='alert'>[src] identifies and removes a non-smokable substance.</span>")
 
 
 	on_reagent_change(add)
@@ -672,7 +673,7 @@
 			R.my_atom = src
 			src.reagents.trans_to(usr, 5)
 			src.reagents.trans_to_direct(R, 5)
-			if(PH && PH.parent.linked && PH.parent.linked.handset && PH.parent.linked.handset.holder)
+			if(PH?.parent.linked?.handset?.holder)
 				smoke_reaction(R, range, get_turf(PH.parent.linked.handset.holder))
 			else
 				smoke_reaction(R, range, get_turf(usr))
@@ -680,7 +681,7 @@
 			particleMaster.SpawnSystem(new /datum/particleSystem/blow_cig_smoke(target_loc, SOUTH))
 			particleMaster.SpawnSystem(new /datum/particleSystem/blow_cig_smoke(target_loc, EAST))
 			particleMaster.SpawnSystem(new /datum/particleSystem/blow_cig_smoke(target_loc, WEST))
-			usr.restrain_time = world.timeofday + 40
+			usr.restrain_time = TIME + 40
 			src.smoke.set_up(1, 0, target_loc,null,R.get_average_color())
 			src.smoke.attach(target_loc)
 			SPAWN_DBG (0) //vape is just the best for not annoying crowds I swear
@@ -688,13 +689,13 @@
 				sleep(1 SECOND)
 
 			if(!PH)
-				usr.visible_message("<span style='color:red'><B>[usr] blows a cloud of smoke with their [prob(90) ? "ecig" : "mouth fedora"]! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B></span>",\
-				"<span style='color:red'>You puff on the ecig and let out a cloud of smoke. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")].</span>")
+				usr.visible_message("<span class='alert'><B>[usr] blows a cloud of smoke with their [prob(90) ? "ecig" : "mouth fedora"]! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B></span>",\
+				"<span class='alert'>You puff on the ecig and let out a cloud of smoke. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")].</span>")
 			else
-				usr.visible_message("<span style='color:red'><B>[usr] blows a cloud of smoke right into the phone! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B></span>",\
-				"<span style='color:red'>You puff on the ecig and blow a cloud of smoke right into the phone. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")].</span>")
+				usr.visible_message("<span class='alert'><B>[usr] blows a cloud of smoke right into the phone! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B></span>",\
+				"<span class='alert'>You puff on the ecig and blow a cloud of smoke right into the phone. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")].</span>")
 				if(PH.parent.linked && PH.parent.linked.handset && PH.parent.linked.handset.holder)
-					boutput(PH.parent.linked.handset.holder,"<span style='color:red'><B>[usr] blows a cloud of smoke right through the phone! What a total [pick("dork","loser","dweeb","nerd","useless piece of shit","dumbass")]!</B></span>")
+					boutput(PH.parent.linked.handset.holder,"<span class='alert'><B>[usr] blows a cloud of smoke right through the phone! What a total [pick("dork","loser","dweeb","nerd","useless piece of shit","dumbass")]!</B></span>")
 
 			logTheThing("combat", usr, null, "vapes a cloud of [log_reagents(src)] at [log_loc(target_loc)].")
 			last_used = world.time
@@ -706,19 +707,11 @@
 	item_state = "medivape"
 	icon_state = "medivape"
 
-	var/list/medical_cannabis = list("antihol", "charcoal", "epinephrine", "insulin", "mutadone", "teporone",\
-"silver_sulfadiazine", "salbutamol", "perfluorodecalin", "omnizine", "stimulants", "synaptizine", "anti_rad",\
-"oculine", "mannitol", "penteticacid", "styptic_powder", "methamphetamine", "spaceacillin", "saline",\
-"salicylic_acid", "cryoxadone", "nicotine", "THC")
-
 	New()
 		..()
-		safe_smokables = medical_cannabis
+		safe_smokables += chem_whitelist
 		src.reagents.clear_reagents()
-		src.reagents.add_reagent(pick("antihol", "charcoal", "epinephrine", "insulin", "mutadone", "teporone",\
-"silver_sulfadiazine", "salbutamol", "perfluorodecalin", "omnizine", "synaptizine", "anti_rad",\
-"oculine", "mannitol", "penteticacid", "styptic_powder", "methamphetamine", "spaceacillin", "saline",\
-"salicylic_acid", "cryoxadone", "nicotine", "THC"), 50)
+		src.reagents.add_reagent(pick(safe_smokables), 50)
 
 /obj/item/reagent_containers/vape/medical/o2 //sweet oxygen
 	desc = "Smoking, now in a doctor approved form! This one comes preloaded with salbutamol."
@@ -774,22 +767,22 @@
 
 	attack_self(mob/user as mob)
 		if(uses <= 0)
-			boutput(user, "<span style=\"color:red\">Your pass has no more uses!</span>")
+			boutput(user, "<span class='alert'>Your pass has no more uses!</span>")
 			return
 		if(user.spellshield == 1)
-			boutput(user, "<span style=\"color:red\">You already have a shield up, nerd.</span>")
+			boutput(user, "<span class='alert'>You already have a shield up, nerd.</span>")
 			return
 		uses--
 		var/shield_overlay = image('icons/effects/effects.dmi', user, "enshield", MOB_LAYER+1)
 		user.underlays += shield_overlay
 		playsound(user,"sound/effects/MagShieldUp.ogg",50,1)
-		boutput(user, "<span style=\"color:blue\"><b>You are surrounded by a BATTLE BARRIER!</b></span>")
-		user.visible_message("<span style=\"color:red\">[user] is encased in a protective shield.</span>")
+		boutput(user, "<span class='notice'><b>You are surrounded by a BATTLE BARRIER!</b></span>")
+		user.visible_message("<span class='alert'>[user] is encased in a protective shield.</span>")
 		user.spellshield = 1
 		SPAWN_DBG(10 SECONDS)
 			user.spellshield = 0
-			boutput(user, "<span style=\"color:blue\"><b>Your magical barrier fades away!</b></span>")
-			user.visible_message("<span style=\"color:red\">The shield protecting [user] fades away.</span>")
+			boutput(user, "<span class='notice'><b>Your magical barrier fades away!</b></span>")
+			user.visible_message("<span class='alert'>The shield protecting [user] fades away.</span>")
 			user.underlays -= shield_overlay
 			shield_overlay = null
 			playsound(user,"sound/effects/MagShieldDown.ogg", 50, 1)
@@ -799,6 +792,7 @@
 	desc = "Gives the power of new life, but only on the most holy of days"
 	icon = 'icons/misc/racing.dmi'
 	icon_state = "superbuttshell"
+	c_flags = EQUIPPED_WHILE_HELD
 	w_class = 4.0
 	var/mob/living/carbon/human/owner = null
 	var/changed = 0
@@ -809,27 +803,38 @@
 		name = "The [pick("Most Holey","Sacred","Hallowed","Divine")] relic of [pick("Azzdey","Ah Sday","Ahsh dei","A s'dai","Ahes d'hei")]"
 		processing_items.Add(src)
 
+	setupProperties()
+		. = ..()
+		src.setProperty("movespeed", 1)
+
 	pickup(mob/user as mob)
 		if(user != owner)
 			user.bioHolder.AddEffect("fire_resist")
-			if(owner && owner.bioHolder.HasEffect("fire_resist"))
+			if(owner?.bioHolder.HasEffect("fire_resist"))
 				owner.bioHolder.RemoveEffect("fire_resist")
 			pickup_time = world.time
-			boutput(user, "<h3><span style=\"color:red\">You have captured [src.name]!</span></h3>")
-			boutput(user, "<h3><span style=\"color:red\">Don't let anyone else pick it up for 30 seconds and you'll respawn!</span></h3>")
+			boutput(user, "<h3><span class='alert'>You have captured [src.name]!</span></h3>")
+			boutput(user, "<h3><span class='alert'>Don't let anyone else pick it up for 30 seconds and you'll respawn!</span></h3>")
 			if(owner)
 				boutput(owner, "<h2>You have lost [src.name]!</h2>")
 			owner = user
 			DEBUG_MESSAGE("The new artifact owner is [owner.name]")
 		..()
 
+	dropped(mob/user)
+		. = ..()
+		if(owner)
+			boutput(owner, "<h2>You have lost [src.name]!</h2>")
+			if(owner?.bioHolder.HasEffect("fire_resist"))
+				owner.bioHolder.RemoveEffect("fire_resist")
+			owner = null
+
 	process()
 		if(!owner) return
 		if(world.time - pickup_time >= 300)
-			boutput(owner, "<h3><span style=\"color:red\">You have held [src.name] long enough! Good job!</span></h3>")
-			if(owner && owner.client)
-				var/obj/landmark/ass_arena_spawn/place = pick(ass_arena_spawn)
-				src.set_loc(place.loc)
+			boutput(owner, "<h3><span class='alert'>You have held [src.name] long enough! Good job!</span></h3>")
+			if(owner?.client)
+				src.set_loc(pick_landmark(LANDMARK_ASS_ARENA_SPAWN))
 				owner.client.respawn_target(owner,1)
 				DEBUG_MESSAGE("[owner.name] has been ass arena respawned!")
 				owner.gib()
@@ -837,12 +842,94 @@
 
 
 	disposing()
-		if(owner && owner.bioHolder.HasEffect("fire_resist"))
+		if(owner?.bioHolder.HasEffect("fire_resist"))
 			owner.bioHolder.RemoveEffect("fire_resist")
 		DEBUG_MESSAGE("Heck someone broke the artifact")
 		var/obj/item/ass_day_artifact/next_artifact
 		next_artifact = new /obj/item/ass_day_artifact
-		var/obj/landmark/ass_arena_spawn/place = pick(ass_arena_spawn)
-		next_artifact.set_loc(place.loc)
+		next_artifact.set_loc(pick_landmark(LANDMARK_ASS_ARENA_SPAWN))
 		processing_items.Remove(src)
 		..()
+
+/obj/item/scpgnome
+	name = "strange sarcophagus"
+	desc = "A sarcophagus bound by magical chains."
+	icon = 'icons/obj/junk.dmi'
+	icon_state = "sarc_0"
+	density = 1
+	var/gnome = 1
+
+	attackby(obj/item/W as obj, mob/user as mob)
+		if(istype(W,/obj/item/scpgnome_lid) && ((src.icon_state == "sarc_2")||(src.icon_state == "sarc_3")))
+			user.u_equip(W)
+			qdel(W)
+			src.icon_state = "sarc_1"
+		else if(istype(W,/obj/item/gnomechompski/mummified) && (src.icon_state == "sarc_3"))
+			user.u_equip(W)
+			qdel(W)
+			src.icon_state = "sarc_2"
+			src.gnome = 1
+		else if(istype(W,/obj/item/device/key/chompskey) && (src.icon_state == "sarc_0"))
+			user.u_equip(W)
+			qdel(W)
+			src.icon_state = "sarc_key"
+		else
+			..()
+
+	attack_hand(mob/user as mob)
+		if(src.icon_state == "sarc_key")
+			src.icon_state = "opening"
+			animate(src, time = 2.3 SECONDS)
+			animate(icon_state = "sarc_1")
+		else if(src.icon_state == "sarc_1")
+			if(src.gnome)
+				src.icon_state = "sarc_2"
+			else
+				src.icon_state = "sarc_3"
+			user.put_in_hand_or_drop(new /obj/item/scpgnome_lid)
+		else if(src.icon_state == "sarc_2")
+			src.gnome = 0
+			src.icon_state = "sarc_3"
+			user.put_in_hand_or_drop(new /obj/item/gnomechompski/mummified)
+
+/obj/item/scpgnome_lid
+	name = "strange sarcophagus lid"
+	desc = "The lid to some sort of sarcophagus"
+	icon = 'icons/obj/junk.dmi'
+	icon_state = "sarc_1"
+
+/obj/item/gnomechompski/mummified
+	name = "mummified object"
+	icon_state = "mummified"
+	var/list/gnomes = list("gnelf","chome-gnompski","chrome-chompski","gnuigi-chompini","usagi-tsukinompski","sans-undertaleski","gnoctor-florpski","gnos-secureski","crime-chompski","antignome-negachompski")
+
+	attack_self(mob/user as mob)
+		user.u_equip(src)
+		src.set_loc(user)
+		var/obj/item/gnomechompski/g = new /obj/item/gnomechompski
+		if(prob(30))
+			g.icon_state = pick(gnomes)
+			switch(g.icon_state)
+				if("gnelf")
+					g.name = "Gnelf Chompski"
+				if("chome-gnompski")
+					g.name = "Chome Gnompski"
+				if("chrome-chompski")
+					g.name = "Chrome Chompski"
+				if("gnuigi-chompini")
+					g.name = "Gnuigi Chompini"
+				if("usagi-tsukinompski")
+					g.name = "Usagi Tsukinompski"
+				if("sans-undertaleski")
+					g.name = "Boss Musicski"
+				if("gnoctor-florpski")
+					g.name = "Gnoctor Florpski"
+				if("gnos-secureski")
+					g.name = "Gnos Secureski"
+				if("crime-chompski")
+					g.name = "Crime Chompski"
+				if("antignome-negachompski")
+					g.name = "Ikspmohc-Emong"
+		user.put_in_hand_or_drop(g)
+		user.visible_message("<span style=\"color:red\">[user.name] unwraps [g]!</span>")
+		qdel(src)

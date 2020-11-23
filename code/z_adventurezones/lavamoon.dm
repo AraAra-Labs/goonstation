@@ -238,6 +238,7 @@ var/sound/iomoon_alarm_sound = null
 	requires_power = 1
 	force_fullbright = 0
 	luminosity = 0
+	teleport_blocked = 1
 
 	radiation_level = 0.8
 	ambientSound = 'sound/ambience/industrial/AncientPowerPlant_Drone1.ogg'
@@ -564,17 +565,18 @@ var/sound/iomoon_alarm_sound = null
 	aggressive = 1
 	defensive = 1
 	wanderer = 0
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 0
 	atksilicon = 0
 	firevuln = 0.1
 	brutevuln = 0.4
 	angertext = "grumbles at"
+	death_text = "%src% flops over dead!"
 	butcherable = 0
 
 	CritterAttack(mob/M)
 		src.attacking = 1
-		src.visible_message("<span style=\"color:red\"><B>[src]</B> pinches [M] with its claws!</span>")
+		src.visible_message("<span class='alert'><B>[src]</B> pinches [M] with its claws!</span>")
 		random_brute_damage(M, 3,1)
 		if (M.stat || M.getStatusDuration("paralysis"))
 			src.task = "thinking"
@@ -587,12 +589,7 @@ var/sound/iomoon_alarm_sound = null
 		return CritterAttack(M)
 
 	CritterDeath()
-		src.alive = 0
-		set_density(0)
-		anchored = 0
-		src.icon_state = "lavacrab-dead"
-		walk_to(src,0)
-		src.visible_message("<b>[src]</b> flops over dead!")
+		..()
 
 	ai_think()
 		. = ..()
@@ -607,12 +604,13 @@ var/sound/iomoon_alarm_sound = null
 	health = 10
 	defensive = 1
 	wanderer = 1
-	opensdoors = 0
+	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
 	atkcarbon = 0
 	atksilicon = 0
 	firevuln = 0.1
 	brutevuln = 0.6
 	angertext = "beeps at"
+	death_text = "%src% blows apart!"
 	butcherable = 0
 	attack_range = 3
 	flying = 1
@@ -634,14 +632,9 @@ var/sound/iomoon_alarm_sound = null
 
 	CritterDeath()
 		if (!src.alive) return
-		src.alive = 0
-		walk_to(src,0)
-		src.visible_message("<b>[src]</b> blows apart!")
-
+		..()
 		SPAWN_DBG(0)
-			var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-			s.set_up(3, 1, src)
-			s.start()
+			elecflash(src,power = 2)
 			qdel(src)
 
 	process()
@@ -729,17 +722,16 @@ var/sound/iomoon_alarm_sound = null
 	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
 	icon_state = "takeout"
 	heal_amt = 1
+	initial_volume = 60
 
 	New()
-		var/datum/reagents/R = new/datum/reagents(60)
-		reagents = R
-		R.my_atom = src
-		R.add_reagent("chickensoup", 10)
-		R.add_reagent("salt", 10)
-		R.add_reagent("grease", 5)
-		R.add_reagent("msg", 2)
-		R.add_reagent("VHFCS", 8)
-		R.add_reagent("egg",5)
+		..()
+		reagents.add_reagent("chickensoup", 10)
+		reagents.add_reagent("salt", 10)
+		reagents.add_reagent("grease", 5)
+		reagents.add_reagent("msg", 2)
+		reagents.add_reagent("VHFCS", 8)
+		reagents.add_reagent("egg",5)
 
 /obj/item/yoyo
 	name = "Atomic Yo-Yo"
@@ -751,7 +743,7 @@ var/sound/iomoon_alarm_sound = null
 
 	New()
 		..()
-		BLOCK_ROPE
+		BLOCK_SETUP(BLOCK_ROPE)
 
 /obj/spawner/ancient_robot_artifact
 	name = "robot artifact spawn"
@@ -783,9 +775,7 @@ var/sound/iomoon_alarm_sound = null
 			boutput(user, "<i><b><font face = Tempus Sans ITC>EI NATH</font></b></i>")
 
 			//EI NATH!!
-			var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-			s.set_up(4, 1, user)
-			s.start()
+			elecflash(user,radius = 2, power = 6)
 
 			H.unkillable = 1
 			H.gib(1)
@@ -846,7 +836,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			N.flash(3 SECONDS)
 
 			SPAWN_DBG(0)
-				shake_camera(N, 210, 2)
+				shake_camera(N, 210, 16)
 	//todo: Alarms.  Not the dumb siren, I mean like the power plant's computer systems freaking the fuck out because oh jesus radiation
 
 	var/obj/machinery/networked/mainframe/mainframe = locate("IOMOON_MAINFRAME")
@@ -899,6 +889,9 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 	anchored = 1
 	density = 1
 
+	ex_act(severity)
+		return 0
+
 	activation_button
 		name = "foreboding panel"
 		desc = "Pressing this would probably be a bad idea."
@@ -911,7 +904,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			if (user.stat || user.getStatusDuration("weakened") || get_dist(user, src) > 1 || !user.can_use_hands())
 				return
 
-			user.visible_message("<span style=\"color:red\">[user] presses [src].</span>", "<span style=\"color:red\">You press [src].</span>")
+			user.visible_message("<span class='alert'>[user] presses [src].</span>", "<span class='alert'>You press [src].</span>")
 			if (active)
 				boutput(user, "Nothing happens.")
 				return
@@ -939,7 +932,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 				return
 
 			user.lastattacked = src
-			user.visible_message("<span style=\"color:red\"><b>[user] bonks [src] with [I]!</b></span>","<span style=\"color:red\"><b>You hit [src] with [I]!</b></span>")
+			user.visible_message("<span class='alert'><b>[user] bonks [src] with [I]!</b></span>","<span class='alert'><b>You hit [src] with [I]!</b></span>")
 			if (iomoon_blowout_state == 0)
 				playsound(src.loc,"sound/machines/lavamoon_alarm1.ogg", 70,0)
 				event_iomoon_blowout()
@@ -952,9 +945,9 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 
 
 			if (src.health <= 0 && active != -1)
-				src.dir = 2
+				src.set_dir(2)
 				src.active = -1
-				src.visible_message("<span style=\"color:red\">[src] shuts down. Forever.</span>")
+				src.visible_message("<span class='alert'>[src] shuts down. Forever.</span>")
 				return
 
 
@@ -963,28 +956,32 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			if (active || (max_bots  < 1))
 				return -1
 
-			max_bots--
 			active = 1
-			src.dir = 1
-			src.visible_message("<span style=\"color:red\">[src] begins to whirr ominously!</span>")
+			src.set_dir(1)
+			src.visible_message("<span class='alert'>[src] begins to whirr ominously!</span>")
 			SPAWN_DBG(2 SECONDS)
 				if (health <= 0)
-					dir = 2
+					set_dir(2)
 					return
-				src.dir = 4
+				src.set_dir(4)
+				if(prob(50)) //cheese reduction
+					src.visible_message("<span class='alert'>[src] produces a terrifying vibration!</span>")
+					for(var/atom/A in orange(3, src))
+						if(!(ismob(A) || iscritter(A))) //only target inanimate objects mostly
+							A.ex_act(1)
 				sleep(1 SECOND)
 				if (health <= 0)
-					dir = 2
+					set_dir(2)
 					return
-
 				if (prob(80))
 					new /obj/critter/ancient_repairbot/grumpy (src.loc)
 				else
 					new /obj/critter/ancient_repairbot/security (src.loc)
+				max_bots--
 
-				src.visible_message("<span style=\"color:red\">[src] plunks out a robot! Oh dear!</span>")
+				src.visible_message("<span class='alert'>[src] plunks out a robot! Oh dear!</span>")
 				active = 0
-				dir = 2
+				set_dir(2)
 
 			return
 
@@ -1047,7 +1044,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			else
 				src.health -= I.force * 0.50
 
-			user.visible_message("<span style=\"color:red\"><b>[user] bonks [src] with [I]!</b></span>","<span style=\"color:red\"><b>You hit [src] with [I]!</b></span>")
+			user.visible_message("<span class='alert'><b>[user] bonks [src] with [I]!</b></span>","<span class='alert'><b>You hit [src] with [I]!</b></span>")
 			if (src.health <= 0)
 				death()
 				return
@@ -1067,7 +1064,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			user.lastattacked = src
 			if (user.a_intent == "harm")
 				src.health -= rand(1,2) * 0.5
-				user.visible_message("<span style=\"color:red\"><b>[user]</b> punches [src]!</span>", "<span style=\"color:red\">You punch [src]![prob(25) ? " It's about as effective as you would expect!" : null]</span>")
+				user.visible_message("<span class='alert'><b>[user]</b> punches [src]!</span>", "<span class='alert'>You punch [src]![prob(25) ? " It's about as effective as you would expect!" : null]</span>")
 				playsound(src.loc, "punch", 50, 1)
 
 
@@ -1083,7 +1080,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 						rotors.icon_state = "powercore_rotors_fast"
 
 			else
-				src.visible_message("<span style=\"color:red\"><b>[user]</b> pets [src]!  For some reason!</span>")
+				src.visible_message("<span class='alert'><b>[user]</b> pets [src]!  For some reason!</span>")
 
 		bullet_act(var/obj/projectile/P)
 
@@ -1132,7 +1129,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 					last_noise_time = ticker.round_elapsed_ticks
 					last_noise_length = 80
 
-				critters += src
+				START_TRACKING_CAT(TR_CAT_CRITTERS)
 
 			process()
 				if (last_noise_time + last_noise_length < ticker.round_elapsed_ticks)
@@ -1149,7 +1146,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 				switch (state)
 					if (STATE_DEFAULT)
 						plunk_down_marker()
-						if (spawners && spawners.len)
+						if (length(spawners))
 							var/obj/iomoon_boss/bot_spawner/aSpawner = pick(spawners)
 							aSpawner.spawn_bot()
 
@@ -1166,7 +1163,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 					src.zapMarker = new /obj/iomoon_boss/zap_marker(src)
 
 				var/turf/newLoc
-				switch (rand(1, 8))
+				switch (rand(1, 10))
 					if (1)
 						newLoc = locate(src.x, src.y + 4, src.z)
 
@@ -1191,6 +1188,9 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 					if (8)
 						newLoc = locate(src.x - 3, src.y + 3, src.z)
 
+					if (9 to 10)
+						newLoc = locate (src.x + rand(-1, 1), src.y + rand(-1, 1), src.z)
+
 				if (newLoc)
 					zapMarker.set_loc(newLoc)
 					last_state_time = ticker.round_elapsed_ticks
@@ -1202,7 +1202,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 				if (active == -1)
 					return
 
-				critters -= src
+				STOP_TRACKING_CAT(TR_CAT_CRITTERS)
 
 				active = -1
 				if (src.zapMarker)
@@ -1265,13 +1265,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 				for (var/mob/living/poorSoul in range(zapMarker, 2))
 					lineObjs += DrawLine(zapMarker, poorSoul, /obj/line_obj/elec, 'icons/obj/projectiles.dmi',"WholeLghtn",1,1,"HalfStartLghtn","HalfEndLghtn",FLY_LAYER,1,PreloadedIcon='icons/effects/LghtLine.dmi')
 
-					poorSoul << sound('sound/effects/electric_shock.ogg', volume=50)
-					random_burn_damage(poorSoul, 45)
-					boutput(poorSoul, "<span style=\"color:red\"><B>You feel a powerful shock course through your body!</B></span>")
-					poorSoul.unlock_medal("HIGH VOLTAGE", 1)
-					poorSoul:Virus_ShockCure(poorSoul, 100)
-					poorSoul:shock_cyberheart(100)
-					poorSoul:changeStatus("weakened", 3 SECONDS)
+					poorSoul.shock(src, 1250000, "chest", 0.15, 1)
 					if (isdead(poorSoul) && prob(25))
 						poorSoul.gib()
 
@@ -1315,7 +1309,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 		name = "danger zone"
 		desc = "Some sort of light phenomena indicating that this area is hazardous.  Do NOT take a highway to it."
 		density = 0
-		layer = 2.5 // TODO layer
+		layer = 5 // TODO layer
 		icon = 'icons/effects/64x64.dmi'
 		icon_state = "boss_marker"
 		pixel_x = -16
@@ -1375,7 +1369,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 		if (istype(W, /obj/item/grab))
 			if (!W:affecting) return
 			user.lastattacked = src
-			src.visible_message("<span style=\"color:red\"><b>[user] is trying to shove [W:affecting] [icon_state == "ladder"?"down":"up"] [src]!</b></span>")
+			src.visible_message("<span class='alert'><b>[user] is trying to shove [W:affecting] [icon_state == "ladder"?"down":"up"] [src]!</b></span>")
 			return attack_hand(W:affecting)
 
 //Puzzle elements
@@ -1492,7 +1486,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 			var/obj/iomoon_puzzle/ancient_robot_door/energy/current = src
 			while (length-- > 1)
 				current.next = new src.type ( get_step(current, src.dir) )
-				current.next.dir = current.dir
+				current.next.set_dir(current.dir)
 				current.next.opened = src.opened
 				current = current.next
 
@@ -1506,7 +1500,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 
 	disposing()
 		if (next)
-			next.disposing()
+			next.dispose()
 			next = null
 
 		..()
@@ -1748,13 +1742,13 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 		if (istype(I))
 			if (icon_state == initial(icon_state) && I.keytype == src.locktype)
 				src.icon_state += "-active"
-				user.visible_message("<span style=\"color:red\">[user] plugs [I] into [src]!</span>", "You pop [I] into [src].")
+				user.visible_message("<span class='alert'>[user] plugs [I] into [src]!</span>", "You pop [I] into [src].")
 				playsound(src.loc, "sound/effects/syringeproj.ogg", 50, 1)
 				user.drop_item()
 				I.dispose()
 				src.activate()
 			else
-				boutput(user, "<span style=\"color:red\">It won't fit!</span>")
+				boutput(user, "<span class='alert'>It won't fit!</span>")
 
 		else
 			..()
@@ -1807,7 +1801,7 @@ var/global/iomoon_blowout_state = 0 //0: Hasn't occurred, 1: Moon is irradiated 
 		if (user.stat || user.getStatusDuration("weakened") || get_dist(user, src) > 1 || !user.can_use_hands())
 			return
 
-		user.visible_message("<span style=\"color:red\">[user] presses [src].</span>", "<span style=\"color:red\">You press [src].</span>")
+		user.visible_message("<span class='alert'>[user] presses [src].</span>", "<span class='alert'>You press [src].</span>")
 		return toggle()
 
 	proc/toggle()

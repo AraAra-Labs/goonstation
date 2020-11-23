@@ -97,9 +97,8 @@
 			//src:cameraFollow = null
 			src.tracker.cease_track()
 			src:current = null
-			src:machine = null
 
-		src.updatehealth()
+		health_update_queue |= src
 
 
 		if (src.health < 0)
@@ -164,7 +163,7 @@
 		check_power()
 			if(src.cell)
 				var/area/A = get_area(src)
-				if (A && A.powered(EQUIP) && !istype(src.loc, /turf/space))
+				if (A?.powered(EQUIP) && !istype(src.loc, /turf/space))
 					src.cell.give(5)
 					setalive(src)
 					return
@@ -255,7 +254,7 @@
 
 	return_mainframe()
 		if(!isAI(src.mainframe) || !src.mind)
-			boutput(src, "<span style=\"color:red\">--Host System Error</span>")
+			boutput(src, "<span class='alert'>--Host System Error</span>")
 			return 1
 
 		src.mind.transfer_to(src.mainframe)

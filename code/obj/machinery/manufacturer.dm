@@ -9,6 +9,7 @@
 	density = 1
 	anchored = 1
 	mats = 20
+	event_handler_flags = NO_MOUSEDROP_QOL
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_WELDER | DECON_WIRECUTTERS | DECON_MULTITOOL
 	flags = NOSPLASH
 	var/health = 100
@@ -25,7 +26,6 @@
 	var/electrified = 0
 	var/accept_blueprints = 1
 	var/page = 0 // temporary measure, i want a better UI for this =(
-	var/retain_output_internally = -1
 	var/dismantle_stage = 0
 	var/output_cap = 20
 	// 0 is =>, 1 is ==
@@ -62,6 +62,13 @@
 	var/static/list/text_flipout_adjective = list("an awful","a terrible","a loud","a horrible","a nasty","a horrendous")
 	var/static/list/text_flipout_noun = list("noise","racket","ruckus","clatter","commotion","din")
 	var/list/text_bad_output_adjective = list("janky","crooked","warped","shoddy","shabby","lousy","crappy","shitty")
+	var/obj/item/card/id/scan = null
+	var/temp = null
+	var/frequency = 1149
+	var/datum/radio_frequency/transmit_connection = null
+	var/net_id = null
+
+	var/datum/action/action_bar = null
 
 #define WIRE_EXTEND 1
 #define WIRE_POWER 2
@@ -69,8 +76,12 @@
 #define WIRE_SHOCK 4
 
 	New()
+		START_TRACKING
 		..()
-		src.area_name = src.loc.loc.name
+		var/area/area = get_area(src)
+		src.area_name = area?.name
+		src.transmit_connection = radio_controller.add_object(src,"[frequency]")
+		src.net_id = generate_net_id(src)
 
 		if (istype(manuf_controls,/datum/manufacturing_controller))
 			src.set_up_schematics()
@@ -79,10 +90,7 @@
 		for (var/turf/T in view(5,src))
 			nearby_turfs += T
 
-		var/datum/reagents/R = new/datum/reagents(1000)
-		reagents = R
-		R.maximum_volume = 1000
-		R.my_atom = src
+		src.create_reagents(1000)
 
 		src.work_display = image('icons/obj/manufacturer.dmi', "")
 		src.activity_display = image('icons/obj/manufacturer.dmi', "")
@@ -91,6 +99,7 @@
 			src.build_icon()
 
 	disposing()
+		STOP_TRACKING
 		manuf_controls.manufacturing_units -= src
 		src.work_display = null
 		src.activity_display = null
@@ -112,44 +121,55 @@
 		src.sound_beginwork = null
 		src.sound_damaged = null
 		src.sound_destroyed = null
+		radio_controller.remove_object(src,"[frequency]")
+		src.transmit_connection = null
 
 		for (var/obj/O in src.contents)
-			O.loc = src.loc
+			O.set_loc(src.loc)
 		for (var/mob/M in src.contents)
 			// unlikely as this is to happen we might as well make sure everything is purged
-			M.loc = src.loc
+			M.set_loc(src.loc)
 
 		..()
 
 	examine()
-		..()
+		. = ..()
 		if (src.health < 100)
 			if (src.health < 50)
-				boutput(usr, "<span style=\"color:red\">It's rather badly damaged. It probably needs some wiring replaced inside.</span>")
+				. += "<span class='alert'>It's rather badly damaged. It probably needs some wiring replaced inside.</span>"
 			else
-				boutput(usr, "<span style=\"color:red\">It's a bit damaged. It looks like it needs some welding done.</span>")
+				. += "<span class='alert'>It's a bit damaged. It looks like it needs some welding done.</span>"
+
 		if	(status & BROKEN)
-			boutput(usr, "<span style=\"color:red\">It seems to be damaged beyond the point of operability.</span>")
+			. += "<span class='alert'>It seems to be damaged beyond the point of operability.</span>"
 		if	(status & NOPOWER)
-			boutput(usr, "<span style=\"color:red\">It seems to be offline.</span>")
+			. += "<span class='alert'>It seems to be offline.</span>"
+
 		switch(src.dismantle_stage)
 			if(1)
-				boutput(usr, "<span style=\"color:red\">It's partially dismantled. To deconstruct it, use a crowbar. To repair it, use a wrench.</span>")
+				. += "<span class='alert'>It's partially dismantled. To deconstruct it, use a crowbar. To repair it, use a wrench.</span>"
 			if(2)
-				boutput(usr, "<span style=\"color:red\">It's partially dismantled. To deconstruct it, use wirecutters. To repair it, add reinforced metal.</span>")
+				. += "<span class='alert'>It's partially dismantled. To deconstruct it, use wirecutters. To repair it, add reinforced metal.</span>"
 			if(3)
-				boutput(usr, "<span style=\"color:red\">It's partially dismantled. To deconstruct it, use a wrench. To repair it, add some cable.</span>")
+				. += "<span class='alert'>It's partially dismantled. To deconstruct it, use a wrench. To repair it, add some cable.</span>"
 
-	process()
+	process(var/mult)
 		if (status & NOPOWER)
 			return
 
-		power_usage = src.powconsumption + 200
+		power_usage = src.powconsumption + 200 * mult
 		..()
+
+		if (src.mode == "working")
+			use_power(src.powconsumption)
+
+		if (src.electrified > 0)
+			src.electrified--
+		/*
 		if (src.mode == "working")
 			if (src.malfunction && prob(8))
 				src.flip_out()
-			src.timeleft -= src.speed * 2
+			src.timeleft -= src.speed * 4.4 * mult
 			use_power(src.powconsumption)
 			if (src.timeleft < 1)
 				src.output_loop(src.queue[1])
@@ -157,12 +177,24 @@
 					if (src.queue.len < 1)
 						src.manual_stop = 0
 						playsound(src.loc, src.sound_happy, 50, 1)
-						src.visible_message("<span style=\"color:blue\">[src] finishes its production queue.</span>")
+						src.visible_message("<span class='notice'>[src] finishes its production queue.</span>")
 						src.mode = "ready"
 						src.build_icon()
+		*/
 
-		if (src.electrified > 0)
-			src.electrified--
+	proc/finish_work()
+
+		if(length(src.queue))
+			output_loop(src.queue[1])
+			if (!src.repeat)
+				src.queue -= src.queue[1]
+
+		if (src.queue.len < 1)
+			src.manual_stop = 0
+			playsound(src.loc, src.sound_happy, 50, 1)
+			src.visible_message("<span class='notice'>[src] finishes its production queue.</span>")
+			src.mode = "ready"
+			src.build_icon()
 
 	ex_act(severity)
 		switch(severity)
@@ -223,8 +255,134 @@
 				if (src.manuf_zap(user, 33))
 					return
 
-		user.machine = src
-		var/list/dat = list("<B>[src.name]</B>")
+		src.add_dialog(user)
+
+		var/HTML = {"
+		<title>[src.name]</title>
+		<style type='text/css'>
+
+			/* will probaby break chui, dont care */
+			body { background: #222; color: white; font-family: Tahoma, sans-serif; }
+			a { color: #88f; }
+
+			.l { text-align: left; } .r { text-align: right; } .c { text-align: center; }
+			.buttonlink { background: #66c; min-width: 1.1em; height: 1.2em; padding: 0.2em 0.2em; margin-bottom: 2px; border-radius: 4px; font-size: 90%; color: white; text-decoration: none; display: inline-block; vertical-align: middle; }
+			thead { background: #555555; }
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				}
+			td, th { padding: 0.2em; 0.5em; }
+			.outline td, .outline th {
+				border: 1px solid #666;
+			}
+
+			img, a img {
+				border: 0;
+				}
+
+			#info {
+				position: absolute;
+				right: 0.5em;
+				top: 0;
+				width: 25%;
+				padding: 0.5em;
+				}
+
+			#products {
+				position: absolute;
+				left: 0;
+				top: 0;
+				width: 73%;
+				padding: 0.25em;
+			}
+
+			.queue, .product {
+				position: relative;
+				display: inline-block;
+				width: 12em;
+				padding: 0.25em 0.5em;
+				border-radius: 5px;
+				margin: 0.5em;
+				background: #555;
+				box-shadow: 3px 3px 0 2px #000;
+				}
+
+			.queue {
+				vertical-align: middle;
+				clear: both;
+				}
+			.queue .icon {
+				float: left;
+				margin: 0.2em;
+				}
+			.product {
+				vertical-align: top;
+				text-align: center;
+				}
+			.product .time {
+				position: absolute;
+				bottom: 0.3em;
+				right: 0.3em;
+				}
+			.product .mats {
+				position: absolute;
+				bottom: 0.3em;
+				left: 0.3em;
+				}
+			.product .icon {
+				display: block;
+				height: 64px;
+				width: 64px;
+				margin: 0.2em auto 0.5em auto;
+				-ms-interpolation-mode: nearest-neighbor; /* pixels go cronch */
+				}
+			.product.disabled {
+				background: #333;
+				color: #aaa;
+			}
+			.required {
+				display: none;
+				}
+
+			.product:hover {
+				cursor: pointer;
+				background: #666;
+			}
+			.product:hover .required {
+				display: block;
+				position: absolute;
+				left: 0;
+				right: 0;
+				}
+
+			.required div {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				background: #333;
+				border: 1px solid #888888;
+				padding: 0.25em 0.5em;
+				margin: 0.25em 0.5em;
+				font-size: 80%;
+				text-align: left;
+				border-radius: 5px;
+				}
+			.mat-missing {
+				color: #f66;
+			}
+		</style>
+		<script type="text/javascript">
+			function product(ref) {
+				window.location = "?src=\ref[src];disp=" + ref;
+			}
+		</script>
+		"}
+
+
+		var/list/dat = list()
 
 		if (src.panelopen || isAI(user))
 			var/list/manuwires = list(
@@ -261,156 +419,95 @@
 
 		if (status & BROKEN || status & NOPOWER)
 			dat = "The screen is blank."
-			user.Browse(dat, "window=manufact;size=400x500")
+			user.Browse(dat, "window=manufact;size=750x500")
 			onclose(user, "manufact")
 			return
 
-		if (src.error)
-			dat += "<br><font face=\"fixedsys\" size=\"2\" color=\"#FF0000\"><b>ERROR: [src.error]</b></font>"
-		if (src.mode == "halt")
-			dat += "<br><A href='?src=\ref[src];continue=1'><u><b>Resume Production</b></u></a>"
-		else if (src.mode == "working")
-			var/datum/manufacture/M = src.queue[1]
-			if (istype(M,/datum/manufacture/))
-				var/TL = src.timeleft
-				if (src.speed != 0)
-					TL = round(TL / src.speed)
-				dat += "<br><small>Current: [M.name] (ETC: [TL]) | <A href='?src=\ref[src];pause=1'><u><b>Pause</b></u></a></small>"
+		dat += "<div id='products'>"
 
-		dat += build_control_panel()
-		dat += "<br>"
-		dat += build_material_list()
+		// dat += "<B>Available Schematics</B><br>"
+		// if(istext(src.search))
+		// 	dat += " <small>(Search: \"[html_encode(src.search)]\")</small>"
+		// if(istext(src.category))
+		// 	dat += " <small>(Filter: \"[html_encode(src.category)]\")</small>"
+
+		// Get the list of stuff we can print ...
+		var/list/products = src.available + src.download
+		if (src.hacked)
+			products += src.hidden
+
+		// Then make it
+		var/can_be_made = 0
+		for(var/datum/manufacture/A in products)
+			var/list/mats_used = get_materials_needed(A)
+
+			if (istext(src.search) && !findtext(A.name, src.search, 1, null))
+				continue
+			else if (istext(src.category) && src.category != A.category)
+				continue
+
+			can_be_made = (mats_used.len >= A.item_paths.len)
+
+			var/icon_text = ""
+			// @todo probably refactor this since it's copy pasted twice now.
+			if (A.item_outputs)
+				var/icon_rsc = getItemIcon(A.item_outputs[1], C = usr.client)
+				// user << browse_rsc(browse_item_icons[icon_rsc], icon_rsc)
+				icon_text = "<img class='icon' src='[icon_rsc]'>"
+
+			if (istype(A, /datum/manufacture/mechanics))
+				var/datum/manufacture/mechanics/F = A
+				var/icon_rsc = getItemIcon(F.frame_path, C = usr.client)
+				// user << browse_rsc(browse_item_icons[icon_rsc], icon_rsc)
+				icon_text = "<img class='icon' src='[icon_rsc]'>"
+
+			var/list/material_text = list()
+			var/list/material_count = 0
+			for (var/i in 1 to A.item_paths.len)
+				material_count += A.item_amounts[i]
+				material_text += {"
+				<span class='mat[mats_used[A.item_paths[i]] ? "" : "-missing"]'>[A.item_amounts[i]] [A.item_names[i]]</span>
+				"}
+
+			dat += {"
+		<div class='product[can_be_made ? "" : " disabled"]' onclick='product("\ref[A]");'>
+			<strong>[A.name]</strong>
+			<div class='required'><div>[material_text.Join("<br>")]</div></div>
+			[icon_text]
+			<span class='mats'>[material_count] mat.</span>
+			<span class='time'>[A.time && src.speed ? round(A.time / src.speed / 10, 0.1) : "??"] sec.</span>
+		</div>"}
+
+		dat += "</div><div id='info'>"
+		dat += build_material_list(user)
+
+		// This is not re-formatted yet just b/c i don't wanna mess with it
+		dat +="<B>Scanned Card:</B> <A href='?src=\ref[src];card=1'>([src.scan])</A><BR>"
+		if(scan)
+			var/datum/data/record/account = null
+			account = FindBankAccountByName(src.scan.registered)
+			if (account)
+				dat+="<B>Current Funds</B>: [account.fields["current_money"]] Credits<br>"
+		dat+= src.temp
+		dat += "<HR><B>Ores Available for Purchase:</B><br><small>"
+		for_by_tcl(S, /obj/machinery/ore_cloud_storage_container)
+			if(S.broken)
+				continue
+			dat += "<B>[S.name] at [get_area(S)]:</B><br>"
+			var/list/ores = S.ores
+			for(var/ore in ores)
+				var/datum/ore_cloud_data/OCD = ores[ore]
+				if(!OCD.for_sale || !OCD.amount)
+					continue
+				var/taxes = round(max(rockbox_globals.rockbox_client_fee_min,abs(OCD.price*rockbox_globals.rockbox_client_fee_pct/100)),0.01) //transaction taxes for the station budget
+				dat += "[ore]: [OCD.amount] ($[OCD.price+taxes+(!rockbox_globals.rockbox_premium_purchased ? rockbox_globals.rockbox_standard_fee : 0)]/ore) (<A href='?src=\ref[src];purchase=1;storage=\ref[S];ore=[ore]'>Purchase</A>)<br>"
 
 		dat += "</small><HR>"
 
-		if (!page)
-			dat += "<B>Available Schematics</B><br>"
-			if(istext(src.search))
-				dat += " <small>(Search: \"[html_encode(src.search)]\")</small>"
-			if(istext(src.category))
-				dat += " <small>(Filter: \"[html_encode(src.category)]\")</small>"
-
-			dat += "<small>"
-			if (src.category != "Downloaded")
-				for(var/datum/manufacture/A in src.available)
-					var/list/mats_used = get_materials_needed(A)
-
-					if (istext(src.search) && !findtext(A.name, src.search, 1, null))
-						continue
-					else if (istext(src.category) && src.category != A.category)
-						continue
-
-					if (mats_used.len < A.item_paths.len)
-						dat += "<BR><font color = 'red'><b><u>[A.name]</u></b></font> "		//change this name to red if can't be made
-					else
-						dat += "<BR><A href='?src=\ref[src];disp=\ref[A]'><b><u>[A.name]</u></b></A> "
-
-					if (istext(A.category))
-						dat += "([A.category])"
-					dat += "<br>"
-
-					for (var/i in 1 to A.item_paths.len)
-						if (i != 1) dat += ", "
-						if (mats_used[A.item_paths[i]])
-							dat += "[A.item_amounts[i]] [A.item_names[i]]"
-						else
-							dat += "<font color = 'red'>[A.item_amounts[i]] [A.item_names[i]]</font>"		//change this line to red if missing mats
-
-					if (A.time == 0 || src.speed == 0)
-						dat += "<br><b>Time:</b> ERROR<br>"
-					else
-						dat += "<br><b>Time:</b> [round((A.time / src.speed))] Seconds<br>"
-
-				if (src.hacked)
-					for(var/datum/manufacture/A in src.hidden)
-						var/list/mats_used = get_materials_needed(A)
-
-						if (istext(src.search) && !findtext(A.name, src.search, 1, null))
-							continue
-						else if (istext(src.category) && src.category != A.category)
-							continue
-
-						if (mats_used.len < A.item_paths.len)
-							dat += "<BR><font color = 'red'><b><u>[A.name]</u></b></font> "
-						else
-							dat += "<BR><A href='?src=\ref[src];disp=\ref[A]'><b><u>[A.name]</u></b></A> "
-
-						if (istext(A.category))
-							dat += "([A.category]) "
-						dat += "(Secret)<br>"
-
-						for (var/i in 1 to A.item_paths.len)
-							if (i != 1) dat += ", "
-							if (mats_used[A.item_paths[i]])
-								dat += "[A.item_amounts[i]] [A.item_names[i]]"
-							else
-								dat += "<font color = 'red'>[A.item_amounts[i]] [A.item_names[i]]</font>"		//change this line to red if missing mats
-
-						if (A.time == 0 || src.speed == 0)
-							dat += "<br><b>Time:</b> ERROR<br>"
-						else
-							dat += "<br><b>Time:</b> [round((A.time / src.speed))] Seconds<br>"
-
-			for(var/datum/manufacture/A in src.download)
-				var/list/mats_used = get_materials_needed(A)
-
-				if (istext(src.search) && !findtext(A.name, src.search, 1, null))
-					continue
-				else if (istext(src.category))
-					if (src.category != "Downloaded" && src.category != A.category)
-						continue
-
-				if (mats_used.len < A.item_paths.len)
-					dat += "<BR><font color = 'red'><b><u>[A.name]</u></b></font> "
-				else
-					dat += "<BR><A href='?src=\ref[src];disp=\ref[A]'><b><u>[A.name]</u></b></A> "
-
-				if (istext(A.category))
-					dat += "([A.category]) "
-				dat += "(Downloaded)<br>"
-
-				for (var/i in 1 to A.item_paths.len)
-					if (i != 1) dat += ", "
-					if (mats_used[A.item_paths[i]])
-						dat += "[A.item_amounts[i]] [A.item_names[i]]"
-					else
-						dat += "<font color = 'red'>[A.item_amounts[i]] [A.item_names[i]]</font>"		//change this line to red if missing mats
-
-				if (A.time == 0 || src.speed == 0)
-					dat += "<br><b>Time:</b> ERROR<br>"
-				else
-					dat += "<br><b>Time:</b> [round((A.time / src.speed))] Seconds<br>"
-			dat += "</small>"
+		dat += build_control_panel(user)
 
 
-		else if (page == 1)
-			dat += "<B>Production Queue</B> <A href='?src=\ref[src];clearQ=1'>(Clear)</A>"
-			if (src.queue.len > 0)
-				var/queue_num = 1
-				var/cumulative_time = 0
-				var/timeleft = src.timeleft
-				var/datum/manufacture/M = src.queue[1]
-				if (istype(M,/datum/manufacture/) && src.speed != 0 && timeleft != 0)
-					timeleft = round(timeleft / src.speed)
-				cumulative_time = timeleft
-				for(var/datum/manufacture/A in src.queue)
-					if (queue_num == 1)
-						dat += "<BR><small><b><u>Current Production: [A.name] (ETC: [timeleft])</b></u></A>"
-						if (src.mode != "working")
-							dat += " <A href='?src=\ref[src];removefromQ=[queue_num]'>(Remove)</A>"
-					else
-						if (src.speed != 0)
-							cumulative_time += round(A.time / src.speed)
-						else
-							cumulative_time += A.time
-						dat += "<BR>[queue_num]) [A.name] (ETC: [cumulative_time]) <A href='?src=\ref[src];removefromQ=[queue_num]'>(Remove)</A>"
-					queue_num++
-			else
-				dat += "<BR>Queue is empty."
-
-		dat += "<hr>"
-
-		user.Browse(dat.Join(), "window=manufact;size=450x500")
+		user.Browse(HTML + dat.Join(), "window=manufact;size=1111x600")
 		onclose(user, "manufact")
 
 		interact_particle(user,src)
@@ -444,14 +541,14 @@
 					return
 
 		if ((usr.contents.Find(src) || ((get_dist(src, usr) <= 1 || isAI(usr)) && istype(src.loc, /turf))))
-			usr.machine = src
+			src.add_dialog(usr)
 
 			if (src.malfunction && prob(10))
 				src.flip_out()
 
 			if (href_list["eject"])
 				if (src.mode != "ready")
-					boutput(usr, "<span style=\"color:red\">You cannot eject materials while the unit is working.</span>")
+					boutput(usr, "<span class='alert'>You cannot eject materials while the unit is working.</span>")
 				else
 					var/mat_id = href_list["eject"]
 					var/ejectamt = 0
@@ -477,7 +574,7 @@
 
 			if (href_list["speed"])
 				if (src.mode == "working")
-					boutput(usr, "<span style=\"color:red\">You cannot alter the speed setting while the unit is working.</span>")
+					boutput(usr, "<span class='alert'>You cannot alter the speed setting while the unit is working.</span>")
 				else
 					var/upperbound = 3
 					if (src.hacked)
@@ -500,7 +597,7 @@
 			if (href_list["removefromQ"])
 				var/operation = text2num(href_list["removefromQ"])
 				if (!isnum(operation) || src.queue.len < 1 || operation > src.queue.len)
-					boutput(usr, "<span style=\"color:red\">Invalid operation.</span>")
+					boutput(usr, "<span class='alert'>Invalid operation.</span>")
 					return
 
 				if(world.time < last_queue_op + 5) //Anti-spam to prevent people lagging the server with autoclickers
@@ -518,15 +615,9 @@
 			if (href_list["repeat"])
 				src.repeat = !src.repeat
 
-			if (href_list["internalize"])
-				if (src.retain_output_internally < 0)
-					boutput(usr, "<span style=\"color:red\">This unit does not feature that function.</span>")
-				else
-					src.retain_output_internally = !src.retain_output_internally
-
 			if (href_list["search"])
 				src.search = input("Enter text to search for in schematics.","Manufacturing Unit") as null|text
-				if (lentext(src.search) == 0)
+				if (length(src.search) == 0)
 					src.search = null
 
 			if (href_list["category"])
@@ -534,16 +625,18 @@
 
 			if (href_list["continue"])
 				if (src.queue.len < 1)
-					boutput(usr, "<span style=\"color:red\">Cannot find any items in queue to continue production.</span>")
+					boutput(usr, "<span class='alert'>Cannot find any items in queue to continue production.</span>")
 					return
 				if (!check_enough_materials(src.queue[1]))
-					boutput(usr, "<span style=\"color:red\">Insufficient usable materials to manufacture first item in queue.</span>")
+					boutput(usr, "<span class='alert'>Insufficient usable materials to manufacture first item in queue.</span>")
 				else
 					src.begin_work(0)
 
 			if (href_list["pause"])
 				src.mode = "halt"
 				src.build_icon()
+				if (src.action_bar)
+					src.action_bar.interrupt(INTERRUPT_ALWAYS)
 
 			if (href_list["disp"])
 				var/datum/manufacture/I = locate(href_list["disp"])
@@ -561,9 +654,9 @@
 					return
 
 				if (!check_enough_materials(I))
-					boutput(usr, "<span style=\"color:red\">Insufficient usable materials to manufacture that item.</span>")
+					boutput(usr, "<span class='alert'>Insufficient usable materials to manufacture that item.</span>")
 				else if (src.queue.len >= MAX_QUEUE_LENGTH)
-					boutput(usr, "<span style=\"color:red\">Manufacturer queue length limit reached.</span>")
+					boutput(usr, "<span class='alert'>Manufacturer queue length limit reached.</span>")
 				else
 					src.queue += I
 					if (src.mode == "ready")
@@ -578,7 +671,7 @@
 			/*if (href_list["delete"])
 				var/datum/manufacture/I = locate(href_list["disp"])
 				if (!istype(I,/datum/manufacture/mechanics/))
-					boutput(usr, "<span style=\"color:red\">Cannot delete this schematic.</span>")
+					boutput(usr, "<span class='alert'>Cannot delete this schematic.</span>")
 					return
 				src.download -= I*/
 
@@ -644,6 +737,85 @@
 					src.pulse(twire)
 				src.build_icon()
 
+			if (href_list["card"])
+				if (src.scan) src.scan = null
+				else
+					var/obj/item/I = usr.equipped()
+					src.scan_card(I)
+
+			if (href_list["purchase"])
+				var/obj/machinery/ore_cloud_storage_container/storage = locate(href_list["storage"])
+				var/ore = href_list["ore"]
+				var/datum/ore_cloud_data/OCD = storage.ores[ore]
+				var/price = OCD.price
+				var/taxes = round(max(rockbox_globals.rockbox_client_fee_min,abs(price*rockbox_globals.rockbox_client_fee_pct/100)),0.01) //transaction taxes for the station budget
+
+				if(storage?.broken)
+					return
+
+				if(!scan)
+					src.temp = {"You have to scan a card in first.<BR>"}
+					src.updateUsrDialog()
+					return
+				else
+					src.temp = null
+				if (src.scan.registered in FrozenAccounts)
+					boutput(usr, "<span class='alert'>Your account cannot currently be liquidated due to active borrows.</span>")
+					return
+				var/datum/data/record/account = null
+				account = FindBankAccountByName(src.scan.registered)
+				if (account)
+					var/quantity = 1
+					quantity = max(0, input("How many units do you want to purchase?", "Ore Purchase", null, null) as num)
+
+					////////////
+
+					if(OCD.amount >= quantity)
+						var/subtotal = round(price * quantity)
+						var/sum_taxes = round(taxes * quantity)
+						var/rockbox_fees = (!rockbox_globals.rockbox_premium_purchased ? rockbox_globals.rockbox_standard_fee : 0) * quantity
+						var/total = subtotal + sum_taxes + rockbox_fees
+						if(account.fields["current_money"] >= total)
+							account.fields["current_money"] -= total
+							storage.eject_ores(ore, get_output_location(), quantity, transmit=1, user=usr)
+
+							 // This next bit is stolen from PTL Code
+							var/list/accounts = list()
+							for(var/datum/data/record/t in data_core.bank)
+								if(t.fields["job"] == "Chief Engineer")
+									accounts += t
+									accounts += t //fuck it x2
+								else if(t.fields["job"] == "Miner")
+									accounts += t
+
+
+							var/datum/signal/minerSignal = get_free_signal()
+							minerSignal.source = src
+							minerSignal.transmission_method = TRANSMISSION_RADIO
+							//any non-divisible amounts go to the shipping budget
+							var/leftovers = 0
+							if(accounts.len)
+								leftovers = subtotal%accounts.len
+								var/divisible_amount = subtotal - leftovers
+								if(divisible_amount)
+									var/amount_per_account = divisible_amount/length(accounts)
+									for(var/datum/data/record/t in accounts)
+										t.fields["current_money"] += amount_per_account
+									minerSignal.data = list("address_1"="00000000", "command"="text_message", "sender_name"="ROCKBOX&trade;-MAILBOT",  "group"="mining", "sender"=src.net_id, "message"="Notification: [amount_per_account] credits earned from Rockbox&trade; sale, deposited to your account.")
+							else
+								leftovers = subtotal
+								minerSignal.data = list("address_1"="00000000", "command"="text_message", "sender_name"="ROCKBOX&trade;-MAILBOT",  "group"="mining", "sender"=src.net_id, "message"="Notification: [leftovers + sum_taxes] credits earned from Rockbox&trade; sale, deposited to the shipping budget.")
+							wagesystem.shipping_budget += (leftovers + sum_taxes)
+							transmit_connection.post_signal(src, minerSignal)
+
+							src.temp = {"Enjoy your purchase!<BR>"}
+						else
+							src.temp = {"You don't have enough dosh, bucko.<BR>"}
+					else
+						src.temp = {"I don't have that many for sale, champ.<BR>"}
+				else
+					src.temp = {"That card doesn't have an account anymore, you might wanna get that checked out.<BR>"}
+
 			src.updateUsrDialog()
 		return
 
@@ -651,7 +823,7 @@
 		if (!src.hacked)
 			src.hacked = 1
 			if(user)
-				boutput(user, "<span style=\"color:blue\">You remove the [src]'s product locks!</span>")
+				boutput(user, "<span class='notice'>You remove the [src]'s product locks!</span>")
 			return 1
 		return 0
 
@@ -662,36 +834,36 @@
 
 		if (istype(W, /obj/item/paper/manufacturer_blueprint))
 			if (!src.accept_blueprints)
-				boutput(user, "<span style=\"color:red\">This manufacturer unit does not accept blueprints.</span>")
+				boutput(user, "<span class='alert'>This manufacturer unit does not accept blueprints.</span>")
 				return
 			var/obj/item/paper/manufacturer_blueprint/BP = W
 			if (src.malfunction && prob(75))
-				src.visible_message("<span style=\"color:red\">[src] emits a [pick(src.text_flipout_adjective)] [pick(src.text_flipout_noun)]!</span>")
+				src.visible_message("<span class='alert'>[src] emits a [pick(src.text_flipout_adjective)] [pick(src.text_flipout_noun)]!</span>")
 				playsound(src.loc, pick(src.sounds_malfunction), 50, 1)
-				boutput(user, "<span style=\"color:red\">The manufacturer mangles and ruins the blueprint in the scanner! What the fuck?</span>")
+				boutput(user, "<span class='alert'>The manufacturer mangles and ruins the blueprint in the scanner! What the fuck?</span>")
 				qdel(BP)
 				return
 			if (!BP.blueprint)
-				src.visible_message("<span style=\"color:red\">[src] emits a grumpy buzz!</span>")
+				src.visible_message("<span class='alert'>[src] emits a grumpy buzz!</span>")
 				playsound(src.loc, src.sound_grump, 50, 1)
-				boutput(user, "<span style=\"color:red\">The manufacturer rejects the blueprint. Is something wrong with it?</span>")
+				boutput(user, "<span class='alert'>The manufacturer rejects the blueprint. Is something wrong with it?</span>")
 				return
 			for (var/datum/manufacture/M in (src.available + src.download))
 				if (BP.blueprint.name == M.name)
-					src.visible_message("<span style=\"color:red\">[src] emits an irritable buzz!</span>")
+					src.visible_message("<span class='alert'>[src] emits an irritable buzz!</span>")
 					playsound(src.loc, src.sound_grump, 50, 1)
-					boutput(user, "<span style=\"color:red\">The manufacturer rejects the blueprint, as it already knows it.</span>")
+					boutput(user, "<span class='alert'>The manufacturer rejects the blueprint, as it already knows it.</span>")
 					return
 			BP.dropped()
 			src.download += BP.blueprint
-			src.visible_message("<span style=\"color:red\">[src] emits a pleased chime!</span>")
+			src.visible_message("<span class='alert'>[src] emits a pleased chime!</span>")
 			playsound(src.loc, src.sound_happy, 50, 1)
-			boutput(user, "<span style=\"color:blue\">The manufacturer accepts and scans the blueprint.</span>")
+			boutput(user, "<span class='notice'>The manufacturer accepts and scans the blueprint.</span>")
 			qdel(BP)
 			return
 
 		else if (istype(W, /obj/item/satchel))
-			user.visible_message("<span style=\"color:blue\">[user] uses [src]'s automatic loader on [W]!</span>", "<span style=\"color:blue\">You use [src]'s automatic loader on [W].</span>")
+			user.visible_message("<span class='notice'>[user] uses [src]'s automatic loader on [W]!</span>", "<span class='notice'>You use [src]'s automatic loader on [W].</span>")
 			var/amtload = 0
 			for (var/obj/item/M in W.contents)
 				if (!istype(M,src.base_material_class))
@@ -699,8 +871,8 @@
 				src.load_item(M)
 				amtload++
 			W:satchel_updateicon()
-			if (amtload) boutput(user, "<span style=\"color:blue\">[amtload] materials loaded from [W]!</span>")
-			else boutput(user, "<span style=\"color:red\">No materials loaded!</span>")
+			if (amtload) boutput(user, "<span class='notice'>[amtload] materials loaded from [W]!</span>")
+			else boutput(user, "<span class='alert'>No materials loaded!</span>")
 
 		else if (isscrewingtool(W))
 			if (!src.panelopen)
@@ -710,23 +882,22 @@
 			boutput(user, "You [src.panelopen ? "open" : "close"] the maintenance panel.")
 			src.build_icon()
 
-		else if (istype(W,/obj/item/weldingtool))
-			var/obj/item/weldingtool/WELD = W
+		else if (isweldingtool(W))
 			var/do_action = 0
-			if (istype(WELD,src.base_material_class) && src.accept_loading(user))
-				if (alert(user,"What do you want to do with [WELD]?","[src.name]","Repair","Load it in") == "Load it in")
+			if (istype(W,src.base_material_class) && src.accept_loading(user))
+				if (alert(user,"What do you want to do with [W]?","[src.name]","Repair","Load it in") == "Load it in")
 					do_action = 1
 			if (do_action == 1)
-				user.visible_message("<span style=\"color:blue\">[user] loads [WELD] into the [src].</span>", "<span style=\"color:blue\">You load [WELD] into the [src].</span>")
-				src.load_item(WELD,user)
+				user.visible_message("<span class='notice'>[user] loads [W] into the [src].</span>", "<span class='notice'>You load [W] into the [src].</span>")
+				src.load_item(W,user)
 			else
 				if (src.health < 50)
-					boutput(user, "<span style=\"color:red\">It's too badly damaged. You'll need to replace the wiring first.</span>")
-				else if(WELD.try_weld(user, 1))
+					boutput(user, "<span class='alert'>It's too badly damaged. You'll need to replace the wiring first.</span>")
+				else if(W:try_weld(user, 1))
 					src.take_damage(-10)
-					user.visible_message("<b>[user]</b> uses [WELD] to repair some of [src]'s damage.")
+					user.visible_message("<b>[user]</b> uses [W] to repair some of [src]'s damage.")
 					if (src.health == 100)
-						boutput(user, "<span style=\"color:blue\"><b>[src] looks fully repaired!</b></span>")
+						boutput(user, "<span class='notice'><b>[src] looks fully repaired!</b></span>")
 
 		else if (istype(W,/obj/item/cable_coil) && src.panelopen)
 			var/obj/item/cable_coil/C = W
@@ -735,18 +906,18 @@
 				if (alert(user,"What do you want to do with [C]?","[src.name]","Repair","Load it in") == "Load it in")
 					do_action = 1
 			if (do_action == 1)
-				user.visible_message("<span style=\"color:blue\">[user] loads [C] into the [src].</span>", "<span style=\"color:blue\">You load [C] into the [src].</span>")
+				user.visible_message("<span class='notice'>[user] loads [C] into the [src].</span>", "<span class='notice'>You load [C] into the [src].</span>")
 				src.load_item(C,user)
 			else
 				if (src.health >= 50)
-					boutput(user, "<span style=\"color:red\">The wiring is fine. You need to weld the external plating to do further repairs.</span>")
+					boutput(user, "<span class='alert'>The wiring is fine. You need to weld the external plating to do further repairs.</span>")
 				else
 					C.use(1)
 					src.take_damage(-10)
 					user.visible_message("<b>[user]</b> uses [C] to repair some of [src]'s cabling.")
 					playsound(src.loc, "sound/items/Deconstruct.ogg", 50, 1)
 					if (src.health >= 50)
-						boutput(user, "<span style=\"color:blue\">The wiring is fully repaired. Now you need to weld the external plating.</span>")
+						boutput(user, "<span class='notice'>The wiring is fully repaired. Now you need to weld the external plating.</span>")
 
 		else if (iswrenchingtool(W))
 			var/do_action = 0
@@ -754,7 +925,7 @@
 				if (alert(user,"What do you want to do with [W]?","[src.name]","Dismantle/Construct","Load it in") == "Load it in")
 					do_action = 1
 			if (do_action == 1)
-				user.visible_message("<span style=\"color:blue\">[user] loads [W] into the [src].</span>", "<span style=\"color:blue\">You load [W] into the [src].</span>")
+				user.visible_message("<span class='notice'>[user] loads [W] into the [src].</span>", "<span class='notice'>You load [W] into the [src].</span>")
 				src.load_item(W,user)
 			else
 				playsound(src.loc, "sound/items/Ratchet.ogg", 50, 1)
@@ -806,9 +977,9 @@
 
 		else if (istype(W,/obj/item/reagent_containers/glass))
 			if (src.beaker)
-				boutput(user, "<span style=\"color:red\">There's already a receptacle in the machine. You need to remove it first.</span>")
+				boutput(user, "<span class='alert'>There's already a receptacle in the machine. You need to remove it first.</span>")
 			else
-				boutput(user, "<span style=\"color:blue\">You insert [W].</span>")
+				boutput(user, "<span class='notice'>You insert [W].</span>")
 				W.set_loc(src)
 				src.beaker = W
 				if (user && W)
@@ -816,8 +987,11 @@
 					W.dropped()
 
 		else if (istype(W, src.base_material_class) && src.accept_loading(user))
-			user.visible_message("<span style=\"color:blue\">[user] loads [W] into the [src].</span>", "<span style=\"color:blue\">You load [W] into the [src].</span>")
+			user.visible_message("<span class='notice'>[user] loads [W] into the [src].</span>", "<span class='notice'>You load [W] into the [src].</span>")
 			src.load_item(W,user)
+
+		else if(scan_card(W))
+			return
 
 		else
 			..()
@@ -840,46 +1014,70 @@
 
 		src.updateUsrDialog()
 
+	proc/scan_card(var/obj/item/I)
+		if (istype(I, /obj/item/device/pda2))
+			var/obj/item/device/pda2/P = I
+			if(P.ID_card)
+				I = P.ID_card
+		if (istype(I, /obj/item/card/id))
+			var/obj/item/card/id/ID = I
+			boutput(usr, "<span class='notice'>You swipe the ID card in the card reader.</span>")
+			var/datum/data/record/account = null
+			account = FindBankAccountByName(ID.registered)
+			if(account)
+				var/enterpin = input(usr, "Please enter your PIN number.", "Card Reader", 0) as null|num
+				if (enterpin == ID.pin)
+					boutput(usr, "<span class='notice'>Card authorized.</span>")
+					src.scan = ID
+					return 1
+				else
+					boutput(usr, "<span class='alert'>Pin number incorrect.</span>")
+					src.scan = null
+			else
+				boutput(usr, "<span class='alert'>No bank account associated with this ID found.</span>")
+				src.scan = null
+		return 0
+
 	MouseDrop(over_object, src_location, over_location)
 		if(!isliving(usr))
-			boutput(usr, "<span style=\"color:red\">Only living mobs are able to set the manufacturer's output target.</span>")
+			boutput(usr, "<span class='alert'>Only living mobs are able to set the manufacturer's output target.</span>")
 			return
 
 		if(get_dist(over_object,src) > 1)
-			boutput(usr, "<span style=\"color:red\">The manufacturing unit is too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>The manufacturing unit is too far away from the target!</span>")
 			return
 
 		if(get_dist(over_object,usr) > 1)
-			boutput(usr, "<span style=\"color:red\">You are too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>You are too far away from the target!</span>")
 			return
 
 		if (istype(over_object,/obj/storage/crate/))
 			var/obj/storage/crate/C = over_object
 			if (C.locked || C.welded)
-				boutput(usr, "<span style=\"color:red\">You can't use a currently unopenable crate as an output target.</span>")
+				boutput(usr, "<span class='alert'>You can't use a currently unopenable crate as an output target.</span>")
 			else
 				src.output_target = over_object
-				boutput(usr, "<span style=\"color:blue\">You set the manufacturer to output to [over_object]!</span>")
+				boutput(usr, "<span class='notice'>You set the manufacturer to output to [over_object]!</span>")
 
 		else if (istype(over_object,/obj/storage/cart/))
 			var/obj/storage/cart/C = over_object
 			if (C.locked || C.welded)
-				boutput(usr, "<span style=\"color:red\">You can't use a currently unopenable cart as an output target.</span>")
+				boutput(usr, "<span class='alert'>You can't use a currently unopenable cart as an output target.</span>")
 			else
 				src.output_target = over_object
-				boutput(usr, "<span style=\"color:blue\">You set the manufacturer to output to [over_object]!</span>")
+				boutput(usr, "<span class='notice'>You set the manufacturer to output to [over_object]!</span>")
 
 		else if (istype(over_object,/obj/table/) || istype(over_object,/obj/rack/))
 			var/obj/O = over_object
 			src.output_target = O.loc
-			boutput(usr, "<span style=\"color:blue\">You set the manufacturer to output on top of [O]!</span>")
+			boutput(usr, "<span class='notice'>You set the manufacturer to output on top of [O]!</span>")
 
 		else if (istype(over_object,/turf/simulated/floor/))
 			src.output_target = over_object
-			boutput(usr, "<span style=\"color:blue\">You set the manufacturer to output to [over_object]!</span>")
+			boutput(usr, "<span class='notice'>You set the manufacturer to output to [over_object]!</span>")
 
 		else
-			boutput(usr, "<span style=\"color:red\">You can't use that as an output target.</span>")
+			boutput(usr, "<span class='alert'>You can't use that as an output target.</span>")
 		return
 
 	MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
@@ -887,15 +1085,15 @@
 			return
 
 		if(!isliving(user))
-			boutput(user, "<span style=\"color:red\">Only living mobs are able to use the manufacturer's quick-load feature.</span>")
+			boutput(user, "<span class='alert'>Only living mobs are able to use the manufacturer's quick-load feature.</span>")
 			return
 
 		if (!istype(O,/obj/))
-			boutput(user, "<span style=\"color:red\">You can't quick-load that.</span>")
+			boutput(user, "<span class='alert'>You can't quick-load that.</span>")
 			return
 
 		if(get_dist(O,user) > 1)
-			boutput(user, "<span style=\"color:red\">You are too far away!</span>")
+			boutput(user, "<span class='alert'>You are too far away!</span>")
 			return
 
 
@@ -904,21 +1102,21 @@
 
 		if (istype(O, /obj/storage/crate/) || istype(O, /obj/storage/cart/) && src.accept_loading(user,1))
 			if (O:welded || O:locked)
-				boutput(user, "<span style=\"color:red\">You cannot load from a container that cannot open!</span>")
+				boutput(user, "<span class='alert'>You cannot load from a container that cannot open!</span>")
 				return
 
-			user.visible_message("<span style=\"color:blue\">[user] uses [src]'s automatic loader on [O]!</span>", "<span style=\"color:blue\">You use [src]'s automatic loader on [O].</span>")
+			user.visible_message("<span class='notice'>[user] uses [src]'s automatic loader on [O]!</span>", "<span class='notice'>You use [src]'s automatic loader on [O].</span>")
 			var/amtload = 0
 			for (var/obj/item/M in O.contents)
 				if (!istype(M,src.base_material_class))
 					continue
 				src.load_item(M)
 				amtload++
-			if (amtload) boutput(user, "<span style=\"color:blue\">[amtload] materials loaded from [O]!</span>")
-			else boutput(user, "<span style=\"color:red\">No material loaded!</span>")
+			if (amtload) boutput(user, "<span class='notice'>[amtload] materials loaded from [O]!</span>")
+			else boutput(user, "<span class='alert'>No material loaded!</span>")
 
 		else if (isitem(O) && src.accept_loading(user,1))
-			user.visible_message("<span style=\"color:blue\">[user] begins quickly stuffing materials into [src]!</span>")
+			user.visible_message("<span class='notice'>[user] begins quickly stuffing materials into [src]!</span>")
 			var/staystill = user.loc
 			for(var/obj/item/M in view(1,user))
 				if (!O)
@@ -934,7 +1132,7 @@
 				src.load_item(M)
 				sleep(0.5)
 				if (user.loc != staystill) break
-			boutput(user, "<span style=\"color:blue\">You finish stuffing materials into [src]!</span>")
+			boutput(user, "<span class='notice'>You finish stuffing materials into [src]!</span>")
 
 		else ..()
 
@@ -1175,7 +1373,7 @@
 			src.mode = "halt"
 			src.error = "Corrupted entry purged from production queue."
 			src.queue -= src.queue[1]
-			src.visible_message("<span style=\"color:red\">[src] emits an angry buzz!</span>")
+			src.visible_message("<span class='alert'>[src] emits an angry buzz!</span>")
 			playsound(src.loc, src.sound_grump, 50, 1)
 			src.build_icon()
 			return
@@ -1186,7 +1384,7 @@
 			src.mode = "halt"
 			src.error = "Corrupted entry purged from production queue."
 			src.queue -= src.queue[1]
-			src.visible_message("<span style=\"color:red\">[src] emits an angry buzz!</span>")
+			src.visible_message("<span class='alert'>[src] emits an angry buzz!</span>")
 			playsound(src.loc, src.sound_grump, 50, 1)
 			src.build_icon()
 			return
@@ -1202,23 +1400,33 @@
 			if (!mats_used)
 				src.mode = "halt"
 				src.error = "Insufficient usable materials to continue queue production."
-				src.visible_message("<span style=\"color:red\">[src] emits an angry buzz!</span>")
+				src.visible_message("<span class='alert'>[src] emits an angry buzz!</span>")
 				playsound(src.loc, src.sound_grump, 50, 1)
 				src.build_icon()
 				return
 			else
 				src.materials_in_use = mats_used
 
-			src.powconsumption = 1500
-			src.powconsumption *= src.speed * 1.5
+			// speed/power usage
+			// spd   time    new     old (1500 * speed * 1.5)
+			// 1:    10.0s     750   2250
+			// 2:     5.0s    3000   4500
+			// 3:     3.3s    6750   6750
+			// 4:     2.5s   12000   9000
+			// 5:     2.0s   18750  11250
+			src.powconsumption = 750 * src.speed ** 2
 			src.timeleft = M.time
 			if (src.malfunction)
 				src.powconsumption += 3000
 				src.timeleft += rand(2,6)
 				src.timeleft *= 1.5
+			src.timeleft /= src.speed
 		playsound(src.loc, src.sound_beginwork, 50, 1, 0, 3)
 		src.mode = "working"
 		src.build_icon()
+
+		src.action_bar = actions.start(new/datum/action/bar/manufacturer(src, src.timeleft), src)
+
 
 	proc/output_loop(var/datum/manufacture/M)
 
@@ -1248,12 +1456,6 @@
 
 			src.remove_materials(M)
 
-		if (src.repeat)
-			if (!mcheck)
-				src.queue -= M
-		else
-			src.queue -= M
-		src.begin_work(1)
 		return
 
 	proc/dispense_product(var/product,var/datum/manufacture/M)
@@ -1304,7 +1506,7 @@
 		if (status & BROKEN || status & NOPOWER || !src.malfunction)
 			return
 		animate_shake(src,5,rand(3,8),rand(3,8))
-		src.visible_message("<span style=\"color:red\">[src] makes [pick(src.text_flipout_adjective)] [pick(src.text_flipout_noun)]!</span>")
+		src.visible_message("<span class='alert'>[src] makes [pick(src.text_flipout_adjective)] [pick(src.text_flipout_noun)]!</span>")
 		playsound(src.loc, pick(src.sounds_malfunction), 50, 2)
 		if (prob(15) && src.contents.len > 4 && src.mode != "working")
 			var/to_throw = rand(1,4)
@@ -1378,70 +1580,152 @@
 			src.UpdateOverlays(null, "panel")
 
 	proc/build_material_list()
-		var/list/dat = list("<b>Available Materials & Reagents:</b><small><br>")
+		var/list/dat = list()
+		dat += {"
+<table class="outline" style="width: 100%;">
+	<thead>
+		<tr><th colspan='2'>Loaded Materials</th></tr>
+	</thead>
+	<tbody>
+		"}
 		for(var/mat_id in src.resource_amounts)
 			var/datum/material/mat = getMaterial(mat_id)
-			dat += "<A href='?src=\ref[src];eject=[mat_id]'><B>[mat]:</B></A> [src.resource_amounts[mat_id]]<br>"
+			dat += {"
+		<tr>
+			<td><a href='?src=\ref[src];eject=[mat_id]' class='buttonlink'>&#9167;</a> [mat]</td>
+			<td class='r'>[src.resource_amounts[mat_id]]</td>
+		</tr>
+			"}
 		if (dat.len == 1)
-			dat += "No materials currently loaded.<br>"
+			dat += {"
+		<tr>
+			<td colspan='2' class='c'>No materials loaded.</td>
+		</tr>
+			"}
 
-		var/reag_list = ""
-		for(var/current_id in src.reagents.reagent_list)
-			var/datum/reagent/current_reagent = src.reagents.reagent_list[current_id]
-			dat += "[reag_list ? "<br>" : " "][current_reagent.volume] units of <A href='?src=\ref[src];flush=[current_reagent.name]'>[current_reagent.name]</a><br>"
 
-		dat += reag_list
-		dat += "</small>"
+		if (src.reagents.total_volume > 0)
+			dat += {"
+		<tr><th colspan='2'>Loaded Reagents</th></tr>
+			"}
+			for(var/current_id in src.reagents.reagent_list)
+				var/datum/reagent/current_reagent = src.reagents.reagent_list[current_id]
+				dat += {"
+		<tr>
+			<td><a href='?src=\ref[src];flush=[current_reagent.name]'>[current_reagent.name]</a></td>
+			<td class='r'>[current_reagent.volume] units</td>
+		</tr>
+				"}
+
+		if (src.beaker)
+			dat += {"
+		<tr><th colspan='2'>Container</th></tr>
+			"}
+
+			dat += {"
+		<tr><td colspan='2'><a href='?src=\ref[src];ejectbeaker=\ref[src.beaker]' class='buttonlink'>&#9167;</a> [src.beaker.name]<br>([round(src.beaker.reagents.total_volume)]/[src.beaker.reagents.maximum_volume])</td></tr>
+		<tr><td class='c'>
+			"}
+			if (src.reagents.total_volume && src.beaker.reagents.total_volume < src.beaker.reagents.maximum_volume)
+				dat += {"
+				<a href='?src=\ref[src];transto=\ref[src.beaker]'>Transfer<br>Machine &rarr; Container</a>
+				"}
+			else
+				dat += {"
+				&nbsp;
+				"}
+
+			dat += {"
+		</td><td class='c'>
+			"}
+
+			if (src.beaker.reagents.total_volume > 0)
+				dat += {"
+				<a href='?src=\ref[src];transfrom=\ref[src.beaker]'>Transfer<br>Container &rarr; Machine</a>"
+				"}
+
+			dat += {"
+		</td></tr>
+			"}
+		dat += {"
+	</tbody>
+</table>
+			"}
 
 		return dat.Join()
 
-	proc/build_control_panel()
-		var/list/dat = list("<small>")
+	proc/build_control_panel(mob/user as mob)
+		var/list/dat = list()
 
-		if (src.page == 1)
-			dat += "<br><u><A href='?src=\ref[src];page=0'>Production List</A> | <b>Queue:</b> [src.queue.len]</u>"
-		else
-			dat += "<br><u><b>Production List</b> | <A href='?src=\ref[src];page=1'>Queue:</A> [src.queue.len]</u>"
+		var/list/speed_opts = list()
+		for (var/i in 1 to (src.hacked ? 5 : 3))
+			speed_opts += "<a href='?src=\ref[src];speed=[i]' class='buttonlink' style='[i == src.speed ? "font-weight: bold; background: #6c6;" : ""]'>[i]</a>"
 
-		if (src.mode == "working" && src.queue.len > 0)
-			dat += "<br><b>Current Production:</b> <u>[src.queue[1]]</u>"
-		else
-			dat += "<br><b>Current Production:</b> None"
+		if (src.speed > (src.hacked ? 5 : 3))
+			// sometimes people get these set to wacky values
+			speed_opts += "<a href='?src=\ref[src];speed=[src.speed]' class='buttonlink' style='font-weight: bold; background: #c66;'>[src.speed]</a>"
 
-		dat += "<HR>"
+		dat += {"
+			<br>
+			<table style='width: 100%:'>
+				<thead><tr><th style='width: 50%:'>Speed</th><th style='width: 50%:'>Repeat</th></tr></thead>
+				<tbody><tr>
+					<td class='c'>[speed_opts.Join(" ")]</td>
+					<td class='c'><a href='?src=\ref[src];repeat=1'>[src.repeat ? "Yes" : "No"]</a></td>
+				</tr></tbody>
+			</table>
 
-		dat += "<b><A href='?src=\ref[src];speed=1'>Speed:</A></b> [src.speed]"
+			"}
+		if (src.error)
+			dat += "<br><b>ERROR: [src.error]</b><br>"
 
-		if (src.repeat == 1)
-			dat += " | <A href='?src=\ref[src];repeat=1'><b>Repeat: On</b></A>"
-		else
-			dat += " | <A href='?src=\ref[src];repeat=1'><b>Repeat: Off</b></A>"
+		var/queue_num = 1
+		for(var/datum/manufacture/A in src.queue)
 
-		dat += "<br>"
-
-		if (src.retain_output_internally >= 0)
-			if (src.retain_output_internally == 1)
-				dat += "<A href='?src=\ref[src];internalize=1'><b>Store outputs internally: Yes</b></A>"
+			var/time_number = 0
+			var/remove_link = ""
+			var/pause_link = ""
+			if (queue_num == 1)
+				// if (istype(A,/datum/manufacture/) && src.speed != 0 && timeleft != 0)
+				// 	time_number = round(src.timeleft / src.speed)
+				pause_link = (src.mode == "working" ? "<a href='?src=\ref[src];pause=1' class='buttonlink'>&#9208; Pause</a>" : "<a href='?src=\ref[src];continue=1' class='buttonlink'>&#57914; Resume</a>") + "<br>"
 			else
-				dat += "<A href='?src=\ref[src];internalize=1'><b>Store outputs internally: No</b></A>"
+				pause_link = ""
 
-		dat += "<br>"
+			time_number = A.time && src.speed ? round(A.time / src.speed / 10, 0.1) : "??"
 
-		if (src.beaker)
-			dat += "<A href='?src=\ref[src];ejectbeaker=\ref[src.beaker]'><b>Receptacle:</b></a> [src.beaker.name]"
-			if (src.beaker.reagents.total_volume < src.beaker.reagents.maximum_volume)
-				dat += " <A href='?src=\ref[src];transto=\ref[src.beaker]'>(Transfer to Receptacle)</a>"
-			if (src.beaker.reagents.total_volume > 0)
-				dat += " <A href='?src=\ref[src];transfrom=\ref[src.beaker]'>(Transfer to Unit)</a>"
-		else
-			dat += "No reagent receptacle inserted."
+			if (src.mode != "working" || queue_num != 1)
+				remove_link = "<a href='?src=\ref[src];removefromQ=[queue_num]' class='buttonlink'>&#128465; Remove</a>"
+			else
+				// shut up
+				remove_link = "&#8987; Working..."
 
-		dat += "<br>"
+			var/icon_text = ""
+			if (A.item_outputs)
+				var/icon_rsc = getItemIcon(A.item_outputs[1], C = usr.client)
+				// usr << browse_rsc(browse_item_icons[icon_rsc], icon_rsc)
+				icon_text = "<img class='icon' src='[icon_rsc]'>"
 
-		if (!src.page)
-			dat += "<A href='?src=\ref[src];category=1'>Filter</A> | <A href='?src=\ref[src];search=1'>Search</A>"
+			if (istype(A, /datum/manufacture/mechanics))
+				var/datum/manufacture/mechanics/F = A
+				var/icon_rsc = getItemIcon(F.frame_path, C = usr.client)
+				// user << browse_rsc(browse_item_icons[icon_rsc], icon_rsc)
+				icon_text = "<img class='icon' src='[icon_rsc]'>"
 
-		dat += "</small>"
+
+			dat += {"
+		<div class='queue'>
+			[icon_text]
+			<strong>[A.name]</strong>
+			<br>[time_number] sec.
+		</div><div style='display: inline-block; vertical-align: middle;'>
+		[pause_link]
+		[remove_link]
+		</div>
+		<br>
+		"}
+
+			queue_num++
 
 		return dat.Join()
 
@@ -1473,8 +1757,9 @@
 		if (damage_amount > 0)
 			playsound(src.loc, src.sound_damaged, 50, 2)
 			if (src.health == 0)
-				src.visible_message("<span style=\"color:red\"><b>[src.name] is destroyed!</b></span>")
-				robogibs(src.loc,null)
+				src.visible_message("<span class='alert'><b>[src.name] is destroyed!</b></span>")
+				SPAWN_DBG(0)
+					robogibs(src.loc,null)
 				playsound(src.loc, src.sound_destroyed, 50, 2)
 				qdel(src)
 				return
@@ -1484,11 +1769,11 @@
 			if (src.malfunction && prob(40))
 				src.flip_out()
 			if (src.health <= 25 && !(src.status & BROKEN))
-				src.visible_message("<span style=\"color:red\"><b>[src.name] breaks down and stops working!</b></span>")
+				src.visible_message("<span class='alert'><b>[src.name] breaks down and stops working!</b></span>")
 				src.status |= BROKEN
 		else
 			if (src.health >= 60 && src.status & BROKEN)
-				src.visible_message("<span style=\"color:red\"><b>[src.name] looks like it can function again!</b></span>")
+				src.visible_message("<span class='alert'><b>[src.name] looks like it can function again!</b></span>")
 				status &= ~BROKEN
 
 		src.build_icon()
@@ -1570,6 +1855,7 @@
 
  	//TODO : pooling i guess cause other paper does
 	New(var/loc,var/schematic = null)
+		..()
 		if(istype(schematic, /datum/manufacture))
 			src.blueprint = schematic
 		else if (!schematic)
@@ -1610,7 +1896,7 @@
 	throw_range = 10
 
 	attack_self(mob/user as mob)
-		boutput(user, "<span style=\"color:red\">The folder disintegrates in your hands, and papers scatter out. Shit!</span>")
+		boutput(user, "<span class='alert'>The folder disintegrates in your hands, and papers scatter out. Shit!</span>")
 		new /obj/item/paper/manufacturer_blueprint/clonepod(get_turf(src))
 		new /obj/item/paper/manufacturer_blueprint/clonegrinder(get_turf(src))
 		new /obj/item/paper/manufacturer_blueprint/clone_scanner(get_turf(src))
@@ -1652,9 +1938,9 @@
 	name = "General Manufacturer"
 	desc = "A manufacturing unit calibrated to produce tools and general purpose items."
 	free_resource_amt = 5
-	free_resources = list(/obj/item/material_piece/mauxite,
-		/obj/item/material_piece/pharosium,
-		/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 	available = list(/datum/manufacture/screwdriver,
 		/datum/manufacture/wirecutters,
 		/datum/manufacture/wrench,
@@ -1667,6 +1953,7 @@
 		/datum/manufacture/multitool,
 		/datum/manufacture/metal,
 		/datum/manufacture/metalR,
+		/datum/manufacture/rods2,
 		/datum/manufacture/glass,
 		/datum/manufacture/glassR,
 		/datum/manufacture/atmos_can,
@@ -1703,12 +1990,8 @@
 		/datum/manufacture/vuvuzela,
 		/datum/manufacture/harmonica,
 		/datum/manufacture/bikehorn,
-		/datum/manufacture/stunrounds,
 		/datum/manufacture/bullet_22,
 		/datum/manufacture/bullet_smoke,
-#if ASS_JAM
-		/datum/manufacture/bullet_12g_nail,
-#endif
 		/datum/manufacture/stapler)
 
 /obj/machinery/manufacturer/robotics
@@ -1717,9 +2000,9 @@
 	icon_state = "fab-robotics"
 	icon_base = "robotics"
 	free_resource_amt = 5
-	free_resources = list(/obj/item/material_piece/mauxite,
-	/obj/item/material_piece/pharosium,
-	/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 
 	available = list(/datum/manufacture/robo_frame,
 	/datum/manufacture/full_cyborg_standard,
@@ -1747,7 +2030,7 @@
 	/datum/manufacture/core_frame,
 	/datum/manufacture/shell_frame,
 	/datum/manufacture/ai_interface,
-	/datum/manufacture/latejoin,
+	/datum/manufacture/latejoin_brain,
 	/datum/manufacture/shell_cell,
 	/datum/manufacture/cable,
 	/datum/manufacture/powercell,
@@ -1768,10 +2051,12 @@
 	/datum/manufacture/firebot,
 	/datum/manufacture/floorbot,
 	/datum/manufacture/cleanbot,
+	/datum/manufacture/digbot,
 	/datum/manufacture/visor,
 	/datum/manufacture/deafhs,
 	/datum/manufacture/robup_jetpack,
 	/datum/manufacture/robup_healthgoggles,
+	/datum/manufacture/robup_sechudgoggles,
 	/datum/manufacture/robup_spectro,
 	/datum/manufacture/robup_recharge,
 	/datum/manufacture/robup_repairpack,
@@ -1788,6 +2073,7 @@
 	/datum/manufacture/implant_robotalk,
 	/datum/manufacture/sbradio,
 	/datum/manufacture/implant_health,
+	/datum/manufacture/implant_antirot,
 	/datum/manufacture/cyberappendix,
 	/datum/manufacture/cyberpancreas,
 	/datum/manufacture/cyberspleen,
@@ -1813,10 +2099,10 @@
 	icon_state = "fab-med"
 	icon_base = "med"
 	free_resource_amt = 2
-	free_resources = list(/obj/item/material_piece/mauxite,
-	/obj/item/material_piece/cloth/cottonfabric,
-	/obj/item/material_piece/pharosium,
-	/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass,
+		/obj/item/material_piece/cloth/cottonfabric)
 
 	available = list(
 		/datum/manufacture/scalpel,
@@ -1849,6 +2135,7 @@
 		/datum/manufacture/body_bag,
 		/datum/manufacture/implanter,
 		/datum/manufacture/implant_health,
+		/datum/manufacture/implant_antirot,
 		/datum/manufacture/crowbar,
 		/datum/manufacture/extinguisher,
 		/datum/manufacture/cyberappendix,
@@ -1860,6 +2147,7 @@
 		/datum/manufacture/cyberliver,
 		/datum/manufacture/cyberlung_left,
 		/datum/manufacture/cyberlung_right,
+		/datum/manufacture/empty_kit,
 		/datum/manufacture/rods2,
 		/datum/manufacture/metal,
 		/datum/manufacture/glass
@@ -1874,9 +2162,9 @@
 	icon_state = "fab-mining"
 	icon_base = "mining"
 	free_resource_amt = 2
-	free_resources = list(/obj/item/material_piece/mauxite,
-	/obj/item/material_piece/pharosium,
-	/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 	available = list(/datum/manufacture/pick,
 	/datum/manufacture/powerpick,
 	/datum/manufacture/blastchargeslite,
@@ -1884,6 +2172,7 @@
 	/datum/manufacture/powerhammer,
 	/datum/manufacture/drill,
 	/datum/manufacture/conc_gloves,
+	/datum/manufacture/digbot,
 	/datum/manufacture/jumpsuit,
 	/datum/manufacture/shoes,
 	/datum/manufacture/breathmask,
@@ -1893,10 +2182,12 @@
 	/datum/manufacture/powercell,
 	/datum/manufacture/powercellE,
 	/datum/manufacture/powercellC,
+	/datum/manufacture/ore_scoop,
 	/datum/manufacture/oresatchel,
 	/datum/manufacture/oresatchelL,
 	/datum/manufacture/jetpack,
 	/datum/manufacture/geoscanner,
+	/datum/manufacture/geigercounter,
 	/datum/manufacture/eyes_meson,
 	/datum/manufacture/flashlight,
 	/datum/manufacture/ore_accumulator,
@@ -1917,11 +2208,9 @@
 	icon_state = "fab-hangar"
 	icon_base = "hangar"
 	free_resource_amt = 2
-	free_resources = list(
-		/obj/item/material_piece/mauxite,
-		/obj/item/material_piece/pharosium,
-		/obj/item/material_piece/molitz
-	)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 	available = list(
 		/datum/manufacture/putt/engine,
 		/datum/manufacture/putt/boards,
@@ -1975,12 +2264,15 @@
 	/datum/manufacture/hat_yellow,
 	/datum/manufacture/hat_red,
 	/datum/manufacture/hat_green,
+	/datum/manufacture/hat_pink,
+	/datum/manufacture/hat_orange,
 	/datum/manufacture/hat_tophat,
 	/datum/manufacture/backpack,
 	/datum/manufacture/satchel)
 
 	hidden = list(/datum/manufacture/breathmask,
-	/datum/manufacture/patch)
+	/datum/manufacture/patch,
+	/datum/manufacture/hat_ltophat)
 	///datum/manufacture/hermes) //all hail the shoe lord - needs adjusting for the new movement system which I cba to do right now
 
 /// cogwerks - a gas extractor for the engine
@@ -2007,7 +2299,9 @@
 	icon_state = "fab-hangar"
 	icon_base = "hangar"
 	free_resource_amt = 2
-	free_resources = list(/obj/item/material_piece/mauxite,/obj/item/material_piece/pharosium,/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 
 /obj/machinery/manufacturer/personnel
 	name = "Personnel Equipment Manufacturer"
@@ -2015,7 +2309,9 @@
 	icon_state = "fab-access"
 	icon_base = "access"
 	free_resource_amt = 2
-	free_resources = list(/obj/item/material_piece/mauxite,/obj/item/material_piece/pharosium,/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass)
 	available = list(/datum/manufacture/id_card, /datum/manufacture/implant_access,	/datum/manufacture/implanter) //hey if you update these please remember to add it to /hop_and_uniform's list too
 	hidden = list(/datum/manufacture/id_card_gold, /datum/manufacture/implant_access_infinite)
 
@@ -2027,7 +2323,10 @@
 	icon_state = "fab-access"
 	icon_base = "access"
 	free_resource_amt = 5
-	free_resources = list(/obj/item/material_piece/cloth/cottonfabric,/obj/item/material_piece/mauxite,/obj/item/material_piece/pharosium,/obj/item/material_piece/molitz)
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass,
+		/obj/item/material_piece/cloth/cottonfabric)
 	accept_blueprints = 0
 	available = list(/datum/manufacture/id_card,
 	/datum/manufacture/implant_access,
@@ -2052,12 +2351,15 @@
 	/datum/manufacture/hat_yellow,
 	/datum/manufacture/hat_red,
 	/datum/manufacture/hat_green,
+	/datum/manufacture/hat_pink,
+	/datum/manufacture/hat_orange,
 	/datum/manufacture/hat_tophat)
 
 	hidden = list(/datum/manufacture/id_card_gold,
 	/datum/manufacture/implant_access_infinite,
 	/datum/manufacture/breathmask,
-	/datum/manufacture/patch)
+	/datum/manufacture/patch,
+	/datum/manufacture/hat_ltophat)
 
 /obj/machinery/manufacturer/qm // This manufacturer just creates different crated and boxes for the QM. Lets give their boring lives at least something more interesting.
 	name = "Crate Manufacturer"
@@ -2065,7 +2367,7 @@
 	icon_state = "fab-crates"
 	icon_base = "crates"
 	free_resource_amt = 5
-	free_resources = list(/obj/item/material_piece/mauxite)
+	free_resources = list(/obj/item/material_piece/steel)
 	accept_blueprints = 0
 	available = list(/datum/manufacture/crate,	//hey if you update these please remember to add it to /hop_and_uniform's list too
 	/datum/manufacture/packingcrate,
@@ -2076,8 +2378,119 @@
 
 	hidden = list(/datum/manufacture/classcrate)
 
+/obj/machinery/manufacturer/zombie_survival
+	name = "Uber-Extreme Survival Manufacturer"
+	desc = "A manufacturing unit calibrated to produce items useful in surviving extreme scenarios."
+	icon_state = "fab-crates"
+	icon_base = "crates"
+	free_resource_amt = 50
+	free_resources = list(/obj/item/material_piece/steel,
+		/obj/item/material_piece/copper,
+		/obj/item/material_piece/glass,
+		/obj/item/material_piece/cloth/cottonfabric)
+	accept_blueprints = 0
+	available = list(
+	/datum/manufacture/engspacesuit,
+	/datum/manufacture/breathmask,
+	/datum/manufacture/suture,
+	/datum/manufacture/scalpel,
+	/datum/manufacture/flashlight,
+	/datum/manufacture/armor_vest,
+	/datum/manufacture/bullet_22,
+	/datum/manufacture/harmonica,
+	/datum/manufacture/riot_shotgun,
+	/datum/manufacture/riot_shotgun_ammo,
+	/datum/manufacture/clock,
+	/datum/manufacture/clock_ammo,
+	/datum/manufacture/saa,
+	/datum/manufacture/saa_ammo,
+	/datum/manufacture/riot_launcher,
+	/datum/manufacture/riot_launcher_ammo_pbr,
+	/datum/manufacture/riot_launcher_ammo_flashbang,
+	/datum/manufacture/sniper,
+	/datum/manufacture/sniper_ammo,
+	/datum/manufacture/tac_shotgun,
+	/datum/manufacture/tac_shotgun_ammo,
+	/datum/manufacture/gyrojet,
+	/datum/manufacture/gyrojet_ammo,
+	/datum/manufacture/plank,
+	/datum/manufacture/brute_kit,
+	/datum/manufacture/burn_kit,
+	/datum/manufacture/crit_kit,
+	/datum/manufacture/spacecillin,
+	/datum/manufacture/bat,
+	/datum/manufacture/quarterstaff,
+	/datum/manufacture/cleaver,
+	/datum/manufacture/fireaxe,
+	/datum/manufacture/shovel)
+
 #undef WIRE_EXTEND
 #undef WIRE_POWER
 #undef WIRE_MALF
 #undef WIRE_SHOCK
 #undef MAX_QUEUE_LENGTH
+
+
+
+// -------------------
+/datum/action/bar/manufacturer
+	duration = 1000
+	id = "manufacturer"
+	var/obj/machinery/manufacturer/MA
+	var/completed = 0
+
+	New(machine, dur)
+		MA = machine
+		duration = dur
+		..()
+
+	onUpdate()
+		..()
+		if (MA.malfunction && prob(8))
+			MA.flip_out()
+
+		if (MA.status & (NOPOWER | BROKEN))
+			interrupt(INTERRUPT_ALWAYS)
+			return
+
+	onInterrupt()
+		..()
+		// Kind of a gross hack to store the time remaining on pause.
+		MA.timeleft = (src.started + src.duration) - world.time
+		MA.manual_stop = 0
+		MA.error = null
+		MA.mode = "ready"
+		MA.build_icon()
+
+	onEnd()
+		..()
+		src.completed = 1
+		MA.finish_work()
+		// call dispense
+
+	onDelete()
+		..()
+		MA.action_bar = null
+		if (src.completed && MA.queue.len)
+			SPAWN_DBG(1)
+				MA.begin_work(1)
+
+
+
+/proc/build_manufacturer_icons()
+	// pre-build all the icons for shit manufacturers make
+	for (var/datum/manufacture/P as() in typesof(/datum/manufacture))
+		if (ispath(P, /datum/manufacture/mechanics))
+			var/datum/manufacture/mechanics/M = P
+			if (!initial(M.frame_path))
+				continue
+			getItemIcon(initial(M.frame_path))
+
+		else
+			// temporarily create this so we can get the list from it
+			// i tried very hard to use initial() here and got nowhere,
+			// but the fact it's a list seems to not really go well with it
+			// maybe someone else can get it to work.
+			var/datum/manufacture/I = new P
+			if (I && length(I.item_outputs) && I.item_outputs[1])
+				getItemIcon(I.item_outputs[1])

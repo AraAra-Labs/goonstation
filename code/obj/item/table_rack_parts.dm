@@ -14,7 +14,7 @@ RACK PARTS
 	inhand_image_icon = 'icons/mob/inhand/hand_tools.dmi'
 	flags = FPRINT | TABLEPASS | CONDUCT
 	stamina_damage = 35
-	stamina_cost = 35
+	stamina_cost = 22
 	stamina_crit_chance = 10
 	var/furniture_type = /obj/table/auto
 	var/furniture_name = "table"
@@ -27,7 +27,7 @@ RACK PARTS
 		if (storage_thing)
 			src.contained_storage = storage_thing
 			src.contained_storage.set_loc(src)
-		BLOCK_LARGE
+		BLOCK_SETUP(BLOCK_LARGE)
 
 	proc/construct(mob/user as mob, turf/T as turf)
 		var/obj/newThing = null
@@ -85,7 +85,7 @@ RACK PARTS
 	attack_self(mob/user as mob)
 		actions.start(new /datum/action/bar/icon/furniture_build(src, src.furniture_name, src.build_duration), user)
 
-	dispose()
+	disposing()
 		if (src.contained_storage && src.contained_storage.contents.len)
 			var/turf/T = get_turf(src)
 			for (var/atom/movable/A in src.contained_storage)
@@ -191,7 +191,7 @@ RACK PARTS
 	icon = 'icons/obj/furniture/table_reinforced.dmi'
 	reinforced = 1
 	stamina_damage = 40
-	stamina_cost = 40
+	stamina_cost = 22
 	stamina_crit_chance = 15
 	furniture_type = /obj/table/reinforced/auto
 	furniture_name = "reinforced table"
@@ -230,7 +230,7 @@ RACK PARTS
 	icon = 'icons/obj/metal.dmi'
 	icon_state = "rack_parts"
 	stamina_damage = 25
-	stamina_cost = 25
+	stamina_cost = 22
 	stamina_crit_chance = 15
 	furniture_type = /obj/rack
 	furniture_name = "rack"
@@ -270,6 +270,14 @@ RACK PARTS
 	furniture_type = /obj/stool/wooden
 	furniture_name = "wooden stool"
 
+
+/obj/item/furniture_parts/stool/bee_bed
+	name = "bee bed parts"
+	desc = "A collection of parts that can be used to make a bee bed."
+	icon = 'icons/obj/furniture/chairs.dmi'
+	icon_state = "comf_chair_parts-b"	// @TODO new icon, mprobably
+	furniture_type = /obj/stool/bee_bed
+	furniture_name = "bee bed"
 
 /obj/item/furniture_parts/stool/bar
 	name = "bar stool parts"
@@ -447,7 +455,7 @@ RACK PARTS
 			duration = duration_i
 		if (ishuman(owner))
 			var/mob/living/carbon/human/H = owner
-			if (H.traitHolder.hasTrait("carpenter"))
+			if (H.traitHolder.hasTrait("carpenter") || H.traitHolder.hasTrait("training_engineer"))
 				duration = round(duration / 2)
 
 	onUpdate()
@@ -468,11 +476,11 @@ RACK PARTS
 
 	onStart()
 		..()
-		owner.visible_message("<span style='color:blue'>[owner] begins constructing \an [fname]!</span>")
+		owner.visible_message("<span class='notice'>[owner] begins constructing \an [fname]!</span>")
 
 	onEnd()
 		..()
-		owner.visible_message("<span style='color:blue'>[owner] constructs \an [fname]!</span>")
+		owner.visible_message("<span class='notice'>[owner] constructs \an [fname]!</span>")
 		fparts.construct(owner)
 
 /datum/action/bar/icon/furniture_deconstruct
@@ -497,7 +505,7 @@ RACK PARTS
 			duration = duration_i
 		if (ishuman(owner))
 			var/mob/living/carbon/human/H = owner
-			if (H.traitHolder.hasTrait("carpenter"))
+			if (H.traitHolder.hasTrait("carpenter") || H.traitHolder.hasTrait("training_engineer"))
 				duration = round(duration / 2)
 
 	onUpdate()
@@ -512,10 +520,10 @@ RACK PARTS
 	onStart()
 		..()
 		playsound(get_turf(the_furniture), "sound/items/Ratchet.ogg", 50, 1)
-		owner.visible_message("<span style='color:blue'>[owner] begins disassembling [the_furniture].</span>")
+		owner.visible_message("<span class='notice'>[owner] begins disassembling [the_furniture].</span>")
 
 	onEnd()
 		..()
 		playsound(get_turf(the_furniture), "sound/items/Deconstruct.ogg", 50, 1)
 		the_furniture:deconstruct() // yes a colon, bite me
-		owner.visible_message("<span style='color:blue'>[owner] disassembles [the_furniture].</span>")
+		owner.visible_message("<span class='notice'>[owner] disassembles [the_furniture].</span>")

@@ -1,7 +1,7 @@
 /datum/abilityHolder/vampire/var/list/bat_orbiters
 
 /datum/abilityHolder/vampire/proc/launch_bat_orbiters()
-	if (bat_orbiters && bat_orbiters.len)
+	if (length(bat_orbiters))
 		for (var/obj/projectile/P in bat_orbiters)
 			if (get_dist(P,src.owner) < 4)
 				P.targets = 0
@@ -98,7 +98,7 @@
 
 		if (M.wear_mask && istype(M.wear_mask, /obj/item/clothing/mask/muzzle))
 			boutput(M, __red("How do you expect this to work? You're muzzled!"))
-			M.visible_message("<span style=\"color:red\"><b>[M]</b> makes a loud noise.</span>")
+			M.visible_message("<span class='alert'><b>[M]</b> makes a loud noise.</span>")
 			if (istype(H)) H.blood_tracking_output(src.pointCost)
 			return 0 // Cooldown because spam is bad.
 

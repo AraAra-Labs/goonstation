@@ -71,7 +71,6 @@ Filter types:
 		air_out2.volume = 200
 
 	disposing()
-		loc = null
 
 		if (network_in)
 			network_in.air_disposing_hook(air_in, air_out1, air_out2)
@@ -143,7 +142,7 @@ Filter types:
 		if(!on)
 			return 0
 
-		var/output_starting_pressure = air_out2.return_pressure()
+		var/output_starting_pressure = MIXTURE_PRESSURE(air_out2)
 
 		if(output_starting_pressure >= target_pressure)
 			//No need to mix if target is already full!
@@ -194,8 +193,9 @@ Filter types:
 
 				if(4) //removing trace gases
 					if(removed)
-						if(removed.trace_gases && removed.trace_gases.len)
-							for(var/datum/gas/trace_gas in removed.trace_gases)
+						if(length(removed.trace_gases))
+							for(var/G in removed.trace_gases)
+								var/datum/gas/trace_gas = G
 								if(trace_gas)
 									removed.trace_gases -= trace_gas
 									if(!removed.trace_gases.len)

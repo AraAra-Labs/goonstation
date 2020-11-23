@@ -22,13 +22,15 @@
 	var/has_fat_guy = 0	// true if contains a fat person
 	var/last_sound = 0
 
+	var/slowed = 0 // when you move, slows you down
+
 	var/mail_tag = null //Switching junctions with the same tag will pass it out the secondary instead of primary
 
 	unpooled()
 		..()
 		gas = null
 		active = 0
-		dir = 0
+		set_dir(0)
 		count = initial(count)
 		has_fat_guy = 0
 		last_sound = 0
@@ -37,7 +39,7 @@
 	pooled()
 		gas = null
 		active = 0
-		dir = 0
+		set_dir(0)
 		has_fat_guy = 0
 		last_sound = 0
 		mail_tag = null
@@ -47,7 +49,7 @@
 	proc/init(var/obj/machinery/disposal/D)
 		gas = D.air_contents.remove_ratio(1)	// transfer gas resv. into holder object
 
-		// loc = null makes some stuff grumpy, ok?
+		// set_loc(null makes some stuff grumpy, ok?)
 		if(D.trunk)
 			src.set_loc(D.trunk)
 		else
@@ -72,9 +74,9 @@
 			D.expel(src)	// no trunk connected, so expel immediately
 			return
 
-		loc = D.trunk
+		set_loc(D.trunk)
 		active = 1
-		dir = DOWN
+		set_dir(DOWN)
 		SPAWN_DBG(1 DECI SECOND)
 			process()		// spawn off the movement process
 
@@ -93,17 +95,21 @@
 
 				break
 			sleep(0.1 SECONDS)		// was 1
-			if (!loc)
-				return
-			var/obj/disposalpipe/curr = loc
-			last = curr
-			curr = curr.transfer(src)
-			if(!curr)
-				last.expel(src, loc, dir)
+			if(slowed > 0)
+				slowed--
+				slowed = max(slowed,0)
+				sleep(1 SECONDS)
+			else
+				if (!loc)
+					return
+				var/obj/disposalpipe/curr = loc
+				last = curr
+				curr = curr.transfer(src)
+				if(!curr)
+					last.expel(src, loc, dir)
 
-			//
-			if(!(count--))
-				active = 0
+				if(!(count--))
+					active = 0
 		return
 
 	// find the turf which should contain the next pipe
@@ -150,6 +156,31 @@
 		if(last_sound + 6 < world.time)
 			playsound(src.loc, "sound/impact_sounds/Metal_Clang_1.ogg", 50, 0, 0)
 			last_sound = world.time
+			damage_pipe()
+			if(prob(30))
+				slowed++
+
+	mob_flip_inside(var/mob/user)
+		var/obj/disposalpipe/P = src.loc
+		if(!istype(P))
+			return
+		user.show_text("<span class='alert'>You leap and slam against the inside of [P]! Ouch!</span>")
+		user.changeStatus("paralysis", 40)
+		user.changeStatus("weakened", 4 SECONDS)
+		src.visible_message("<span class='alert'><b>[P]</b> emits a loud thump and rattles a bit.</span>")
+
+		animate_storage_thump(P)
+
+		user.show_text("<span class='alert'>[P] [pick("cracks","bends","shakes","groans")].</span>")
+		damage_pipe(5)
+		slowed++
+
+	proc/damage_pipe(var/amount = 3)
+		var/obj/disposalpipe/P = src.loc
+		if(istype(P))
+			P.health -= rand(1,amount)
+			P.health = max(P.health,0)
+			P.healthcheck()
 
 	// called to vent all gas in holder to a location
 	proc/vent_gas(var/atom/location)
@@ -165,12 +196,14 @@
 	desc = "An underfloor disposal pipe."
 	anchored = 1
 	density = 0
+	text = ""
 
 	level = 1			// underfloor only
 	var/dpdir = 0		// bitmask of pipe directions
 	dir = 0				// dir will contain dominant direction for junction pipes
 	var/health = 10 	// health points 0-10
 	layer = DISPOSAL_PIPE_LAYER
+	plane = PLANE_FLOOR
 	var/base_icon_state	// initial icon state on map
 	var/list/mail_tag = null // Tag of mail group for switching pipes
 
@@ -193,7 +226,7 @@
 			// holder was present
 			H.active = 0
 			var/turf/T = get_turf(src)
-			if(T && T.density)
+			if(T?.density)
 				// deleting pipe is inside a dense turf (wall)
 				// this is unlikely, but just dump out everything into the turf in case
 
@@ -218,7 +251,7 @@
 	//
 	proc/transfer(var/obj/disposalholder/H)
 		var/nextdir = nextdir(H.dir)
-		H.dir = nextdir
+		H.set_dir(nextdir)
 		var/turf/T = H.nextloc()
 		var/obj/disposalpipe/P = H.findpipe(T)
 
@@ -293,9 +326,7 @@
 			for(var/atom/movable/AM in H)
 				AM.set_loc(T)
 				AM.pipe_eject(direction)
-				SPAWN_DBG(1 DECI SECOND)
-					if(AM)
-						AM.throw_at(target, 100, 1)
+				AM?.throw_at(target, 100, 1)
 			H.vent_gas(T)
 			pool(H)
 
@@ -307,10 +338,7 @@
 
 				AM.set_loc(T)
 				AM.pipe_eject(0)
-				SPAWN_DBG(1 DECI SECOND)
-					if(AM)
-						AM.throw_at(target, 5, 1)
-				LAGCHECK(LAG_REALTIME)
+				AM?.throw_at(target, 5, 1)
 
 			H.vent_gas(T)	// all gas vent to turf
 			pool(H)
@@ -328,7 +356,7 @@
 			for(var/D in cardinal)
 				if(D & dpdir)
 					var/obj/disposalpipe/broken/P = new(src.loc)
-					P.dir = D
+					P.set_dir(D)
 
 		src.invisibility = 101	// make invisible (since we won't delete the pipe immediately)
 		var/obj/disposalholder/H = locate() in src
@@ -408,16 +436,14 @@
 		if (T.intact)
 			return		// prevent interaction with T-scanner revealed pipes
 
-		if (istype(I, /obj/item/weldingtool))
-			var/obj/item/weldingtool/W = I
-
-			if (W.try_weld(user, 3, noisy = 2))
+		if (isweldingtool(I))
+			if (I:try_weld(user, 3, noisy = 2))
 				// check if anything changed over 2 seconds
 				var/turf/uloc = user.loc
-				var/atom/wloc = W.loc
+				var/atom/wloc = I.loc
 				boutput(user, "You begin slicing [src].")
 				sleep(0.1 SECONDS)
-				if (user.loc == uloc && wloc == W.loc)
+				if (user.loc == uloc && wloc == I.loc)
 					welded(user)
 				else
 					boutput(user, "You must stay still while welding the pipe.")
@@ -448,7 +474,7 @@
 		if (user)
 			boutput(user, "You finish slicing [C].")
 
-		C.dir = dir
+		C.set_dir(dir)
 		C.mail_tag = src.mail_tag
 		C.update()
 
@@ -546,7 +572,7 @@
 		icon_state = "pipe-c"
 		for(var/d in list(1, 2, 4, 8))
 			if((d | turn(d, -90)) == dpdir)
-				dir = d
+				set_dir(d)
 				break
 	base_icon_state = icon_state
 	src.update()
@@ -708,7 +734,7 @@
 			same_group = 1
 
 		var/nextdir = nextdir(H.dir, same_group)
-		H.dir = nextdir
+		H.set_dir(nextdir)
 		var/turf/T = H.nextloc()
 		var/obj/disposalpipe/P = H.findpipe(T)
 
@@ -790,7 +816,7 @@
 				break
 
 		var/nextdir = nextdir(H.dir, redirect)
-		H.dir = nextdir
+		H.set_dir(nextdir)
 		var/turf/T = H.nextloc()
 		var/obj/disposalpipe/P = H.findpipe(T)
 
@@ -811,7 +837,7 @@
 
 		var/obj/disposalconstruct/C = new (src.loc)
 		C.ptype = (src.icon_state == "pipe-sj1" ? 8 : 9)
-		C.dir = dir
+		C.set_dir(dir)
 		C.mail_tag = src.mail_tag
 		C.update()
 
@@ -836,6 +862,11 @@
 		dpdir = dir | turn(dir, 180)
 		update()
 
+	was_built_from_frame(mob/user, newly_built)
+		. = ..()
+		dpdir = dir | turn(dir, 180)
+		update()
+
 	transfer(var/obj/disposalholder/H)
 
 		if (H.contents.len)
@@ -851,9 +882,10 @@
 
 			if(doSuperLoaf)
 				for (var/atom/movable/O2 in H)
+					if(ismob(O2))
+						var/mob/M = O2
+						M.ghostize()
 					qdel(O2)
-					H.contents -= O2
-					O2 = null
 
 				var/obj/item/reagent_containers/food/snacks/einstein_loaf/estein = new /obj/item/reagent_containers/food/snacks/einstein_loaf(src)
 				estein.set_loc(H)
@@ -863,6 +895,8 @@
 				var/obj/item/reagent_containers/food/snacks/ingredient/meat/mysterymeat/nugget/current_nugget
 				var/list/new_nuggets = list()
 				for (var/atom/movable/newIngredient in H)
+					if(istype(newIngredient, /obj/item/reagent_containers/food/snacks/ingredient/meat/mysterymeat/nugget))
+						continue
 					if (!current_nugget)
 						current_nugget = new /obj/item/reagent_containers/food/snacks/ingredient/meat/mysterymeat/nugget(src)
 						new_nuggets += current_nugget
@@ -888,7 +922,7 @@
 
 					if (newIngredient.reagents)
 						var/anItem = isitem(newIngredient)
-						while (newIngredient.reagents.total_volume > 0 || (anItem && newIngredient:w_class--))
+						while (length(new_nuggets) < 50 && (newIngredient.reagents.total_volume > 0 || (anItem && newIngredient:w_class--)))
 							newIngredient.reagents.trans_to(current_nugget, current_nugget.reagents.maximum_volume)
 							if (current_nugget.reagents.total_volume >= current_nugget.reagents.maximum_volume)
 								current_nugget = new /obj/item/reagent_containers/food/snacks/ingredient/meat/mysterymeat/nugget(src)
@@ -899,13 +933,11 @@
 								new_nuggets += current_nugget
 
 					qdel(newIngredient)
-					H.contents -= newIngredient
-					newIngredient = null
 					LAGCHECK(LAG_MED)
 
-					for (var/obj/O in new_nuggets)
-						O.set_loc(H)
-						LAGCHECK(LAG_MED)
+				for (var/obj/O in new_nuggets)
+					O.set_loc(H)
+					LAGCHECK(LAG_MED)
 
 			else
 				var/obj/item/reagent_containers/food/snacks/prison_loaf/newLoaf = new /obj/item/reagent_containers/food/snacks/prison_loaf(src)
@@ -944,7 +976,7 @@
 							poorSoul:emote("scream")
 						sleep(0.5 SECONDS)
 						poorSoul.death()
-						if ((poorSoul.mind || poorSoul.client) && !istype(poorSoul, /mob/living/carbon/human/npc))
+						if (poorSoul.mind || poorSoul.client)
 							poorSoul.ghostize()
 					else if (isitem(newIngredient))
 						var/obj/item/I = newIngredient
@@ -954,7 +986,7 @@
 						newLoaf.loaf_factor++
 
 					H.contents -= newIngredient
-					newIngredient.loc = null
+					newIngredient.set_loc(null)
 					newIngredient = null
 
 					//LAGCHECK(LAG_MED)
@@ -975,7 +1007,7 @@
 			//src.visible_message("<b>[src] deactivates!</b>") // Processor + loop = SPAM
 
 		var/nextdir = nextdir(H.dir)
-		H.dir = nextdir
+		H.set_dir(nextdir)
 		var/turf/T = H.nextloc()
 		var/obj/disposalpipe/P = H.findpipe(T)
 
@@ -996,12 +1028,12 @@
 
 		/*var/obj/disposalconstruct/C = new (src.loc)
 		C.ptype = 10
-		C.dir = dir
+		C.set_dir(dir)
 		C.update()
 
 		qdel(src)*/
 
-		src.visible_message("<span style=\"color:red\">[src] emits a weird noise!</span>")
+		src.visible_message("<span class='alert'>[src] emits a weird noise!</span>")
 
 		src.nugget_mode = !src.nugget_mode
 		src.update()
@@ -1023,12 +1055,10 @@
 	icon_state = "eloaf"
 	force = 0
 	throwforce = 0
+	initial_volume = 1000
 
 	New()
 		..()
-		var/datum/reagents/R = new/datum/reagents(1000)
-		reagents = R
-		R.my_atom = src
 		src.reagents.add_reagent("liquid spacetime",11)
 		src.setMaterial(getMaterial("negativematter"), appearance = 0, setname = 0)
 
@@ -1039,15 +1069,13 @@
 	icon_state = "ploaf0"
 	force = 0
 	throwforce = 0
+	initial_volume = 1000
 	var/loaf_factor = 1
 	var/loaf_recursion = 1
 	var/processing = 0
 
 	New()
 		..()
-		var/datum/reagents/R = new/datum/reagents(1000)
-		reagents = R
-		R.my_atom = src
 		src.reagents.add_reagent("gravy",10)
 		src.reagents.add_reagent("refried_beans",10)
 		src.reagents.add_reagent("fakecheese",10)
@@ -1159,7 +1187,7 @@
 
 				/*SPAWN_DBG(rand(100,1000))
 					if(src)
-						src.visible_message("<span style=\"color:red\"><b>[src] collapses into a black hole! Holy fuck!</b></span>")
+						src.visible_message("<span class='alert'><b>[src] collapses into a black hole! Holy fuck!</b></span>")
 						world << sound("sound/effects/kaboom.ogg")
 						new /obj/bhole(get_turf(src.loc))*/
 
@@ -1171,16 +1199,15 @@
 			return
 		if(src.loc == get_turf(src))
 			var/edge = get_edge_target_turf(src, pick(alldirs))
-			SPAWN_DBG(0)
-				src.throw_at(edge, 100, 1)
+			src.throw_at(edge, 100, 1)
 		if (istype(src.loc,/obj/))
 			if (prob(33))
 				var/obj/container = src.loc
-				container.visible_message("<span style=\"color:red\"><b>[container]</b> emits a loud thump and rattles a bit.</span>")
+				container.visible_message("<span class='alert'><b>[container]</b> emits a loud thump and rattles a bit.</span>")
 				if (istype(container, /obj/storage) && prob(33))
 					var/obj/storage/C = container
 					if (C.can_flip_bust == 1)
-						boutput(src, "<span style=\"color:red\">[C] [pick("cracks","bends","shakes","groans")].</span>")
+						boutput(src, "<span class='alert'>[C] [pick("cracks","bends","shakes","groans")].</span>")
 						C.bust_out()
 
 
@@ -1203,11 +1230,10 @@
 	New()
 		..()
 
-		mechanics = new(src)
-		mechanics.master = src
-		mechanics.addInput("toggle", "toggleactivation")
-		mechanics.addInput("on", "activate")
-		mechanics.addInput("off", "deactivate")
+		AddComponent(/datum/component/mechanics_holder)
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"toggle", "toggleactivation")
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"on", "activate")
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"off", "deactivate")
 
 		SPAWN_DBG (10)
 			switch_dir = turn(dir, 90)
@@ -1247,13 +1273,8 @@
 	welded()
 		var/obj/disposalconstruct/C = new (src.loc)
 		C.ptype = 11
-		C.dir = dir
+		C.set_dir(dir)
 		C.update()
-
-		if (src.mechanics)
-			src.mechanics.wipeIncoming()
-			src.mechanics.wipeOutgoing()
-
 		qdel(src)
 
 //<Jewel>:
@@ -1275,8 +1296,8 @@
 		var/otherdir = nextdir(origHolder.dir, 0)
 		var/biodir = nextdir(origHolder.dir, 1)
 
-		origHolder.dir = otherdir
-		bioHolder.dir = biodir
+		origHolder.set_dir(otherdir)
+		bioHolder.set_dir(biodir)
 
 		var/turf/nonBioTurf = origHolder.nextloc()
 		var/turf/bioTurf = bioHolder.nextloc()
@@ -1303,7 +1324,7 @@
 			boutput(world, "I found a bio pipe at [bioPipe.loc] with [bioHolder.loc]")
 
 		bioHolder.active = 1
-		bioHolder.dir = biodir
+		bioHolder.set_dir(biodir)
 		SPAWN_DBG(1 DECI SECOND)
 			bioHolder.process()
 
@@ -1312,7 +1333,7 @@
 	welded()
 		var/obj/disposalconstruct/C = new (src.loc)
 		C.ptype = (src.icon_state == "pipe-sj1" ? 8 : 9)
-		C.dir = dir
+		C.set_dir(dir)
 		C.mail_tag = src.mail_tag
 		C.update()
 
@@ -1364,8 +1385,7 @@
 			for(var/atom/movable/AM in H)
 				AM.set_loc(src.loc)
 				AM.pipe_eject(dir)
-				SPAWN_DBG(1 DECI SECOND)
-					AM.throw_at(stuff_chucking_target, 3, 1)
+				AM.throw_at(stuff_chucking_target, 3, 1)
 			H.vent_gas(src.loc)
 			pool(H)
 
@@ -1435,8 +1455,7 @@
 			for (var/atom/movable/AM in things_to_dump)
 				AM.set_loc(src.loc)
 				AM.pipe_eject(dir)
-				SPAWN_DBG(1 DECI SECOND)
-					AM.throw_at(stuff_chucking_target, 3, 1)
+				AM.throw_at(stuff_chucking_target, 3, 1)
 			if (H.contents.len < 1)
 				H.vent_gas(src.loc)
 				pool(H)
@@ -1479,12 +1498,32 @@
 	New()
 		..()
 
-		mechanics = new(src)
-		mechanics.master = src
+		AddComponent(/datum/component/mechanics_holder)
 
 		dpdir = dir | turn(dir, 180)
 
 		update()
+
+	attackby(obj/item/W as obj, mob/user as mob)
+		if(..(W, user)) return
+		else if(ispulsingtool(W))
+			. = alert(usr, "What should trigger the sensor?","Disposal Sensor", "Creatures", "Anything", "A mail tag")
+			if (.)
+				if (get_dist(usr, src) > 1 || usr.stat)
+					return
+
+				switch (.)
+					if ("Creatures")
+						sense_mode = SENSE_LIVING
+
+					if ("Anything")
+						sense_mode = SENSE_OBJECT
+
+					if ("A mail tag")
+						. = copytext(ckeyEx(input(usr, "What should the tag be?", "What?")), 1, 33)
+						if (. && get_dist(usr, src) < 2 && !usr.stat)
+							sense_mode = SENSE_TAG
+							sense_tag_filter = .
 
 	MouseDrop(obj/O, null, var/src_location, var/control_orig, var/control_new, var/params)
 
@@ -1492,60 +1531,28 @@
 			return
 
 		if(istype(O, /obj/item/mechanics) && O.level == 2)
-			boutput(usr, "<span style=\"color:red\">[O] needs to be secured into place before it can be connected.</span>")
+			boutput(usr, "<span class='alert'>[O] needs to be secured into place before it can be connected.</span>")
 			return
 
 		if(usr.stat)
 			return
 
-		if(!mechanics.allowChange(usr))
-			boutput(usr, "<span style=\"color:red\">[MECHFAILSTRING]</span>")
+		if (!usr.find_tool_in_hand(TOOL_PULSING))
+			boutput(usr, "<span class='alert'>[MECHFAILSTRING]</span>")
 			return
 
-		mechanics.dropConnect(O, null, src_location, control_orig, control_new, params)
+		SEND_SIGNAL(src,_COMSIG_MECHCOMP_DROPCONNECT,O,usr)
 		return ..()
-
-	verb/set_sense_mode()
-		set src in view(1)
-		set name = "\[Set Mode\]"
-		set desc = "Sets the sensing mode of the pipe.."
-
-		if (!isliving(usr))
-			return
-		if (usr.stat)
-			return
-		if (!mechanics.allowChange(usr))
-			boutput(usr, "<span style=\"color:red\">[MECHFAILSTRING]</span>")
-			return
-
-		. = alert(usr, "What should trigger the sensor?","Disposal Sensor", "Creatures", "Anything", "A mail tag")
-		if (.)
-			if (get_dist(usr, src) > 1 || usr.stat)
-				return
-
-			switch (.)
-				if ("Creatures")
-					sense_mode = SENSE_LIVING
-
-				if ("Anything")
-					sense_mode = SENSE_OBJECT
-
-				if ("A mail tag")
-					. = copytext(ckeyEx(input(usr, "What should the tag be?", "What?")), 1, 33)
-					if (. && get_dist(usr, src) < 2 && !usr.stat)
-						sense_mode = SENSE_TAG
-						sense_tag_filter = .
-
 
 	transfer(var/obj/disposalholder/H)
 		if (sense_mode == SENSE_TAG)
 			if (cmptext(H.mail_tag, sense_tag_filter))
-				mechanics.fireOutgoing(mechanics.newSignal(ckey(H.mail_tag)))
+				SEND_SIGNAL(src,COMSIG_MECHCOMP_TRANSMIT_SIGNAL,ckey(H.mail_tag))
 				flick("pipe-mechsense-detect", src)
 
 		else if (sense_mode == SENSE_OBJECT)
 			if (H.contents.len)
-				mechanics.fireOutgoing(mechanics.newSignal("1"))
+				SEND_SIGNAL(src,COMSIG_MECHCOMP_TRANSMIT_SIGNAL,"1")
 				flick("pipe-mechsense-detect", src)
 
 		else
@@ -1557,7 +1564,7 @@
 							if (isdead(M))
 								continue
 
-						mechanics.fireOutgoing(mechanics.newSignal("1"))
+						SEND_SIGNAL(src,COMSIG_MECHCOMP_TRANSMIT_SIGNAL,"1")
 						flick("pipe-mechsense-detect", src)
 						break
 
@@ -1566,13 +1573,9 @@
 	welded()
 		var/obj/disposalconstruct/C = new (src.loc)
 		C.ptype = 12
-		C.dir = dir
+		C.set_dir(dir)
 		C.update()
-
-		if (src.mechanics)
-			src.mechanics.wipeIncoming()
-			src.mechanics.wipeOutgoing()
-
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_RM_ALL_CONNECTIONS)
 		qdel(src)
 
 #undef SENSE_LIVING
@@ -1735,7 +1738,7 @@
 
 	var/message = null
 	var/mailgroup = null
-	var/mailgroup2 = null
+	var/mailgroup2 = null //Do not refactor into a list, maps override these properties
 	var/net_id = null
 	var/frequency = 1149
 	var/datum/radio_frequency/radio_connection
@@ -1820,9 +1823,7 @@
 		for(var/atom/movable/AM in H)
 			AM.set_loc(src.loc)
 			AM.pipe_eject(dir)
-			SPAWN_DBG(1 DECI SECOND)
-				AM.throw_at(target, src.throw_range, 1)
-			LAGCHECK(LAG_REALTIME)
+			AM.throw_at(target, src.throw_range, 1)
 		H.vent_gas(src.loc)
 		pool(H)
 
@@ -1901,9 +1902,7 @@
 		for(var/atom/movable/AM in H)
 			AM.set_loc(src.loc)
 			AM.pipe_eject(dir)
-			SPAWN_DBG(1 DECI SECOND)
-				AM.throw_at(target, 10, 10) //This is literally the only thing that was changed in this, otherwise it booted them way too close.
-			LAGCHECK(LAG_REALTIME)
+			AM.throw_at(target, 10, 10) //This is literally the only thing that was changed in this, otherwise it booted them way too close.
 		H.vent_gas(src.loc)
 		pool(H)
 
@@ -1925,23 +1924,23 @@ proc/pipe_reconnect_disconnected(var/obj/disposalpipe/pipe, var/new_dir, var/mak
 		if(istype(pipe, /obj/disposalpipe/trunk))
 			var/obj/disposalpipe/segment/segment = new(pipe.loc)
 			segment.dpdir = pipe.dpdir | new_dir
-			segment.dir = new_dir
+			segment.set_dir(new_dir)
 			qdel(pipe)
 			segment.fix_sprite()
 		else if(istype(pipe, /obj/disposalpipe/junction))
 			var/obj/disposalpipe/segment/horiz = new(pipe.loc)
 			horiz.dpdir = 1 | 2
-			horiz.dir = 1
+			horiz.set_dir(1)
 			horiz.fix_sprite()
 			var/obj/disposalpipe/segment/vert = new(pipe.loc)
 			vert.dpdir = 4 | 8
-			vert.dir = 4
+			vert.set_dir(4)
 			vert.fix_sprite()
 			qdel(pipe)
 		if(istype(pipe, /obj/disposalpipe/segment))
 			var/obj/disposalpipe/junction/junction = new(pipe.loc)
 			junction.dpdir = pipe.dpdir | new_dir
-			junction.dir = new_dir
+			junction.set_dir(new_dir)
 			qdel(pipe)
 			junction.fix_sprite()
 		return
@@ -1951,6 +1950,6 @@ proc/pipe_reconnect_disconnected(var/obj/disposalpipe/pipe, var/new_dir, var/mak
 				pipe.dpdir &= ~d
 				pipe.dpdir |= new_dir
 				if(!(pipe.dir & pipe.dpdir)) // if we lost our dir
-					pipe.dir = new_dir
+					pipe.set_dir(new_dir)
 				break
 	pipe.fix_sprite()

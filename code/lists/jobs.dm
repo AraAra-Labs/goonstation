@@ -19,7 +19,7 @@ var/list/occupations = list(
 //	"Hangar Mechanic", "Hangar Mechanic",
 	"AI",
 	"Cyborg", "Cyborg",
-	"Barman",
+	"Bartender",
 	"Chef",
 	"Janitor",
 	"Clown",
@@ -35,31 +35,39 @@ var/list/assistant_occupations = list(
 //	"Atmospheric Technician","Atmospheric Technician","Atmospheric Technician",
 
 var/list/job_mailgroup_list = list(
-	"Captain" = "command",
-	"Head of Personnel" = "command",
-	"Head of Security" = "command",
-	"Medical Director" = "command",
-	"Quartermaster" = "cargo",
-	"Botanist" = "botany",
-	"Medical Director" = "medresearch",
-	"Roboticist" = "medresearch",
-	"Geneticist" = "medresearch",
-	"Medical Doctor" = "medbay")
+	"Captain" = MGD_COMMAND,
+	"Head of Personnel" = MGD_COMMAND,
+	"Head of Security" = MGD_COMMAND,
+	"Medical Director" = MGD_COMMAND,
+	"Research Director" = MGD_COMMAND,
+	"Chief Engineer" = MGD_COMMAND,
+	"Quartermaster" = MGD_CARGO,
+	"Mechanic" = MGD_STATIONREPAIR,
+	"Engineer" = MGD_STATIONREPAIR,
+	"Janitor" = MGD_STATIONREPAIR,
+	"Botanist" = MGD_BOTANY,
+	"Medical Director" = MGD_MEDRESEACH,
+	"Roboticist" = MGD_MEDRESEACH,
+	"Geneticist" = MGD_MEDRESEACH,
+	"Medical Doctor" = MGD_MEDBAY,
+	"Chaplain" = MGD_SPIRITUALAFFAIRS)
 
 //Used for PDA department paging.
 var/list/page_departments = list(
-	"Command" = "command",
-	"Security" = "security",
-	"Medbay" = "medbay",
-	"Med Research" = "medresearch",
-	"Research" = "science",
-	"Cargo" = "cargo",
-	"Botany" = "botany",
-	"Bar / Kitchen" = "kitchen")
+	"Command" = MGD_COMMAND,
+	"Security" = MGD_SECURITY,
+	"Medbay" = MGD_MEDBAY,
+	"Med Research" = MGD_MEDRESEACH,
+	"Research" = MGD_SCIENCE,
+	"Station Repair" = MGD_STATIONREPAIR,
+	"Cargo" = MGD_CARGO,
+	"Botany" = MGD_BOTANY,
+	"Bar / Kitchen" = MGD_KITCHEN,
+	"Spiritual Affairs" = MGD_SPIRITUALAFFAIRS)
 
 /proc/get_all_jobs()
 	return list("Assistant", "Detective", "Medical Doctor", "Captain", "Security Officer",
 				"Geneticist", "Scientist", "Head of Personnel",
-				"Chaplain", "Barman", "Janitor", "Chef", "Roboticist", "Quartermaster",
+				"Chaplain", "Bartender", "Janitor", "Chef", "Roboticist", "Quartermaster",
 				"Chief Engineer","Engineer", "Miner", "Mechanic",
 				"Research Director", "Medical Director", "Botanist", "Clown")

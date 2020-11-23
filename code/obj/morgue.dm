@@ -7,6 +7,16 @@
 	anchored = 1.0
 	dir = EAST
 
+	disposing()
+		src.connected?.connected = null
+		qdel(src.connected)
+		src.connected = null
+		if (length(src.contents))
+			var/turf/T = get_turf(src)
+			for (var/atom/movable/AM in contents)
+				AM.set_loc(T)
+		. = ..()
+
 /obj/morgue/proc/update()
 	if (src.connected.loc != src)
 		src.icon_state = "morgue0"
@@ -120,6 +130,12 @@
 	anchored = 1.0
 	event_handler_flags = USE_FLUID_ENTER | USE_CANPASS
 
+	disposing()
+		src.connected?.connected = null
+		qdel(src.connected)
+		src.connected = null
+		. = ..()
+
 /obj/m_tray/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if (istype(mover, /obj/item/dummy))
 		return 1
@@ -147,7 +163,7 @@
 		return
 	O.set_loc(src.loc)
 	if (user != O)
-		src.visible_message("<span style='color:red'>[user] stuffs [O] into [src]!</span>")
+		src.visible_message("<span class='alert'>[user] stuffs [O] into [src]!</span>")
 			//Foreach goto(99)
 	return
 
@@ -163,12 +179,22 @@
 	var/cremating = 0
 	var/id = 1
 	var/locked = 0
+	var/obj/machinery/crema_switch/igniter = null
 
 	New()
 		. = ..()
 		START_TRACKING
 
 	disposing()
+		src.igniter?.crematoriums -= src
+		src.igniter = null
+		src.connected?.connected = null
+		qdel(src.connected)
+		src.connected = null
+		if (length(src.contents))
+			var/turf/T = get_turf(src)
+			for (var/atom/movable/AM in contents)
+				AM.set_loc(T)
 		. = ..()
 		STOP_TRACKING
 
@@ -211,13 +237,13 @@
 
 /obj/crematorium/attack_hand(mob/user as mob)
 //	if (cremating) AWW MAN! THIS WOULD BE SO MUCH MORE FUN ... TO WATCH
-//		user.show_message("<span style=\"color:red\">Uh-oh, that was a bad idea.</span>", 1)
+//		user.show_message("<span class='alert'>Uh-oh, that was a bad idea.</span>", 1)
 //		//boutput(usr, "Uh-oh, that was a bad idea.")
 //		src:loc:poison += 20000000
 //		src:loc:firelevel = src:loc:poison
 //		return
 	if (cremating)
-		boutput(usr, "<span style=\"color:red\">It's locked.</span>")
+		boutput(usr, "<span class='alert'>It's locked.</span>")
 		return
 	if ((src.connected && src.connected.loc != src) && (src.locked == 0))
 		for(var/atom/movable/A as mob|obj in src.connected.loc)
@@ -289,10 +315,10 @@
 	if (src.cremating)
 		return //don't let you cremate something twice or w/e
 	if (!src.contents || !src.contents.len)
-		src.visible_message("<span style=\"color:red\">You hear a hollow crackle, but nothing else happens.</span>")
+		src.visible_message("<span class='alert'>You hear a hollow crackle, but nothing else happens.</span>")
 		return
 
-	src.visible_message("<span style=\"color:red\">You hear a roar as \the [src.name] activates.</span>")
+	src.visible_message("<span class='alert'>You hear a roar as \the [src.name] activates.</span>")
 	src.cremating = 1
 	src.locked = 1
 	var/ashes = 0
@@ -315,7 +341,7 @@
 					if (prob(10))
 						W.set_loc(L.loc)
 
-				logTheThing("combat", user, L, "cremates %target% in a crematorium at [log_loc(src)].")
+				logTheThing("combat", user, L, "cremates [constructTarget(L,"combat")] in a crematorium at [log_loc(src)].")
 				L.remove()
 				ashes += 1
 
@@ -326,7 +352,7 @@
 
 	SPAWN_DBG(10 SECONDS)
 		if (src)
-			src.visible_message("<span style=\"color:red\">\The [src.name] finishes and shuts down.</span>")
+			src.visible_message("<span class='alert'>\The [src.name] finishes and shuts down.</span>")
 			src.cremating = 0
 			src.locked = 0
 			playsound(src.loc, "sound/machines/ding.ogg", 50, 1)
@@ -347,6 +373,13 @@
 	anchored = 1.0
 	var/datum/light/light //Only used for tanning beds.
 	event_handler_flags = USE_FLUID_ENTER | USE_CANPASS
+
+	disposing()
+		src.connected?.connected = null
+		src.light = null
+		qdel(src.connected)
+		src.connected = null
+		. = ..()
 
 /obj/c_tray/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if (istype(mover, /obj/item/dummy))
@@ -374,7 +407,7 @@
 		return
 	O.set_loc(src.loc)
 	if (user != O)
-		user.visible_message("<span style=\"color:red\">[user] stuffs [O] into [src]!</span>", "<span style=\"color:red\">You stuff [O] into [src]!</span>")
+		user.visible_message("<span class='alert'>[user] stuffs [O] into [src]!</span>", "<span class='alert'>You stuff [O] into [src]!</span>")
 	return
 
 /obj/machinery/crema_switch
@@ -389,7 +422,13 @@
 	var/area/area = null
 	var/otherarea = null
 	var/id = 1
-	var/list/crematoriums = null
+	var/list/obj/crematorium/crematoriums = null
+
+	disposing()
+		for (var/obj/crematorium/O in src.crematoriums)
+			O.igniter = null
+		src.crematoriums = null
+		. = ..()
 
 /obj/machinery/crema_switch/New()
 	..()
@@ -399,15 +438,15 @@
 	if (src.allowed(user))
 		if (!islist(src.crematoriums))
 			src.crematoriums = list()
-			for (var/X in by_type[/obj/crematorium])
-				var/obj/crematorium/C = X
+			for_by_tcl(C, /obj/crematorium)
 				if (C.id == src.id)
 					src.crematoriums.Add(C)
-		for (var/obj/crematorium/C in src.crematoriums)
+					C.igniter = src
+		for (var/obj/crematorium/C as() in src.crematoriums)
 			if (!C.cremating)
 				C.cremate(user)
 	else
-		boutput(user, "<span style=\"color:red\">Access denied.</span>")
+		boutput(user, "<span class='alert'>Access denied.</span>")
 	return
 
 
@@ -426,6 +465,12 @@
 	var/settime = 10 //How long? (s)
 	var/tanningcolor = rgb(205,88,34) //Change to tan people into hillarious colors!
 	var/tanningmodifier = 0.03 //How fast do you want to go to your tanningcolor?
+	var/obj/machinery/computer/tanning/linked = null
+
+	disposing()
+		src.linked?.linked = null
+		src.linked = null
+		. = ..()
 
 	update()
 		if (src.contents.len)
@@ -445,7 +490,7 @@
 
 	attack_hand(mob/user as mob)
 		if (cremating)
-			boutput(usr, "<span style=\"color:red\">It's locked.</span>")
+			boutput(usr, "<span class='alert'>It's locked.</span>")
 			return
 		if ((src.connected && src.connected.loc != src) && (src.locked == 0))
 			for(var/atom/movable/A as mob|obj in src.connected.loc)
@@ -517,10 +562,10 @@
 		if (src.cremating)
 			return //don't let you cremate something twice or w/e
 		if (!src.contents || !src.contents.len)
-			src.visible_message("<span style=\"color:red\">You hear the lights turn on for a second, then turn off.</span>")
+			src.visible_message("<span class='alert'>You hear the lights turn on for a second, then turn off.</span>")
 			return
 
-		src.visible_message("<span style=\"color:red\">You hear a faint buzz as \the [src] activates.</span>")
+		src.visible_message("<span class='alert'>You hear a faint buzz as \the [src] activates.</span>")
 		playsound(src.loc, "sound/machines/shieldup.ogg", 30, 1)
 		src.cremating = 1
 		src.locked = 1
@@ -535,17 +580,17 @@
 						if (src.emagged)
 							H.TakeDamage("All", 0, 10, 0, DAMAGE_BURN)
 							if (src.settime % 2) //message limiter
-								boutput(H, "<span style=\"color:red\">Your skin feels like it's on fire!</span>")
+								boutput(H, "<span class='alert'>Your skin feels like it's on fire!</span>")
 						else if (!H.wear_suit)
 							H.TakeDamage("All", 0, 2, 0, DAMAGE_BURN)
 							if (src.settime % 2) //limiter
-								boutput(H, "<span style=\"color:red\">Your skin feels hot!</span>")
+								boutput(H, "<span class='alert'>Your skin feels hot!</span>")
 						if (!(H.glasses && istype(H.glasses, /obj/item/clothing/glasses/sunglasses/tanning))) //Always wear protection
 							H.take_eye_damage(1, 2)
 							H.change_eye_blurry(2)
 							H.changeStatus("stunned", 1 SECOND)
 							H.change_misstep_chance(5)
-							boutput(H, "<span style=\"color:red\">Your eyes sting!</span>")
+							boutput(H, "<span class='alert'>Your eyes sting!</span>")
 						if (H.bioHolder.mobAppearance.s_tone)
 							var/currenttone = H.bioHolder.mobAppearance.s_tone
 							var/newtone = BlendRGB(currenttone, src.tanningcolor, src.tanningmodifier) //Make them tan slowly
@@ -560,7 +605,7 @@
 
 		SPAWN_DBG(src.settime * 10)
 			if (src)
-				src.visible_message("<span style=\"color:red\">The [src.name] finishes and shuts down.</span>")
+				src.visible_message("<span class='alert'>The [src.name] finishes and shuts down.</span>")
 				src.cremating = 0
 				src.locked = 0
 				playsound(src.loc, "sound/machines/ding.ogg", 50, 1)
@@ -608,11 +653,16 @@
 
 		send_new_tancolor(tanningtubecolor)
 
+	disposing()
+		src.tanningtube = null
+		src.trayoverlay = null
+		. = ..()
+
 	attackby(var/obj/item/P as obj, mob/user as mob)
 		..()
 		if (istype(P, /obj/item/light/tube) && !src.contents.len)
 			var/obj/item/light/tube/G = P
-			boutput(usr, "<span style=\"color:blue\">You put \the [G.name] into \the [src.name].</span>")
+			boutput(usr, "<span class='notice'>You put \the [G.name] into \the [src.name].</span>")
 			user.drop_item()
 			G.set_loc(src)
 			src.tanningtube = G
@@ -624,7 +674,7 @@
 				light.set_brightness(0.5)
 
 		if (ispryingtool(P) && src.contents.len) //pry out the tube with a crowbar
-			boutput(usr, "<span style=\"color:blue\">You pry out \the [src.tanningtube.name] from \the [src.name].</span>")
+			boutput(usr, "<span class='notice'>You pry out \the [src.tanningtube.name] from \the [src.name].</span>")
 			src.tanningtube.set_loc(src.loc)
 			src.tanningtube = null
 			generate_overlay_icon() //nulling overlay
@@ -650,10 +700,16 @@
 		..()
 		get_link()
 
+	disposing()
+		src.linked?.linked = null
+		src.linked = null
+		. = ..()
+
 	proc/get_link()
 		for(var/obj/crematorium/tanning/C in by_type[/obj/crematorium])
 			if(C.z == src.z && C.id == src.id && C != src)
 				linked = C
+				C.linked = src
 				break
 
 	proc/find_tray_tube()

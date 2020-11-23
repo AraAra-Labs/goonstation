@@ -116,6 +116,12 @@
 		icon_state = "jacket_yellow"
 		item_state = "jacket_yellow"
 
+	sparkly
+		name = "sparkly jacket"
+		desc = "No glitter. No LEDs. Just magic!"
+		icon_state = "jacket_sparkly"
+		item_state = "jacket_sparkly"
+
 	design
 		name = "jacket"
 		desc = "A colorful jacket with a neat design on the back."
@@ -189,7 +195,7 @@
 /obj/item/clothing/suit/bio_suit/attackby(obj/item/W, mob/user)
 	var/turf/T = usr.loc
 	if(istype(W, /obj/item/clothing/suit/armor/vest))
-		boutput(usr, "<span style=\"color:blue\">You attach [W] to [src].</span>")
+		boutput(usr, "<span class='notice'>You attach [W] to [src].</span>")
 		if (istype(src, /obj/item/clothing/suit/bio_suit/paramedic))
 			new/obj/item/clothing/suit/bio_suit/paramedic/armored(T)
 		else
@@ -304,6 +310,10 @@
 	permeability_coefficient = 0.005
 	over_hair = 1
 
+	New()
+		. = ..()
+		AddComponent(/datum/component/wearertargeting/geiger, list(SLOT_WEAR_SUIT))
+
 	setupProperties()
 		..()
 		setProperty("movespeed", 0.6)
@@ -338,8 +348,8 @@
 		setProperty("rangedprot", 0.5)
 
 /obj/item/clothing/suit/det_suit/hos
-	name = "HoS jacket"
-	desc = "A slightly armored jacket favored by security personnel."
+	name = "Head of Security's jacket"
+	desc = "A slightly armored jacket favored by security personnel. It looks cozy and warm; you could probably sleep in this if you wanted to!"
 	icon = 'icons/obj/clothing/overcoats/item_suit_armor.dmi'
 	wear_image_icon = 'icons/mob/overcoats/worn_suit_armor.dmi'
 	icon_state = "hoscoat"
@@ -347,6 +357,7 @@
 		..()
 		setProperty("meleeprot", 3)
 		setProperty("rangedprot", 0.7)
+		setProperty("coldprot", 35)
 
 /obj/item/clothing/suit/judgerobe
 	name = "judge's robe"
@@ -373,6 +384,12 @@
 	item_state = "sousapron"
 	body_parts_covered = TORSO
 	permeability_coefficient = 0.70
+
+/obj/item/clothing/suit/apron/botanist
+	name = "blue apron"
+	desc = "This will keep you safe from tomato stains. Unless they're the exploding ones"
+	icon_state = "apron-botany"
+	item_state = "apron-botany"
 
 /obj/item/clothing/suit/labcoat
 	name = "labcoat"
@@ -535,6 +552,7 @@
 	burn_possible = 1
 	health = 20
 	rand_pos = 0
+	block_vision = 1
 
 	setupProperties()
 		..()
@@ -572,7 +590,7 @@
 			if ("Rip up")
 				boutput(user, "You begin ripping up [src].")
 				if (!do_after(user, 30))
-					boutput(user, "<span style=\"color:red\">You were interrupted!</span>")
+					boutput(user, "<span class='alert'>You were interrupted!</span>")
 					return
 				else
 					for (var/i=3, i>0, i--)
@@ -604,7 +622,7 @@
 				if ("Make bandages")
 					boutput(user, "You begin cutting up [src].")
 					if (!do_after(user, 30))
-						boutput(user, "<span style=\"color:red\">You were interrupted!</span>")
+						boutput(user, "<span class='alert'>You were interrupted!</span>")
 						return
 					else
 						for (var/i=3, i>0, i--)
@@ -650,6 +668,7 @@
 			src.Bed.untuck_sheet()
 		src.Bed = null
 		src.eyeholes = 1
+		block_vision = 0
 		src.update_icon()
 		desc = "It's a bedsheet with eye holes cut in it."
 
@@ -660,6 +679,7 @@
 			src.Bed.untuck_sheet()
 		src.Bed = null
 		src.cape = 1
+		block_vision = 0
 		src.update_icon()
 		desc = "It's a bedsheet that's been tied into a cape."
 
@@ -670,6 +690,7 @@
 			src.Bed.untuck_sheet()
 		src.Bed = null
 		src.cape = 0
+		block_vision = !src.eyeholes
 		src.update_icon()
 		desc = "A linen sheet used to cover yourself while you sleep. Preferably on a bed."
 
@@ -739,72 +760,62 @@
 	item_state = "bedcape"
 	cape = 1
 	over_back = 1
+	block_vision = 0
 
 /obj/item/clothing/suit/bedsheet/cape/red
 	icon_state = "bedcape-red"
 	item_state = "bedcape-red"
 	bcolor = "red"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/orange
 	icon_state = "bedcape-orange"
 	item_state = "bedcape-orange"
 	bcolor = "orange"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/yellow
 	icon_state = "bedcape-yellow"
 	item_state = "bedcape-yellow"
 	bcolor = "yellow"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/green
 	icon_state = "bedcape-green"
 	item_state = "bedcape-green"
 	bcolor = "green"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/blue
 	icon_state = "bedcape-blue"
 	item_state = "bedcape-blue"
 	bcolor = "blue"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/pink
 	icon_state = "bedcape-pink"
 	item_state = "bedcape-pink"
 	bcolor = "pink"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/black
 	icon_state = "bedcape-black"
 	item_state = "bedcape-black"
 	bcolor = "black"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/hop
 	icon_state = "bedcape-hop"
 	item_state = "bedcape-hop"
 	bcolor = "hop"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/captain
 	icon_state = "bedcape-captain"
 	item_state = "bedcape-captain"
 	bcolor = "captain"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/royal
 	icon_state = "bedcape-royal"
 	item_state = "bedcape-royal"
 	bcolor = "royal"
-	cape = 1
 
 /obj/item/clothing/suit/bedsheet/cape/psych
 	icon_state = "bedcape-psych"
 	item_state = "bedcape-psych"
 	bcolor = "psych"
-	cape = 1
 
 // FIRE SUITS
 
@@ -845,7 +856,7 @@
 			return
 		else
 			new /obj/item/clothing/suit/fire/armored(T)
-		boutput(user, "<span style=\"color:blue\">You attach [W] to [src].</span>")
+		boutput(user, "<span class='notice'>You attach [W] to [src].</span>")
 		qdel(W)
 		qdel(src)
 
@@ -1009,7 +1020,7 @@
 
 /obj/item/clothing/suit/space/emerg/proc/ripcheck(var/mob/user)
 	if(rip >= 36 && rip != -1 && prob(10))  //upped from rip >= 14 by Buttes
-		boutput(user, "<span style=\"color:red\">The emergency suit tears off!</span>")
+		boutput(user, "<span class='alert'>The emergency suit tears off!</span>")
 		var/turf/T = src.loc
 		if (ismob(T))
 			T = T.loc
@@ -1054,7 +1065,7 @@
 
 		setupProperties()
 			..()
-			setProperty("exploprot", 3)
+			setProperty("exploprot", 40)
 			setProperty("meleeprot", 6)
 			setProperty("rangedprot", 3)
 
@@ -1075,6 +1086,12 @@
 		desc = "A syndicate issue combat dress system, pressurized for space travel."
 		icon_state = "syndie_specialist"
 		item_state = "syndie_specialist"
+
+		setupProperties()
+			..()
+			setProperty("exploprot", 20)
+			setProperty("meleeprot", 4)
+			setProperty("rangedprot", 1.5)
 
 		medic
 			name = "specialist operative medic uniform"
@@ -1108,6 +1125,13 @@
 			name = "specialist operative marksman's suit"
 			icon_state = "syndie_specialist-sniper"
 			item_state = "syndie_specialist-sniper"
+
+		grenadier
+			name = "specialist operative bombsuit"
+
+			setupProperties()
+				..()
+				setProperty("exploprot", 60)
 
 		unremovable
 			cant_self_remove = 1
@@ -1198,7 +1222,7 @@
 		setProperty("radprot", 50)
 		setProperty("coldprot", 75)
 		setProperty("heatprot", 25)
-		setProperty("exploprot", 3)
+		setProperty("exploprot", 30)
 		setProperty("meleeprot", 2)
 		setProperty("rangedprot", 0.5)
 		setProperty("space_movespeed", 0)
@@ -1242,7 +1266,7 @@
 		setProperty("radprot", 25)
 		setProperty("coldprot", 50)
 		setProperty("heatprot", 15)
-		setProperty("exploprot", 2)
+		setProperty("exploprot", 20)
 		setProperty("meleeprot", 5)
 		setProperty("rangedprot", 2)
 
@@ -1283,6 +1307,13 @@
 		item_state = "hasturcultist"
 		over_all = 1
 
+	nerd
+		name = "robes of dungeon mastery"
+		desc = "Neeeeerds."
+
+		New()
+			. = ..()
+			src.enchant(min(rand(1, 5), rand(1, 5)))
 
 /obj/item/clothing/suit/flockcultist
 	name = "weird cultist robe"
@@ -1297,99 +1328,6 @@
 	c_flags = COVERSEYES | COVERSMOUTH
 	body_parts_covered = TORSO|LEGS|ARMS
 	permeability_coefficient = 0.01
-
-/obj/item/clothing/suit/cardboard_box
-	name = "cardboard box"
-	desc = "A pretty large box, made of cardboard. Looks a bit worn out."
-	icon_state = "c_box"
-	item_state = "c_box"
-	density = 1
-	see_face = 0
-	over_hair = 1
-	over_all = 1
-	c_flags = COVERSEYES | COVERSMOUTH
-	body_parts_covered = HEAD|TORSO|LEGS|ARMS
-	permeability_coefficient = 0.8
-	var/eyeholes = 0
-	var/moustache = 0
-
-	setupProperties()
-		..()
-		setProperty("movespeed", 0.7)
-		setProperty("coldprot", 33)
-		setProperty("heatprot", 33)
-		setProperty("meleeprot", 1)
-
-	attack_hand(mob/user as mob)
-		if (user.a_intent == INTENT_HARM)
-			user.visible_message("<span style='color:blue'>[user] taps [src].</span>",\
-			"<span style='color:blue'>You tap [src].</span>")
-		else
-			return ..()
-
-	attackby(obj/item/W, mob/user)
-		if (issnippingtool(W))
-			if (src.eyeholes)
-				user.show_text("\The [src] already has eyeholes cut out of it!", "red")
-				return
-			user.visible_message("<span style='color:blue'>[user] begins cutting eyeholes out of [src].</span>",\
-			"<span style='color:blue'>You begin cutting eyeholes out of [src].</span>")
-			if (!do_after(user, 20))
-				user.show_text("You were interrupted!", "red")
-				return
-			playsound(get_turf(src), "sound/items/Scissor.ogg", 100, 1)
-			user.visible_message("<span style='color:blue'>[user] cuts eyeholes out of [src].</span>",\
-			"<span style='color:blue'>You cut eyeholes out of [src].</span>")
-			src.eyeholes = 1
-			src.icon_state = "[initial(src.icon_state)]e"
-			return
-		else if (istype(W, /obj/item/clothing/mask/moustache))
-			src.moustache = 1
-			src.UpdateOverlays(image(src.icon, "c_box-moustache"), "moustache")
-			if (src.wear_image)
-				src.wear_image.overlays += image(src.wear_image_icon, "c_box-moustache")
-			user.visible_message("<span style='color:blue'>[user] adds [W] to [src]!</span>",\
-			"<span style='color:blue'>You add [W] to [src]!</span>")
-			user.u_equip(W)
-			qdel(W)
-			return
-		else
-			return ..()
-
-/obj/item/clothing/suit/cardboard_box/head_surgeon
-	name = "cardboard box - 'Head Surgeon'"
-	desc = "The HS looks a lot different today!"
-	icon_state = "c_box-HS"
-	item_state = "c_box-HS"
-	var/text2speech = 1
-
-	New()
-		..()
-		if (prob(50))
-			new /obj/machinery/bot/medbot/head_surgeon(src.loc)
-			qdel(src)
-
-	proc/speak(var/message)
-		if (!message)
-			return
-		src.audible_message("<span class='game say'><span class='name'>[src]</span> [pick("rustles", "folds", "womps", "boxes", "foffs", "flaps")], \"[message]\"")
-		if (src.text2speech)
-			var/audio = dectalk("\[:nk\][message]")
-			if (audio["audio"])
-				for (var/mob/O in hearers(src, null))
-					if (!O.client)
-						continue
-					ehjax.send(O.client, "browseroutput", list("dectalk" = audio["audio"]))
-				return 1
-			else
-				return 0
-		return
-
-/obj/item/clothing/suit/cardboard_box/captain
-	name = "cardboard box - 'Captain'"
-	desc = "The Captain looks a lot different today!"
-	icon_state = "c_box-cap"
-	item_state = "c_box-cap"
 
 /obj/item/clothing/suit/wizrobe
 	name = "blue wizard robe"
@@ -1409,7 +1347,7 @@
 	handle_other_remove(var/mob/source, var/mob/living/carbon/human/target)
 		. = ..()
 		if ( . &&prob(75))
-			source.show_message(text("<span style=\"color:red\">\The [src] writhes in your hands as though it is alive! It just barely wriggles out of your grip!</span>"), 1)
+			source.show_message(text("<span class='alert'>\The [src] writhes in your hands as though it is alive! It just barely wriggles out of your grip!</span>"), 1)
 			.  = 0
 
 /obj/item/clothing/suit/wizrobe/red
@@ -1528,10 +1466,9 @@
 
 	setupProperties()
 		..()
-		setProperty("coldprot", 15)
-		setProperty("heatprot", 15)
-		setProperty("meleeprot", 0.5)
-		setProperty("rangedprot", 0.5)
+		setProperty("coldprot", 5)
+		setProperty("heatprot", 5)
+		setProperty("meleeprot", 2)
 
 /obj/item/clothing/suit/nursedress
 	name = "nurse dress"
@@ -1564,3 +1501,23 @@
 	icon_state = "nursedress"
 	item_state = "nursedress"
 	body_parts_covered = TORSO|LEGS|ARMS
+
+/obj/item/clothing/suit/security_badge
+	name = "Security Badge"
+	desc = "An official badge for a Nanotrasen Security Worker."
+	icon = 'icons/obj/clothing/overcoats/item_suit_gimmick.dmi'
+	w_class = 1.0
+	wear_image_icon = 'icons/mob/overcoats/worn_suit_gimmick.dmi'
+	inhand_image_icon = 'icons/mob/inhand/overcoat/hand_suit_gimmick.dmi'
+	icon_state = "security_badge"
+	item_state = "security_badge"
+	var/badge_owner_name = null
+	var/badge_owner_job = null
+
+	setupProperties()
+
+	get_desc()
+		. += "This one belongs to [badge_owner_name], the [badge_owner_job]."
+
+	attack_self(mob/user as mob)
+		user.visible_message("[user] flashes the badge: <br><span class='bold'>[bicon(src)] Nanotrasen's Finest [badge_owner_job]: [badge_owner_name].</span>", "You show off the badge: <br><span class='bold'>[bicon(src)] Nanotrasen's Finest [badge_owner_job] [badge_owner_name].</span>")

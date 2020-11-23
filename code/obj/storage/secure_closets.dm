@@ -58,22 +58,18 @@
 	/obj/item/device/flash,
 	/obj/item/storage/box/clothing/hos,
 	/obj/item/clothing/suit/det_suit/hos,
+	/obj/item/clothing/suit/armor/hoscape,
 	/obj/item/clothing/shoes/brown,
 	/obj/item/clothing/suit/armor/vest,
 	/obj/item/clothing/head/helmet/hardhat/security,
 	/obj/item/clothing/glasses/sunglasses/sechud,
-	/obj/item/storage/belt/security,
-	/obj/item/baton,
 	/obj/item/gun/energy/egun,
 	/obj/item/device/radio/headset/security,
 	/obj/item/clothing/glasses/thermal,
 	/obj/item/stamp/hos,
 	/obj/item/device/radio/headset/command/hos,
 	/obj/item/clothing/shoes/swat/heavy,
-#if ASS_JAM
-	/obj/item/gun/kinetic/beepsky,
-	/obj/item/turret_deployer/riot,
-#endif
+
 	/obj/item/barrier)
 
 /obj/storage/secure/closet/command/hop
@@ -117,7 +113,7 @@
 	spawn_contents = list(/obj/item/storage/box/clothing/medical_director,
 	/obj/item/clothing/shoes/brown,
 	/obj/item/gun/implanter,
-	/obj/item/gun/syringe/NT,
+	/obj/item/gun/reagent/syringe/NT,
 	/obj/item/gun/kinetic/dart_rifle,
 	/obj/item/ammo/bullets/tranq_darts,
 	/obj/item/ammo/bullets/tranq_darts/anti_mutant,
@@ -149,14 +145,20 @@
 	/obj/item/clothing/glasses/meson,
 	/obj/item/clothing/suit/fire,
 	/obj/item/clothing/mask/gas,
-	/obj/item/storage/belt/utility/ceshielded,
+	/obj/item/storage/belt/utility/prepared/ceshielded,
 	/obj/item/clothing/head/helmet/welding,
 	/obj/item/clothing/head/helmet/hardhat,
 	/obj/item/device/multitool,
 	/obj/item/device/flash,
 	/obj/item/stamp/ce,
-	/obj/item/device/radio/headset/command/ce,
-	/obj/item/deconstructor)
+#ifdef UNDERWATER_MAP
+	/obj/item/clothing/suit/space/diving/engineering,
+	/obj/item/clothing/head/helmet/space/engineer/diving,
+#else
+	/obj/item/clothing/suit/space/engineer,
+	/obj/item/clothing/head/helmet/space/engineer,
+#endif
+	/obj/item/device/radio/headset/command/ce)
 
 /* ==================== */
 /* ----- Security ----- */
@@ -176,9 +178,6 @@
 	/obj/item/clothing/suit/armor/vest,
 	/obj/item/clothing/head/helmet/hardhat/security,
 	/obj/item/clothing/glasses/sunglasses/sechud,
-	/obj/item/storage/belt/security,
-	/obj/item/baton,
-	/obj/item/gun/energy/taser_gun,
 	/obj/item/handcuffs,
 	/obj/item/device/flash,
 	/obj/item/barrier)
@@ -202,13 +201,13 @@
 /obj/storage/secure/closet/security/armory
 	name = "\improper Special Equipment locker"
 	req_access_txt = "37"
-	spawn_contents = list(/obj/item/device/flash,
-	/obj/item/storage/box/flashbang_kit,
+	spawn_contents = list(/obj/item/requisition_token/security = 2,
+	/obj/item/turret_deployer/riot = 2,
+	/obj/item/clothing/glasses/nightvision = 2,
 	/obj/item/clothing/glasses/sunglasses,
-	/obj/item/clothing/suit/armor/EOD,
-	/obj/item/clothing/head/helmet/EOD,
+	/obj/item/clothing/glasses/sunglasses,
 	/obj/item/ammo/bullets/abg,
-	/obj/item/gun/kinetic/riotgun)
+	/obj/item/ammo/bullets/abg,)
 
 /obj/storage/secure/closet/brig
 	name = "\improper Confiscated Items locker"
@@ -308,7 +307,7 @@
 			src.id = DT.id
 			src.our_timer = DT
 			src.name = "\improper Automatic Locker ([src.id])"
-			usr.visible_message("<span style=\"color:blue\"><b>[usr.name]</b> links [src.name] to a brig timer.</span>", "<span style=\"color:blue\">Brig timer linked: [src.id].</span>")
+			usr.visible_message("<span class='notice'><b>[usr.name]</b> links [src.name] to a brig timer.</span>", "<span class='notice'>Brig timer linked: [src.id].</span>")
 		return
 
 /* =================== */
@@ -321,6 +320,8 @@
 	icon_closed = "medical"
 	icon_opened = "secure_white-open"
 	req_access_txt = "10"
+
+
 
 /obj/storage/secure/closet/medical/medicine
 	name = "medicine storage locker"
@@ -337,6 +338,8 @@
 
 /obj/storage/secure/closet/medical/medkit
 	name = "medkit storage locker"
+	icon_closed = "medical_medkit"
+	icon_state = "medical_medkit"
 	spawn_contents = list()
 	make_my_stuff()
 		if (..()) // make_my_stuff is called multiple times due to lazy init, so the parent returns 1 if it actually fired and 0 if it already has
@@ -367,6 +370,8 @@
 
 /obj/storage/secure/closet/medical/anesthetic
 	name = "anesthetic storage locker"
+	icon_closed = "medical_anesthetic"
+	icon_state = "medical_anesthetic"
 	spawn_contents = list(/obj/item/reagent_containers/glass/bottle/morphine = 2,
 	/obj/item/storage/box/syringes,
 	/obj/item/tank/anesthetic = 5,
@@ -374,6 +379,8 @@
 
 /obj/storage/secure/closet/medical/uniforms
 	name = "medical uniform locker"
+	icon_closed = "medical_clothes"
+	icon_state = "medical_clothes"
 	spawn_contents = list(/obj/item/storage/backpack/medic,
 	/obj/item/storage/backpack/satchel/medic,
 	/obj/item/storage/box/clothing/medical,
@@ -387,6 +394,8 @@
 
 /obj/storage/secure/closet/medical/chemical
 	name = "restricted medical locker"
+	icon_closed = "medical_restricted"
+	icon_state = "medical_restricted"
 	spawn_contents = list()
 	req_access_txt = "53"
 	make_my_stuff()
@@ -510,7 +519,9 @@
 	/obj/item/electronics/scanner,
 	/obj/item/clothing/glasses/meson,
 	/obj/item/electronics/soldering,
-	/obj/item/deconstructor)
+	/obj/item/deconstructor,
+	/obj/item/electronics/frame/mech_cabinet=2,
+	/obj/item/storage/mechanics/housing_handheld=1)
 
 /obj/storage/secure/closet/engineering/atmos
 	name = "\improper Atmospheric Technician's locker"
@@ -533,9 +544,7 @@
 	/obj/item/clothing/head/helmet/hardhat,
 	/obj/item/clothing/glasses/meson,
 	/obj/item/pen/infrared,
-	/obj/item/clothing/head/helmet/welding,
-	/obj/item/storage/belt/utility,
-	/obj/item/deconstructor)
+	/obj/item/clothing/head/helmet/welding)
 
 /obj/storage/secure/closet/engineering/mining
 	name = "\improper Miner's locker"
@@ -549,7 +558,8 @@
 	/obj/item/ore_scoop,
 	/obj/item/mining_tool/power_pick,
 	/obj/item/clothing/glasses/meson,
-	/obj/item/storage/belt/mining)
+	/obj/item/storage/belt/mining,
+	/obj/item/device/geiger)
 
 /obj/storage/secure/closet/engineering/cargo
 	name = "\improper Quartermaster's locker"
@@ -572,12 +582,12 @@
 	name = "\improper Custodial supplies locker"
 	req_access = list(access_janitor)
 	spawn_contents = list(/obj/item/storage/box/clothing/janitor,\
-	/obj/item/clothing/shoes/galoshes,\
 	/obj/item/reagent_containers/glass/bottle/cleaner = 2,\
 	/obj/item/reagent_containers/glass/bottle/acetone/janitors = 1,\
 	/obj/item/reagent_containers/glass/bottle/ammonia/janitors = 1,\
 	/obj/item/device/light/flashlight,\
-	/obj/item/caution = 4)
+	/obj/item/caution = 4,
+	/obj/item/clothing/gloves/long)
 
 /obj/storage/secure/closet/civilian/hydro
 	name = "\improper Botanical supplies locker"
@@ -604,7 +614,7 @@
 /obj/storage/secure/closet/civilian/bartender
 	name = "\improper Mixology supplies locker"
 	req_access = list(access_bar)
-	spawn_contents = list(/obj/item/storage/box/clothing/barman,\
+	spawn_contents = list(/obj/item/storage/box/clothing/bartender,\
 	/obj/item/storage/box/clothing/waiter,\
 	/obj/item/gun/russianrevolver,\
 	/obj/item/reagent_containers/food/drinks/bottle/vintage,\
@@ -615,7 +625,8 @@
 /obj/storage/secure/closet/civilian/chaplain
 	name = "\improper Religious supplies locker"
 	req_access = list(access_chapel_office)
-	spawn_contents = list(/obj/item/storage/box/clothing/chaplain,\
+	spawn_contents = list(/obj/item/storage/box/clothing/witchfinder,\
+	/obj/item/storage/box/clothing/chaplain,\
 	/obj/item/clothing/under/misc/chaplain/atheist,\
 	/obj/item/clothing/under/misc/chaplain,\
 	/obj/item/clothing/under/misc/chaplain/rabbi,\
@@ -628,7 +639,7 @@
 	/obj/item/clothing/head/turban,\
 	/obj/item/clothing/shoes/sandal,\
 	/obj/item/clothing/suit/flockcultist,\
-	/obj/item/reagent_containers/glass/bottle/holywater)
+	/obj/item/storage/box/holywaterkit)
 
 /* =================== */
 /* ----- Fridges ----- */
@@ -642,6 +653,16 @@
 	icon_greenlight = "fridge-greenlight"
 	icon_redlight = "fridge-redlight"
 	icon_sparks = "fridge-sparks"
+	intact_frame = 1
+
+/obj/storage/secure/closet/fridge/opened
+	New()
+		..()
+		name = "busted refrigerator"
+		desc = "The newest cooling technology...now with - oh god! What happened to the poor door?!"
+		intact_frame = 0
+		unlock()
+		toggle()
 
 /obj/storage/secure/closet/fridge/kitchen
 	spawn_contents = list(/obj/item/reagent_containers/food/drinks/milk = 5,/obj/item/storage/box/cookie_tin)
@@ -704,8 +725,13 @@
 /obj/storage/secure/closet/fridge/pathology
 	name = "pathology lab fridge"
 	req_access = list(access_medical_lockers)
+	//PATHOLOGY REMOVAL
+	#ifdef CREATE_PATHOGENS
 	spawn_contents = list(/obj/item/reagent_containers/glass/vial/prepared = 10,
 	/obj/item/reagent_containers/syringe/antiviral = 3)
+	#else
+	spawn_contents = list(/obj/item/reagent_containers/syringe/antiviral = 3)
+	#endif
 
 /* ================ */
 /* ----- Misc ----- */

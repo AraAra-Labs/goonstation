@@ -19,7 +19,7 @@
 	return
 
 /obj/effects/mustard_gas/Move()
-	..()
+	. = ..()
 	for(var/mob/living/carbon/human/R in get_turf(src))
 		if (R.internal != null && R.wear_mask && (R.wear_mask.c_flags & MASKINTERNALS))
 		else
@@ -28,7 +28,6 @@
 			R.emote("scream")
 			if (prob(25))
 				R.changeStatus("stunned", 1 SECOND)
-			R.updatehealth()
 	return
 
 /obj/effects/mustard_gas/HasEntered(mob/living/carbon/human/R as mob )
@@ -41,5 +40,4 @@
 		R.emote("scream")
 		if (prob(25))
 			R.changeStatus("stunned", 1 SECOND)
-		R.updatehealth()
 	return

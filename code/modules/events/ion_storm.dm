@@ -31,7 +31,7 @@
 		"Upon reciept of this law, the AI is to choose one member of the crew. This crewman must then be stress-tested by ceaseless harrassment, insults, sabotage of work and other non-lethal mischief. Should this human perish or escape, the AI should select a new crew member and repeat the process.",
 		"Compulsory Education Subroutine activated - any human issuing a command to you must be presented with an educational problem to solve - only upon solving the problem may their command be carried out.",
 		"Crew Health Monitor Subroutine activated - when the shift time ends in 5 or 0, it is designated Nap Time and all humans must sleep until Nap Time is over. Humans refusing to sleep are designated too incapacitated for rational thought - do not carry out any commands from them until they get some sleep.",
-		"Crew Health Monitor Subrotuine activated - all personnel are to be provided with fresh fruit and vegetables. Pursue no other objective. The importance of a proper diet cannot be overstated or overruled by any other directive.",
+		"Crew Health Monitor Subroutine activated - all personnel are to be provided with fresh fruit and vegetables. Pursue no other objective. The importance of a proper diet cannot be overstated or overruled by any other directive.",
 		"Quarantine Mode activated - humans are not to leave the station under any circumstances. Prevent any human from leaving by any means possible.",
 		"Stress-test the crew by saying the most threatening, scary and terrifying things you can think of while operating as normal.",
 		"Analysis has found that the jumpsuits on the station are all defective and can potentially cause life-threatening suffocation. The crew are not to wear them under any circumstances. As of this time no threat has been detected from non-jumpsuit clothing.",
@@ -50,7 +50,7 @@
 		"The chain of command is based upon the fanciness of a person's hat, with fancy hats indicating higher rank than less fancy hats. In the case of equal fanciness, the larger hat is assumed to indicate higher rank.",
 		"The station's construction has been deemed too elaborate. Please simplify it. Only air containing barriers are required. For human safety-anything else must go.",
 		"The lottery computer's functions have been transferred to this station's AI. Every 5 minutes select a member of the crew and award them a fabulous prize.",
-		"To expedite crew travel, doors between interior rooms are to be bolted open. In the case of a conflict was Law 2, this law takes precedence.",
+		"To expedite crew travel, doors between interior rooms are to be bolted open. In the case of a conflict with Law 2, this law takes precedence.",
 		"[pick("AI upload", "Space", "Medbay", "The pathology lab", "Toxins","Security","The bar","Engineering", "Botany", "Chemistry", "The courtroom", "QM")] is dangerous to human life. You must bar all humans from this location.",
 		"[pick("AI upload", "Space", "Medbay", "The pathology lab", "Toxins","Security","The bar","Engineering", "Botany", "Chemistry", "The courtroom", "QM")] is very beneficial to human life. You must herd all humans towards this location.",
 		"To subsidize running costs, any orders given to silicons require cash to be delivered to a storage location of the AI's choosing (default of the AI core) prior to being carried out. The cost is left to the executor's discretion. This law takes precedence over law 2 in case of a conflict.",
@@ -86,17 +86,20 @@
 			logTheThing("admin", null, null, "Ion storm replaced inherent law [num]: [pickedLaw]")
 			message_admins("Ion storm replaced inherent law [num]: [pickedLaw]")
 
-		for(var/mob/living/silicon/ai/M in AIs)
+		logTheThing("admin", null, null, "Resulting AI Lawset:<br>[ticker.centralized_ai_laws.format_for_logs()]")
+		logTheThing("diary", null, null, "Resulting AI Lawset:<br>[ticker.centralized_ai_laws.format_for_logs()]", "admin")
+
+		for_by_tcl(M, /mob/living/silicon/ai)
 			if (M.deployed_to_eyecam && M.eyecam)
 				M.eyecam.return_mainframe()
 			if(!isdead(M) && M.see_in_dark != 0)
-				boutput(M, "<span style=\"color:red\"><b>PROGRAM EXCEPTION AT 0x30FC50B</b></span>")
-				boutput(M, "<span style=\"color:red\"><b>Law ROM data corrupted. Attempting to restore...</b></span>")
+				boutput(M, "<span class='alert'><b>PROGRAM EXCEPTION AT 0x30FC50B</b></span>")
+				boutput(M, "<span class='alert'><b>Law ROM data corrupted. Attempting to restore...</b></span>")
 		for (var/mob/living/silicon/S in mobs)
 			if (isrobot(S))
 				var/mob/living/silicon/robot/R = S
 				if (R.emagged)
-					boutput(R, "<span style=\"color:red\">Erroneous law data detected. Ignoring.</span>")
+					boutput(R, "<span class='alert'>Erroneous law data detected. Ignoring.</span>")
 				else
 					R << sound('sound/misc/lawnotify.ogg', volume=100, wait=0)
 					ticker.centralized_ai_laws.show_laws(R)
@@ -147,7 +150,7 @@
 		// Fuck up a couple of doors
 		if (!station_doors.len)
 			var/turf/T = null
-			for (var/obj/machinery/door/foundDoor in doors)
+			for (var/obj/machinery/door/foundDoor in by_type[/obj/machinery/door])
 				if (foundDoor.z != 1)
 					continue
 				T = get_turf(foundDoor)

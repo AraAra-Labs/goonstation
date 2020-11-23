@@ -21,12 +21,17 @@
 	/obj/item/toy/plush/small/monkey/assistant,\
 	/obj/item/toy/plush/small/bunny/mask,\
 	/obj/item/toy/plush/small/penguin/cool)
-	var/list/prizes_ultra_rare = list(/obj/item/toy/plush/small/orca)
+	var/list/prizes_ultra_rare = list(/obj/item/toy/plush/small/orca,\
+	/obj/item/toy/plush/small/tuba,\
+	/obj/item/toy/plush/small/chris,\
+	/obj/item/toy/plush/small/fancyflippers,\
+	/obj/item/toy/plush/small/billy,\
+	/obj/item/toy/plush/small/arthur)
 
 /obj/submachine/claw_machine/attack_hand(var/mob/user as mob)
-	user.machine = src
+	src.add_dialog(user)
 	if(src.busy)
-		boutput(user, "<span style=\"color:red\">Someone else is currently playing [src]. Be patient!</span>")
+		boutput(user, "<span class='alert'>Someone else is currently playing [src]. Be patient!</span>")
 	else
 		actions.start(new/datum/action/bar/icon/claw_machine(user,src), user)
 		return
@@ -52,9 +57,13 @@
 		return
 	if(prob(10))
 		playsound(get_turf(CM), 'sound/machines/claw_machine_fail.ogg', 80, 1)
-		M.visible_message("<span style=\"color:red\">[M] flubs up and the claw drops [his_or_her(M)] prize!</spawn>")
+		M.visible_message("<span class='alert'>[M] flubs up and the claw drops [his_or_her(M)] prize!</spawn>")
 		interrupt(INTERRUPT_ALWAYS)
 		return
+
+/datum/action/bar/icon/claw_machine/onResume()
+	..()
+	state = ACTIONSTATE_DELETE
 
 /datum/action/bar/icon/claw_machine/onInterrupt()
 	..()
@@ -78,8 +87,8 @@
 	CM.busy = 0
 	CM.icon_state = "claw"
 	playsound(get_turf(CM), 'sound/machines/claw_machine_success.ogg', 80, 1)
-	M.visible_message("<span style=\"color:blue\">[M] successfully secures their precious goodie, and it drops into the prize chute with a satisfying <i>plop</i>.</span>")
-	var/obj/item/P = pick(prob(10) ? (prob(10) ? CM.prizes_ultra_rare : CM.prizes_rare) : CM.prizes)
+	M.visible_message("<span class='notice'>[M] successfully secures their precious goodie, and it drops into the prize chute with a satisfying <i>plop</i>.</span>")
+	var/obj/item/P = pick(prob(20) ? (prob(20) ? CM.prizes_ultra_rare : CM.prizes_rare) : CM.prizes)
 	P = new P(get_turf(src.M))
 	P.desc = "Your new best friend, rescued from a cold and lonely claw machine."
 	P.throw_at(M, 16, 3)
@@ -102,11 +111,17 @@
 	message = trim(copytext(sanitize(html_encode(message)), 1, MAX_MESSAGE_LEN))
 	if (!message || get_dist(src, user) > 1)
 		return
-	logTheThing("say", user, null, "makes [src] say,  \"[message]\"")
-	user.audible_message("<span style='color:#605b59'>[src] says, \"[message]\"</span>")
+	logTheThing("say", user, null, "makes [src] say, \"[message]\"")
+	user.audible_message("<span class='emote'>[src] says, \"[message]\"</span>")
 	var/mob/living/carbon/human/H = user
 	if (H.sims)
 		H.sims.affectMotive("fun", 1)
+
+/obj/item/toy/plush/attack(mob/M as mob, mob/user as mob)
+	if (user.a_intent == INTENT_HELP)
+		M.visible_message("<span class='emote'>[src] gives [M] a hug!</span>", "<span class='emote'>[src] gives you a hug!</span>")
+	else
+		. = ..()
 
 /obj/item/toy/plush/small
 	name = "small plush toy"
@@ -147,6 +162,10 @@
 	name = "assistant monkey plush toy"
 	icon_state = "monkey_assistant"
 
+/obj/item/toy/plush/small/monkey/george
+	name = "curious george monkey plush toy"
+	icon_state = "monkey_george"
+
 /obj/item/toy/plush/small/possum
 	name = "possum plush toy"
 	icon_state = "possum"
@@ -175,6 +194,34 @@
 	name = "Lilac the orca"
 	icon_state = "orca"
 
+/obj/item/toy/plush/small/tuba
+	name = "Tuba the rat"
+	icon_state = "tuba"
+
+/obj/item/toy/plush/small/chris
+	name = "Chris the goat"
+	icon_state = "chris"
+
+/obj/item/toy/plush/small/fancyflippers
+	name = "Fancyflippers the gentoo penguin"
+	icon_state = "fancyflippers"
+
+/obj/item/toy/plush/small/billy
+	name = "Billy the hungry fish"
+	icon_state = "billy"
+
+/obj/item/toy/plush/small/arthur
+	name = "Arthur the bumblespider"
+	icon_state = "arthur"
+	var/spam_flag = 0
+
+/obj/item/toy/plush/small/arthur/attack_hand(mob/user as mob)
+	if (user == src.loc && spam_flag < world.time)
+		playsound(user, "sound/voice/babynoise.ogg", 50, 1)
+		src.audible_message("<span class='emote'>[src] awoos!</span>")
+		spam_flag = world.time + 2 SECONDS
+	else return ..()
+
 /obj/item/toy/sword
 	name = "toy sword"
 	icon = 'icons/obj/items/weapons.dmi'
@@ -187,7 +234,7 @@
 	throw_range = 5
 	contraband = 3
 	stamina_damage = 1
-	stamina_cost = 3
+	stamina_cost = 7
 	stamina_crit_chance = 1
 	var/bladecolor = "G"
 	var/sound_attackM1 = 'sound/weapons/male_toyattack.ogg'
@@ -203,6 +250,7 @@
 		icon_state = "sword1-[bladecolor]"
 		item_state = "sword1-[bladecolor]"
 		src.setItemSpecial(/datum/item_special/swipe)
+		BLOCK_SETUP(BLOCK_SWORD)
 
 	attack(target as mob, mob/user as mob)
 		..()
@@ -215,20 +263,20 @@
 
 /obj/item/toy/figure
 	name = "collectable figure"
-	desc = "<b><span style=\"color:red\">WARNING:</span> CHOKING HAZARD</b> - Small parts. Not for children under 3 years."
+	desc = "<b><span class='alert'>WARNING:</span> CHOKING HAZARD</b> - Small parts. Not for children under 3 years."
 	icon = 'icons/obj/items/figures.dmi'
 	icon_state = "fig-"
 	w_class = 1.0
 	throwforce = 1
 	throw_speed = 4
 	throw_range = 7
-	stamina_damage = 1
-	stamina_cost = 1
-	stamina_crit_chance = 1
+	stamina_damage = 0
+	stamina_cost = 0
+	stamina_crit_chance = 0
 	//mat_changename = 0
 	rand_pos = 1
-	var/patreon_prob = 8
-	var/rare_prob = 11
+	var/patreon_prob = 9
+	var/rare_prob = 12
 	var/datum/figure_info/info = null
 
 	// grumble grumble
@@ -273,28 +321,25 @@
 				src.setMaterial(getMaterial(pick(material_varieties)))
 
 		if (src.icon_state == "fig-floorpills")
-			var/datum/reagents/R = new/datum/reagents(30)
-			src.reagents = R
-			R.my_atom = src
+			src.create_reagents(30)
 
 			var/primaries = rand(1,3)
 			var/adulterants = rand(2,4)
 
 			while(primaries > 0)
 				primaries--
-				src.reagents.add_reagent(pick(CYBERPUNK_drug_primaries), 6)
+				src.reagents.add_reagent(pick_string("chemistry_tools.txt", "CYBERPUNK_drug_primaries"), 6)
 			while(adulterants > 0)
 				adulterants--
-				src.reagents.add_reagent(pick(CYBERPUNK_drug_adulterants), 3)
+				src.reagents.add_reagent(pick_string("chemistry_tools.txt", "CYBERPUNK_drug_adulterants"), 3)
 
 
 	custom_suicide = 1
 	suicide(var/mob/user as mob)
 		if (!src.user_can_suicide(user))
 			return 0
-		user.visible_message("<span style='color:red'><b>[user] shoves [src] down [his_or_her(user)] throat and chokes on it!</b></span>")
+		user.visible_message("<span class='alert'><b>[user] shoves [src] down [his_or_her(user)] throat and chokes on it!</b></span>")
 		user.take_oxygen_deprivation(175)
-		user.updatehealth()
 		SPAWN_DBG(50 SECONDS)
 			if (user && !isdead(user))
 				user.suiciding = 0
@@ -304,19 +349,23 @@
 	attackby(obj/item/W as obj, mob/user as mob)
 		if(istype(W, /obj/item/toy/figure))
 			if(user:a_intent == INTENT_HELP)
-				user.visible_message("<span style=\"color:red\">[user] makes the [W.name] and the [src.name] kiss and kiss and kiss!</span>")
+				playsound(get_turf(src), "sound/items/toys/figure-kiss.ogg", 15, 1)
+				user.visible_message("<span class='alert'>[user] makes the [W.name] and the [src.name] kiss and kiss and kiss!</span>")
 			else if(user:a_intent == INTENT_DISARM)
-				user.visible_message("<span style=\"color:red\">[user] makes the [W.name] knock over and fart on the [src.name]!</span>")
+				playsound(get_turf(src), "sound/items/toys/figure-knock.ogg", 15, 1)
+				user.visible_message("<span class='alert'>[user] makes the [W.name] knock over and fart on the [src.name]!</span>")
 			else if(user:a_intent == INTENT_GRAB)
-				user.visible_message("<span style=\"color:red\">[user] has [W.name] put the [src.name] in a headlock!</span>")
+				playsound(get_turf(src), "sound/items/toys/figure-headlock.ogg", 15, 1)
+				user.visible_message("<span class='alert'>[user] has [W.name] put the [src.name] in a headlock!</span>")
 			else if(user:a_intent == INTENT_HARM)
-				user.visible_message("<span style=\"color:red\">[user] bangs the [W.name] into the [src.name] over and over!</span>")
+				playsound(get_turf(src), "sound/impact_sounds/Flesh_Break_1.ogg", 15, 1, 0.1, 2.5)
+				user.visible_message("<span class='alert'>[user] bangs the [W.name] into the [src.name] over and over!</span>")
 		else if (W.force > 1 && src.icon_state == "fig-shelterfrog" || src.icon_state == "fig-shelterfrog-dead")
 			playsound(src.loc, W.hitsound, 50, 1, -1)
 			if (src.icon_state != "fig-shelterfrog-dead")
 				make_cleanable(/obj/decal/cleanable/blood,get_turf(src))
 				src.icon_state = "fig-shelterfrog-dead"
-			user.lastattacked = src
+		user.lastattacked = src
 		return 0
 
 	attack_self(mob/user as mob)
@@ -327,7 +376,7 @@
 		if (!message || get_dist(src, user) > 1)
 			return
 		logTheThing("say", user, null, "makes [src] say,  \"[message]\"")
-		user.audible_message("<span style='color:#605b59'>[src] says, \"[message]\"</span>")
+		user.audible_message("<span class='emote'>[src] says, \"[message]\"</span>")
 		var/mob/living/carbon/human/H = user
 		if (H.sims)
 			H.sims.affectMotive("fun", 1)
@@ -336,7 +385,7 @@
 		..()
 
 		if (istype(target,/obj/stool/bed))
-			user.visible_message("<span style=\"color:red\">[user] tucks the [src.name] into [target].</span>")
+			user.visible_message("<span class='alert'>[user] tucks the [src.name] into [target].</span>")
 			var/obj/O = target
 			O.place_on(src, user, params)
 			if (src.icon_state == "fig-beebo")
@@ -356,7 +405,7 @@ var/list/figure_low_rarity = list(\
 /datum/figure_info/assistant,
 /datum/figure_info/chef,
 /datum/figure_info/chaplain,
-/datum/figure_info/barman,
+/datum/figure_info/bartender,
 /datum/figure_info/botanist,
 /datum/figure_info/janitor,
 /datum/figure_info/doctor,
@@ -439,7 +488,24 @@ var/list/figure_patreon_rarity = list(\
 /datum/figure_info/oranges,
 /datum/figure_info/sam,
 /datum/figure_info/beebo,
-/datum/figure_info/romillybartlesby)
+/datum/figure_info/romillybartlesby,
+/datum/figure_info/dillbehrt,
+/datum/figure_info/listelsheerfield,
+/datum/figure_info/raphaelzahel,
+/datum/figure_info/derekclarke,
+/datum/figure_info/fartcan,
+/datum/figure_info/tomato,
+/datum/figure_info/zooblarskrippus,
+/datum/figure_info/vivi,
+/datum/figure_info/giggles,
+/datum/figure_info/mavericksabre,
+/datum/figure_info/whitneystingray,
+/datum/figure_info/fleur,
+/datum/figure_info/joaquinfry,
+/datum/figure_info/carolineaudibert,
+/datum/figure_info/helgergunnink,
+/datum/figure_info/hex
+)
 
 /datum/figure_info
 	var/name = "staff assistant"
@@ -464,8 +530,8 @@ var/list/figure_patreon_rarity = list(\
 		name = "chaplain"
 		icon_state = "chaplain"
 
-	barman
-		name = "barman"
+	bartender
+		name = "bartender"
 		icon_state = "barman"
 
 	botanist
@@ -796,6 +862,70 @@ var/list/figure_patreon_rarity = list(\
 		name = "\improper Romilly Bartlesby"
 		icon_state = "romillybartlesby"
 
+	dillbehrt
+		name = "\improper Dill Behrt"
+		icon_state = "dillbehrt"
+
+	listelsheerfield
+		name = "\improper Listel Sheerfield"
+		icon_state = "listelsheerfield"
+
+	raphaelzahel
+		name = "\improper Raphael Zahel"
+		icon_state = "raphaelzahel"
+
+	derekclarke
+		name = "\improper Derek Clarke"
+		icon_state = "derekclarke"
+
+	fartcan
+		name = "\improper Fart Canister"
+		icon_state = "fartcan"
+
+	tomato
+		name = "\improper Tomato"
+		icon_state = "tomato"
+
+	zooblarskrippus
+		name = "\improper Zooblar Skrippus"
+		icon_state = "zooblarskrippus"
+
+	vivi
+		name = "\improper Vivi"
+		icon_state = "vivi"
+
+	giggles
+		name = "\improper Giggles"
+		icon_state = "giggles"
+
+	mavericksabre
+		name = "\improper Maverick Sabre"
+		icon_state = "mavericksabre"
+
+	whitneystingray
+		name = "\improper Whitney Stingray"
+		icon_state = "whitneystingray"
+
+	fleur
+		name = "\improper Fleur DeLaCreme"
+		icon_state = "fleur"
+
+	joaquinfry
+		name = "\improper Joaquin Fry"
+		icon_state = "joaquinfry"
+
+	carolineaudibert
+		name = "\improper Caroline Audibert"
+		icon_state = "carolineaudibert"
+
+	helgergunnink
+		name = "\improper Helger Gunnink"
+		icon_state = "helgergunnink"
+
+	hex
+		name = "\improper HEX"
+		icon_state = "hex"
+
 #ifdef XMAS
 	santa
 		name = "\improper Santa Claus"
@@ -849,8 +979,8 @@ var/list/figure_patreon_rarity = list(\
 	New()
 		..()
 		//Products
-		product_list += new/datum/data/vending_product(/obj/item/item_box/figure_capsule, 26, cost=100)
-		product_list += new/datum/data/vending_product(/obj/item/satchel/figurines, 2, cost=500)
+		product_list += new/datum/data/vending_product(/obj/item/item_box/figure_capsule, 26, cost=PAY_UNTRAINED/5)
+		product_list += new/datum/data/vending_product(/obj/item/satchel/figurines, 2, cost=PAY_UNTRAINED*3)
 		src.icon_state = "machine[rand(1,6)]"
 		src.capsule_image = image(src.icon, "m_caps26")
 		src.UpdateOverlays(src.capsule_image, "capsules")
@@ -879,7 +1009,7 @@ var/list/figure_patreon_rarity = list(\
 	w_class = 2
 	force = 5
 	throwforce = 7
-	stamina_damage = 15
+	stamina_damage = 25
 	stamina_cost = 10
 	stamina_crit_chance = 5
 
@@ -888,9 +1018,8 @@ var/list/figure_patreon_rarity = list(\
 		if (!src.user_can_suicide(user))
 			return 0
 		playsound(loc, 'sound/items/gavel.ogg', 75, 1)
-		user.visible_message("<span style=\"color:red\"><b> Sweet Jesus! [user] is bashing their head in with [name]!</b></span>")
+		user.visible_message("<span class='alert'><b> Sweet Jesus! [user] is bashing their head in with [name]!</b></span>")
 		user.TakeDamage("head", 150, 0)
-		user.updatehealth()
 		SPAWN_DBG(50 SECONDS)
 			if (user && !isdead(user))
 				user.suiciding = 0
@@ -906,8 +1035,8 @@ var/list/figure_patreon_rarity = list(\
 	throwforce = 1
 	throw_speed = 4
 	throw_range = 7
-	stamina_damage = 1
-	stamina_cost = 1
+	stamina_damage = 0
+	stamina_cost = 0
 	stamina_crit_chance = 1
 	var/cooldown = 0
 
@@ -933,9 +1062,11 @@ var/list/figure_patreon_rarity = list(\
 	throwforce = 3
 	throw_speed = 3
 	throw_range = 5
-	stamina_damage = 1
-	stamina_cost = 1
+	stamina_damage = 0
+	stamina_cost = 0
 	stamina_crit_chance = 1
+	var/redeemer = null
+	var/receiver = null
 
 /obj/item/toy/diploma/New()
 	..()
@@ -945,7 +1076,7 @@ var/list/figure_patreon_rarity = list(\
 	if (isliving(user))
 		var/mob/living/L = user
 		if (L.mind && L.mind.assigned_role == "Clown")
-			L.visible_message("<span style=\"color:red\"><B>[L] bonks [M] [pick("kindly", "graciously", "helpfully", "sympathetically")].</B></span>")
+			L.visible_message("<span class='alert'><B>[L] bonks [M] [pick("kindly", "graciously", "helpfully", "sympathetically")].</B></span>")
 			playsound(get_turf(M), "sound/misc/boing/[rand(1,6)].ogg", 20, 1)
 			M.say("[pick("Wow", "Gosh dangit", "Aw heck", "Oh gosh", "Damnit")], [L], [pick("why are you so", "it's totally unfair that you're so", "how come you're so", "tell me your secrets to being so")] [pick("cool", "smart", "worldly", "funny", "wise", "drop dead hilarious", "incredibly likeable", "beloved by everyone", "straight up amazing", "devilishly handsome")]!")
 
@@ -981,11 +1112,35 @@ var/list/figure_patreon_rarity = list(\
 			prmiddle = pick("octane", "spooky", "quality", "secret", "crap", "chatty", "butt", "energetic", "diarrhea inducing", "confusing", "magical", "relative pathed", "stealing", "ridiculous")
 			prlast = pick("functions", "bugfixes", "features", "items", "weapons", "the entire goddamn chat", "antagonist", "job", "sprites", "butts", "artifacts", "cars")
 			playsound(loc, 'sound/machines/ding.ogg', 75, 1)
-			user.visible_message("<span style=\"color:red\"><B>[user] uploads the Gooncode to their PDA.</B></span>")
-			I.audible_message("<i>New pull request opened on [stationfirst][stationlast]station: <span style='color:#605b59'>\"Ports [prfirst] [prmiddle] [prlast] from Goonstation.\"</i></span>")
+			user.visible_message("<span class='alert'><B>[user] uploads the Gooncode to their PDA.</B></span>")
+			I.audible_message("<i>New pull request opened on [stationfirst][stationlast]station: <span class='emote'>\"Ports [prfirst] [prmiddle] [prlast] from Goonstation.\"</i></span>")
 			cooldown = world.time + 40
 			return
 	return ..()
 
 /obj/item/toy/gooncode/attack()
 	return
+
+/obj/item/toy/cellphone
+	name = "flip phone"
+	desc = "Wow! You've always wanted one of these charmingly clunky doodads!"
+	icon = 'icons/obj/cellphone.dmi'
+	icon_state = "cellphone-on"
+	w_class = 2
+	var/datum/game/tetris
+	var/datum/mail
+
+	New()
+		src.contextLayout = new /datum/contextLayout/instrumental(16)
+		src.contextActions = childrentypesof(/datum/contextAction/cellphone)
+		..()
+		START_TRACKING
+		src.tetris = new /datum/game/tetris(src)
+
+	disposing()
+		..()
+		STOP_TRACKING
+
+	attack_self(mob/user as mob)
+		..()
+		user.showContextActions(contextActions, src)

@@ -24,13 +24,13 @@
 		C.remove_stam_mod_max("bloodclot")
 
 /datum/ailment/disease/bloodclot/stage_act(var/mob/living/affected_mob,var/datum/ailment_data/D)
-	if (D && D.state == "Asymptomatic")
+	if (D?.state == "Asymptomatic")
 		if (prob(1) && (prob(1) || affected_mob.find_ailment_by_type(/datum/ailment/disease/heartdisease) || affected_mob.reagents && affected_mob.reagents.has_reagent("proconvertin"))) // very low prob to become...
 			D.state = "Active"
 			D.scantype = "Medical Emergency"
 	if (..())
 		return
-	if (D && D.state == "Active")
+	if (D?.state == "Active")
 		if (!ishuman(affected_mob))
 			affected_mob.cure_disease(D)
 			return
@@ -55,9 +55,9 @@
 			if (!src.affected_area)
 				affected_mob.cure_disease(D)
 				return
-			boutput(affected_mob, "<span style='color:red'>Your [src.affected_area] starts hurting!</span>")
+			boutput(affected_mob, "<span class='alert'>Your [src.affected_area] starts hurting!</span>")
 		else if (prob(3))
-			boutput(affected_mob, "<span style='color:red'>Your [src.affected_area] hurts!</span>")
+			boutput(affected_mob, "<span class='alert'>Your [src.affected_area] hurts!</span>")
 
 		switch (src.affected_area)
 			if ("chest")
@@ -72,7 +72,6 @@
 					affected_mob.losebreath ++
 				if (prob(5))
 					affected_mob.take_oxygen_deprivation(rand(1,2))
-					affected_mob.updatehealth()
 				if (prob(5))
 					affected_mob.emote(pick("twitch", "groan", "gasp"))
 				if (prob(1))
@@ -108,7 +107,7 @@
 						affected_mob.cure_disease(D)
 						return
 				if (prob(2)) // the clot moves
-					boutput(affected_mob, "<span style='color:blue'>Your [src.affected_area] stops hurting.</span>")
+					boutput(affected_mob, "<span class='notice'>Your [src.affected_area] stops hurting.</span>")
 					if (prob(1))
 						affected_mob.cure_disease(D)
 						return

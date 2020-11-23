@@ -72,7 +72,7 @@
 	var/turf/Q = get_turf(location)
 	if (!Q)
 		return
-	if (ejectables && ejectables.len)
+	if (length(ejectables))
 		for (var/atom/movable/I in ejectables)
 			var/turf/target = null
 			var/tries = 0
@@ -87,10 +87,11 @@
 					continue
 				target = locate(Q.x + tx, Q.y + ty, Q.z)
 
+			if(istype(I.loc, /mob))
+				var/mob/M = I.loc
+				M.u_equip(I)
 			I.set_loc(location)
-			I.layer = initial(I.layer)
-			SPAWN_DBG(0)
-				I.throw_at(target, 12, 3)
+			I.throw_at(target, 12, 3)
 
 /proc/robogibs(atom/location, var/list/diseases)
 	var/obj/decal/cleanable/robot_debris/gib = null
@@ -100,9 +101,7 @@
 
 	LAGCHECK(LAG_LOW)
 	// RUH ROH
-	var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-	s.set_up(2, 1, location)
-	s.start()
+	elecflash(location,power=2)
 
 	LAGCHECK(LAG_LOW)
 	// NORTH
@@ -293,49 +292,3 @@
 	LAGCHECK(LAG_LOW)
 	// CORE SPLAT
 	gib = make_cleanable( /obj/decal/cleanable/flockdrone_debris/fluid,location)
-
-//Gib proc for Reliquary horrors. Reliquary bits + blood + Reliquary limbs
-
-/proc/religibs(atom/location, var/list/diseases, var/list/ejectables, var/blood_DNA, var/blood_type)
-	if(!location) return
-	var/obj/decal/cleanable/reliquary_debris/gib = null
-
-	LAGCHECK(LAG_LOW)
-	// RUH ROH
-	var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-	s.set_up(2, 1, location)
-	s.start()
-	boutput(world, "Sparks went off.")
-
-	LAGCHECK(LAG_LOW)
-	// NORTH
-	gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-	gib.streak(list(NORTH, NORTHEAST, NORTHWEST))
-	boutput(world, "1st gib")
-
-	LAGCHECK(LAG_LOW)
-	// SOUTH
-	gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-	gib.streak(list(SOUTH, SOUTHEAST, SOUTHWEST))
-	boutput(world, "2st gib")
-	LAGCHECK(LAG_LOW)
-	// WEST
-	gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-	gib.streak(list(WEST, NORTHWEST, SOUTHWEST))
-	boutput(world, "3st gib")
-	LAGCHECK(LAG_LOW)
-	// EAST
-	gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-	gib.streak(list(EAST, NORTHEAST, SOUTHEAST))
-	boutput(world, "4st gib")
-	LAGCHECK(LAG_LOW)
-	// RANDOM
-	gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-	gib.streak(alldirs)
-	boutput(world, "5st gib")
-	LAGCHECK(LAG_LOW)
-	// RANDOM LIMBS
-	for (var/i = 0, i < pick(0, 1, 2), i++)
-		gib = make_cleanable( /obj/decal/cleanable/reliquary_debris,location)
-		gib.streak(alldirs)
-		boutput(world, "extra gib")

@@ -31,9 +31,9 @@ Fibre wire
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/parts/robot_parts/leg))
 			var/obj/machinery/bot/skullbot/B = new /obj/machinery/bot/skullbot
-			B.icon = icon('icons/obj/aibots.dmi', "skullbot-ominous")
+			B.icon = icon('icons/obj/bots/aibots.dmi', "skullbot-ominous")
 			B.name = "ominous skullbot"
-			boutput(user, "<span style=\"color:blue\">You add [W] to [src]. That's neat.</span>")
+			boutput(user, "<span class='notice'>You add [W] to [src]. That's neat.</span>")
 			B.set_loc(get_turf(user))
 			qdel(W)
 			qdel(src)
@@ -45,14 +45,17 @@ Fibre wire
 		var/list/mob/dead/observer/priority_targets = list()
 
 
-		if(ticker && ticker.mode) //Yes, I'm sure my runtimes will matter if the goddamn TICKER is gone.
+		if(ticker?.mode) //Yes, I'm sure my runtimes will matter if the goddamn TICKER is gone.
 			for(var/datum/mind/M in (ticker.mode.Agimmicks | ticker.mode.traitors)) //We want an EVIL ghost
 				if(!M.dnr && M.current && isobserver(M.current) && M.current.client && M.special_role != "vampthrall" && M.special_role != "mindslave")
 					priority_targets.Add(M.current)
 
 		if(!priority_targets.len) //Okay, fine. Any ghost. *sigh
-			for(var/mob/dead/observer/O in mobs)
-				if(O && O.client && O.mind && !O.mind.dnr)
+
+			for (var/client/C)
+				var/mob/dead/observer/O = C.mob
+				if (!istype(C)) continue
+				if(O.mind && !O.mind.dnr)
 					possible_targets.Add(O)
 
 
@@ -90,9 +93,10 @@ Fibre wire
 				else //How the fuck did we even get here??
 					H.ghostize()
 
-			SPAWN_DBG(1.5 SECONDS) playsound(src.loc, 'sound/effects/ghostlaugh.ogg', 70, 1)
 			flick("skull_ominous_explode", src)
-			sleep(3 SECONDS)
+			sleep(1.5 SECONDS)
+			playsound(src.loc, 'sound/effects/ghostlaugh.ogg', 70, 1)
+			sleep(1.5 SECONDS)
 			qdel(src)
 
 //////////////////////////////
@@ -207,7 +211,7 @@ proc/Create_Tommyname()
 /obj/item/gun/energy/tommy_gun
 	name = "Tommy Gun"
 	icon = 'icons/obj/items/gun.dmi'
-	icon_state = "tommy1"
+	icon_state = "tommygun"
 	m_amt = 4000
 	rechargeable = 1
 	force = 0.0
@@ -224,13 +228,13 @@ proc/Create_Tommyname()
 
 	shoot(var/target,var/start,var/mob/user,var/POX,var/POY)
 		for(var/mob/O in AIviewers(user, null))
-			O.show_message("<span style=\"color:red\"><B>[user] fires the [src] at [target]!</B></span>", 1, "<span style=\"color:red\">You hear a loud crackling noise.</span>", 2)
+			O.show_message("<span class='alert'><B>[user] fires the [src] at [target]!</B></span>", 1, "<span class='alert'>You hear a loud crackling noise.</span>", 2)
 		sleep(0.1 SECONDS)
 		return ..(target, start, user)
 
 	update_icon()
 		if(cell)
-			src.icon_state = "tommy[src.cell.charge > 0]"
+			src.icon_state = "tommygun[src.cell.charge <= 0 ? "-empty" : ""]"
 			return
 
 ///////////////////////////////////////Analysis datum for the spectrometer
@@ -238,7 +242,7 @@ proc/Create_Tommyname()
 /datum/spectro_analysis
 
 	proc/analyze_reagents(var/datum/reagents/R, var/check_recipes = 0)
-		if(R && R.reagent_list && R.reagent_list.len)
+		if(length(R?.reagent_list))
 			if(check_recipes)
 				. = analyze_reagent_components(R.reagent_list)
 			else
@@ -253,7 +257,7 @@ proc/Create_Tommyname()
 			for (var/id in reagent_ids)
 
 				var/datum/chemical_reaction/recipe = chem_reactions_by_id[id]
-				if(recipe && recipe.required_reagents && recipe.required_reagents.len)
+				if(length(recipe?.required_reagents))
 					analyze_reagent_list(recipe.required_reagents, output)
 				else
 					for(var/i=0, i<rand(2,7), i++) //If it doesn't have a recipe, just spit out some random data
@@ -280,7 +284,7 @@ proc/Create_Tommyname()
 		var/hash = md5("AReally[id]ShittySalt")
 		var/listPos = calc_start_point(hash)
 
-		for(var/i=1, i <= lentext(hash), i+=2)
+		for(var/i=1, i <= length(hash), i+=2)
 			var/block = copytext(hash, i, i+2)
 			if (isnull(base["[listPos]"]))
 				base["[listPos]"] = hex2num(block)
@@ -291,7 +295,7 @@ proc/Create_Tommyname()
 
 	//So is this
 	proc/calc_start_point(var/hash)
-		for(var/i = 1; i <= lentext(hash); i++)
+		for(var/i = 1; i <= length(hash); i++)
 			var/temp = copytext(hash, i, i+1)
 			temp = hex2num(temp)
 			. += temp
@@ -332,9 +336,8 @@ proc/Create_Tommyname()
 	on_trigger(var/atom/movable/triggerer)
 		if(isobserver(triggerer)) return
 		var/atom/target = get_edge_target_turf(src, src.throw_dir)
-		SPAWN_DBG(0)
-			if (target)
-				triggerer.throw_at(target, 50, 1)
+		if (target)
+			triggerer.throw_at(target, 50, 1)
 
 
 /obj/trigger/cluwnegib
@@ -767,7 +770,7 @@ proc/Create_Tommyname()
 			O.pixel_x = ipx
 			O.pixel_y = ipy
 			if(setdir)
-				O.dir = setdir
+				O.set_dir(setdir)
 			O.set_loc(T)
 			animate_slide(O, 0, 0, animtime, LINEAR_EASING)
 
@@ -776,7 +779,7 @@ proc/Create_Tommyname()
 	if(turf_type)
 		DEBUG_MESSAGE("Creating [turf_type] at [showCoords(T.x, T.y, T.z)]")
 		var/turf/NT = new turf_type(T)
-		if(setdir) NT.dir = setdir
+		if(setdir) NT.set_dir(setdir)
 		created_atoms += NT
 
 
@@ -815,7 +818,7 @@ proc/Create_Tommyname()
 	src.icon_state = initial(T.icon_state)
 	src.set_density(initial(T.density))
 	src.opacity = initial(T.opacity)
-	src.dir = initial(T.dir)
+	src.set_dir(initial(T.dir))
 	src.layer = initial(T.layer)
 	src.invisibility = 0
 	if(TTL)
@@ -853,6 +856,7 @@ proc/Create_Tommyname()
 	name = "fibre wire"
 	desc = "A sturdy wire between two handles. Could be used with both hands to really ruin someone's day."
 	w_class = 1
+	c_flags = EQUIPPED_WHILE_HELD
 
 	icon = 'icons/obj/items/items.dmi'
 	icon_state = "garrote0"
@@ -865,7 +869,7 @@ proc/Create_Tommyname()
 
 	New()
 		..()
-		BLOCK_ROPE
+		BLOCK_SETUP(BLOCK_ROPE)
 
 
 /obj/item/garrote/proc/toggle_wire_readiness()
@@ -890,7 +894,7 @@ proc/Create_Tommyname()
 	update_state()
 
 /obj/item/garrote/proc/update_state()
-	if(src.chokehold)
+	if(src.chokehold && !istype(src.chokehold, /obj/item/grab/block))
 		var/obj/item/grab/garrote_grab/GG = src.chokehold
 		if(!GG.extra_deadly)
 			icon_state = "garrote2"
@@ -905,7 +909,14 @@ proc/Create_Tommyname()
 		//Slow us down slightly when we have the thing readied to encourage late-readying
 		src.setProperty("movespeed", 1 * wire_readied)
 
-
+	var/mob/M = the_mob // inc terminally stupid code
+	if (!ismob(M) && src.chokehold && ismob(src.chokehold.assailant))
+		M = src.chokehold.assailant
+	else if (ismob(src.loc))
+		M = src.loc
+	else if (ismob(usr)) // we've tried nothing and we're all out of ideas
+		M = usr
+	M?.update_equipped_modifiers() // Call the bruteforce movement modifier proc because we changed movespeed while (maybe!) equipped
 
 /obj/item/garrote/proc/is_behind_target(var/mob/living/assailant, var/mob/living/target)
 	var/assailant_dir = get_dir(target, assailant)
@@ -952,10 +963,13 @@ proc/Create_Tommyname()
 	update_state()
 
 // It will crumple when dropped
-/obj/item/garrote/dropped()
+/obj/item/garrote/dropped(mob/user)
 	..()
 	set_readiness(0)
 
+/obj/item/garrote/throw_impact(atom/hit_atom, datum/thrown_thing/thr)
+	..(hit_atom)
+	set_readiness(0)
 
 /obj/item/garrote/disposing()
 	drop_grab()
@@ -968,11 +982,12 @@ proc/Create_Tommyname()
 		set_readiness(0)
 
 // Change the size of the garrote or the posture
-/obj/item/garrote/attack_self()
+/obj/item/garrote/attack_self(mob/user)
 	if(!chokehold)
 		..()
 		toggle_wire_readiness()
 	else
+		if (istype(src.chokehold, /obj/item/grab/block)) return
 		var/obj/item/grab/garrote_grab/GG = src.chokehold
 		GG.extra_deadly = !GG.extra_deadly
 		if(GG.extra_deadly)

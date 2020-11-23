@@ -18,7 +18,7 @@
 			boutput(M, "Don't be greedy.")
 			return
 		*/
-		if (M && M.mind && !M.mind.special_role)
+		if (M?.mind && !M.mind.special_role)
 			makeAntag(M)
 			var/datum/objective/newObj = new /datum/objective(attachedObjective)
 			newObj.owner = M.mind
@@ -133,7 +133,7 @@
 /obj/traitorifier/wraith
 	name = "Spooky Pool"
 	desc = "The void calls."
-	icon = 'icons/effects/3dimension.dmi'
+	icon = 'icons/obj/adventurezones/void.dmi'
 	icon_state = "fissure"
 	attachedObjective = "Make them suffer."
 

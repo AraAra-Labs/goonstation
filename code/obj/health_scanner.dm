@@ -55,11 +55,11 @@
 			else
 				. += "<br>It says:<br><font color='red'>ERROR: NO SUBJECT(S) DETECTED</font>"
 
-	attack_hand(mob/user as mob)
-		return src.examine()
+	attack_hand(mob/user)
+		return user.examine_verb(src)
 
-	attack_ai(mob/user as mob)
-		return src.examine()
+	attack_ai(mob/user)
+		return user.examine_verb(src)
 
 	find_partners(var/in_range = 0)
 		if (in_range)
@@ -115,7 +115,7 @@
 	proc/crit_alert(var/mob/living/carbon/human/H)
 		var/datum/radio_frequency/transmit_connection = radio_controller.return_frequency("1149")
 		var/datum/signal/new_signal = get_free_signal()
-		new_signal.data = list("command"="text_message", "sender_name"="HEALTH-MAILBOT", "sender"="00000000", "address_1"="00000000", "group"="medbay", "message"="CRIT ALERT: [H] in [get_area(src)].")
+		new_signal.data = list("command"="text_message", "sender_name"="HEALTH-MAILBOT", "sender"="00000000", "address_1"="00000000", "group"=MGD_MEDBAY, "message"="CRIT ALERT: [H] in [get_area(src)].")
 		new_signal.transmission_method = TRANSMISSION_RADIO
 		if(transmit_connection)
 			transmit_connection.post_signal(src, new_signal)

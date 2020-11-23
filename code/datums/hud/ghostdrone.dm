@@ -135,19 +135,20 @@
 				return
 			var/content_id = items_screen + i - 1
 			if (content_id > master.tools.len || content_id < 1)
-				boutput(usr, "<span style=\"color:red\">An error occurred. Please notify Marquesas immediately. (Content ID: [content_id].)</span>")
+				boutput(usr, "<span class='alert'>An error occurred. Please notify Marquesas immediately. (Content ID: [content_id].)</span>")
 
 			if (master.active_tool && istype(master.active_tool, /obj/item/magtractor) && master.active_tool:holding)
 				actions.stopId("magpickerhold", master)
 			var/obj/item/O = master.tools[content_id]
 			master.active_tool = O
-			O.loc = master
+			O.set_loc(master)
 			O.pickup(master) // Handle light datums and the like.
 			set_active_tool(1)
 			update_equipment()
 			update_tools()
 
 	New(M)
+		..()
 		master = M
 		src.boxes = create_screen("boxes", "Storage", 'icons/mob/screen1.dmi', "blank", "1, 10 to 1, 1")
 		remove_screen(boxes)
@@ -197,8 +198,8 @@
 		update_equipment()
 
 
-	scrolled(id, dx, dy, loc, parms, obj/screen/hud/scr)
-		if(!master) return
+	scrolled(id, dx, dy, user, parms, obj/screen/hud/scr)
+		if(!master || user != master) return
 
 		if(scr.item)
 			if(dy < 0) items_screen++
@@ -252,9 +253,9 @@
 			if ("face")
 				master.setFaceDialog()
 			if ("charge")
-				out(master, "<span style='color: blue;'>Your charge is: [master.cell.charge]/[master.cell.maxcharge]</span>")
+				out(master, "<span class='notice'>Your charge is: [master.cell.charge]/[master.cell.maxcharge]</span>")
 			if ("health")
-				out(master, "<span style='color: blue;'>Your health is: [master.health / master.max_health * 100]%</span>")
+				out(master, "<span class='notice'>Your health is: [master.health / master.max_health * 100]%</span>")
 			if ("oxy", "temp")
 				out(master, scan_atmospheric(get_turf(master)))
 			else
@@ -325,9 +326,9 @@
 			var/turf/T = get_turf(master)
 			if (T)
 				var/datum/gas_mixture/environment = T.return_air()
-				var/total = environment.total_moles()
+				var/total = TOTAL_MOLES(environment)
 				if (total > 0) // prevent a division by zero
-					oxy.icon_state = "oxy[environment.oxygen/total*environment.return_pressure() < 17]"
+					oxy.icon_state = "oxy[environment.oxygen/total*MIXTURE_PRESSURE(environment) < 17]"
 				else
 					oxy.icon_state = "oxy1"
 				var/maptextc = "#ffffff"
@@ -385,7 +386,7 @@
 				remove_screen(G)
 
 			for(var/datum/statusEffect/S in src.statusUiElements) //Remove stray effects.
-				if(!master.statusEffects || !(S in master.statusEffects) || !S.visible)
+				if(!master.statusEffects || !(S in master.statusEffects))
 					pool(statusUiElements[S])
 					src.statusUiElements.Remove(S)
 					qdel(S)
