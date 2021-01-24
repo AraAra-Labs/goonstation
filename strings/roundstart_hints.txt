@@ -38,7 +38,7 @@ Stuck in space? Throwing an item will propel you in the opposite direction.
 Need more supplies for your workplace? Check your PDA for the supply request program, or use one of the supply consoles near the cargo belts.
 The cargo routing system is great for quick escapes.
 Antagonist status is rolled before job selection, so if you have Security Officer or Head of Security set as your favorite job, you can still be selected to be a bad guy!
-You can press V to equip clothing or place equipment on your belt slot if possible. 
+You can press V to equip clothing or place equipment on your belt slot if possible.
 If you have WASD Mode enabled, you can drop items by pressing Q.
 Don't wanna be spontaneously naked and drop everything on the ground? Click the inventory button with your item to quick swap clothing and equipment.
 Death isn't the end! There are many ways to be brought back to life and many things to do while a ghost!
@@ -60,7 +60,7 @@ You can often get a sentence reduced or even negated entirely by just cooperatin
 We were all new once, be patient and guide new players in the right direction!
 You can use a sponge to extract the contents of a bathtub.
 You can interact with things that are diagonal to you, even if they're blocked by something on both cardinal sides.
-The paint vendor has a chance to actually become operational once you repair it. Honest!
+The broken paint vendor can be repaired!
 Light cyborg arms still work in bot construction. Mass-produce amusing ducks for a limitless source of toys, and a limitless source of frustration from everyone else in a 20-mile radius!
 You can put pizza in the material processor. Make a weapon and eat the evidence, the perfect crime!
 There's more records to play than just the ones in the radio station. Go explore!
@@ -90,7 +90,6 @@ Some round types will end without a shuttle being called. If people start scream
 You can tell if the shuttle's been called and how long it has to arrive or leave by looking at the status window in the upper-right corner of your screen.
 Doctors can't heal you if you keep running away from them. Stay still and they'll patch you up in no time!
 Never trust pills you find on the floor.
-Always trust pills you find on the floor.
 Looking for a quick way to earn cash? Try the slot machines that are usually near the bar!
 If you have a tracking implant and a health implant, medical staff will know exactly when and where you (inevitably) die. They can also teleport to your corpse using a hand teleporter.
 Merely getting close to lava will melt your body if you're not wearing protective clothing.
@@ -123,3 +122,6 @@ Never be afraid to ask others for help, whether in game or through mentorhelp (F
 Completing traitor objectives isn't mandatory. Try to come up with your own goals and gimmicks.
 Being arrested isn't the end of the world.
 A talkative antagonist is fun for everyone.
+By default, you can hold SHIFT (SPACE on TG layout) while moving to sprint, burning stamina to push through slows.
+If a purple mouse runs up to you and squeaks, click it with an empty hand! They're a Mentor Mouse and can provide you useful information!
+When used in conjunction, synaptizine and atropine together in a patient in critical condition will greatly help stave off death!

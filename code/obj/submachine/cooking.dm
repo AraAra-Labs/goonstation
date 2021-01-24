@@ -21,7 +21,7 @@
 			user.show_text("You add water to the rice to make sticky rice!", "blue")
 			new /obj/item/reagent_containers/food/snacks/ingredient/sticky_rice(src.loc)
 			qdel(W)
-		else if (istype(W, /obj/item/reagent_containers/glass/) || istype(W, /obj/item/reagent_containers/food/drinks/) || istype(W, /obj/item/reagent_containers/balloon/))
+		else if (istype(W, /obj/item/reagent_containers/glass/) || istype(W, /obj/item/reagent_containers/food/drinks/) || istype(W, /obj/item/reagent_containers/balloon/) || istype(W, /obj/item/soup_pot))
 			var/fill = W.reagents.maximum_volume
 			if (fill == W.reagents.total_volume)
 				user.show_text("[W] is too full already.", "red")
@@ -50,6 +50,11 @@
 			if (W.reagents)
 				W.reagents.clear_reagents()		// avoid null error
 
+	MouseDrop_T(obj/item/W as obj, mob/user as mob)
+		if (istype(W) && in_range(W, user) && in_range(src, user))
+			return src.attackby(W, user)
+		return ..()
+
 	attack_hand(var/mob/user as mob)
 		src.add_fingerprint(user)
 		user.lastattacked = src
@@ -57,11 +62,11 @@
 			var/mob/living/carbon/human/H = user
 			playsound(src.loc, "sound/impact_sounds/Liquid_Slosh_1.ogg", 100, 1)
 			if (H.gloves)
-				user.visible_message("<span style=\"color:blue\">[user] cleans [his_or_her(user)] gloves.</span>")
+				user.visible_message("<span class='notice'>[user] cleans [his_or_her(user)] gloves.</span>")
 				H.gloves.clean_forensic() // Ditto (Convair880).
 				H.set_clothing_icon_dirty()
 			else
-				user.visible_message("<span style=\"color:blue\">[user] washes [his_or_her(user)] hands.</span>")
+				user.visible_message("<span class='notice'>[user] washes [his_or_her(user)] hands.</span>")
 				if (H.sims)
 					H.sims.affectMotive("Hygiene", 2)
 				H.blood_DNA = null // Don't want to use it here, though. The sink isn't a shower (Convair880).
@@ -85,7 +90,7 @@
 	var/doing_a_thing = 0
 
 	attack_hand(var/mob/user as mob)
-		user.machine = src
+		src.add_dialog(user)
 		var/dat = "<b>Ice Cream-O-Mat 9900</b><br>"
 		if(src.cone)
 			dat += "<a href='?src=\ref[src];eject=cone'>Eject Cone</a><br>"
@@ -113,11 +118,11 @@
 		if (istype(src.loc, /turf) && (( get_dist(src, usr) <= 1) || issilicon(usr) || isAI(usr)))
 			if (!isliving(usr) || iswraith(usr) || isintangible(usr))
 				return
-			if (usr.getStatusDuration("stunned") > 0 || usr.getStatusDuration("weakened") || usr.getStatusDuration("paralysis") > 0 || !isalive(usr) || usr.restrained())
+			if (is_incapacitated(usr) || usr.restrained())
 				return
 
 			src.add_fingerprint(usr)
-			usr.machine = src
+			src.add_dialog(usr)
 
 			if(href_list["eject"])
 				switch(href_list["eject"])
@@ -140,24 +145,25 @@
 					src.updateUsrDialog()
 					return
 				if(!cone)
-					boutput(usr, "<span style=\"color:red\">There is no cone loaded!</span>")
+					boutput(usr, "<span class='alert'>There is no cone loaded!</span>")
 					src.updateUsrDialog()
 					return
 
 				var/the_flavor = href_list["flavor"]
 				if(the_flavor == "beaker")
 					if(!beaker)
-						boutput(usr, "<span style=\"color:red\">There is no beaker loaded!</span>")
+						boutput(usr, "<span class='alert'>There is no beaker loaded!</span>")
 						src.updateUsrDialog()
 						return
 
 					if(!beaker.reagents.total_volume)
-						boutput(usr, "<span style=\"color:red\">The beaker is empty!</span>")
+						boutput(usr, "<span class='alert'>The beaker is empty!</span>")
 						src.updateUsrDialog()
 						return
 
 					doing_a_thing = 1
 					qdel(src.cone)
+					src.cone = null
 					var/obj/item/reagent_containers/food/snacks/ice_cream/newcream = new
 					beaker.reagents.trans_to(newcream,40)
 					newcream.set_loc(src.loc)
@@ -166,11 +172,12 @@
 					if(the_flavor in src.flavors)
 						doing_a_thing = 1
 						qdel(src.cone)
+						src.cone = null
 						var/obj/item/reagent_containers/food/snacks/ice_cream/newcream = new
 						newcream.reagents.add_reagent(the_flavor,40)
 						newcream.set_loc(src.loc)
 					else
-						boutput(usr, "<span style=\"color:red\">Unknown flavor!</span>")
+						boutput(usr, "<span class='alert'>Unknown flavor!</span>")
 
 				doing_a_thing = 0
 				src.update_icon()
@@ -179,6 +186,10 @@
 		return
 
 	attackby(obj/item/W as obj, mob/user as mob)
+		if (W.cant_drop) // For borg held items
+			boutput(user, "<span class='alert'>You can't put that in \the [src] when it's attached to you!</span>")
+			return
+
 		if (istype(W, /obj/item/reagent_containers/food/snacks/ice_cream_cone))
 			if(src.cone)
 				boutput(user, "There is already a cone loaded.")
@@ -187,7 +198,7 @@
 				user.drop_item()
 				W.set_loc(src)
 				src.cone = W
-				boutput(user, "<span style=\"color:blue\">You load the cone into [src].</span>")
+				boutput(user, "<span class='notice'>You load the cone into [src].</span>")
 
 			src.update_icon()
 			src.updateUsrDialog()
@@ -200,11 +211,16 @@
 				user.drop_item()
 				W.set_loc(src)
 				src.beaker = W
-				boutput(user, "<span style=\"color:red\">You load [W] into [src].</span>")
+				boutput(user, "<span class='alert'>You load [W] into [src].</span>")
 
 			src.update_icon()
 			src.updateUsrDialog()
 		else ..()
+
+	MouseDrop_T(obj/item/W as obj, mob/user as mob)
+		if ((istype(W, /obj/item/reagent_containers/food/snacks/ice_cream_cone) || istype(W, /obj/item/reagent_containers/glass/) || istype(W, /obj/item/reagent_containers/food/drinks/)) && in_range(W, user) && in_range(src, user))
+			return src.attackby(W, user)
+		return ..()
 
 	proc/update_icon()
 		if(src.beaker)
@@ -242,18 +258,18 @@ var/list/oven_recipes = list()
 		if (!emagged)
 			emagged = 1
 			if (user)
-				boutput(user, "<span style='color:blue'>[src] produces a strange grinding noise.</span>")
+				boutput(user, "<span class='notice'>[src] produces a strange grinding noise.</span>")
 			return 1
 		else
 			return 0
 
 	attack_hand(var/mob/user as mob)
 		if (isghostdrone(user))
-			boutput(usr, "<span style=\"color:red\">\The [src] refuses to interface with you, as you are not a properly trained chef!</span>")
+			boutput(usr, "<span class='alert'>\The [src] refuses to interface with you, as you are not a properly trained chef!</span>")
 			return
 
 
-		user.machine = src
+		src.add_dialog(user)
 		var/dat = {"
 			<style type="text/css">
 table#cooktime {
@@ -384,14 +400,16 @@ table#cooktime a#start {
 			src.recipes += new /datum/cookingrecipe/butterburger(src)
 			src.recipes += new /datum/cookingrecipe/cheeseburger_m(src)
 			src.recipes += new /datum/cookingrecipe/cheeseburger(src)
+			src.recipes += new /datum/cookingrecipe/tikiburger(src)
+			src.recipes += new /datum/cookingrecipe/luauburger(src)
+			src.recipes += new /datum/cookingrecipe/coconutburger(src)
 			src.recipes += new /datum/cookingrecipe/humanburger(src)
 			src.recipes += new /datum/cookingrecipe/monkeyburger(src)
 			src.recipes += new /datum/cookingrecipe/synthburger(src)
 			src.recipes += new /datum/cookingrecipe/baconburger(src)
+			src.recipes += new /datum/cookingrecipe/spicychickensandwich(src)
+			src.recipes += new /datum/cookingrecipe/chickensandwich(src)
 			src.recipes += new /datum/cookingrecipe/mysteryburger(src)
-			src.recipes += new /datum/cookingrecipe/tikiburger(src)
-			src.recipes += new /datum/cookingrecipe/coconutburger(src)
-			src.recipes += new /datum/cookingrecipe/luauburger(src)
 			src.recipes += new /datum/cookingrecipe/buttburger(src)
 			src.recipes += new /datum/cookingrecipe/heartburger(src)
 			src.recipes += new /datum/cookingrecipe/flockburger(src)
@@ -458,11 +476,14 @@ table#cooktime a#start {
 			src.recipes += new /datum/cookingrecipe/pie_strawberry(src)
 			src.recipes += new /datum/cookingrecipe/pie_anything(src)
 			src.recipes += new /datum/cookingrecipe/pie_bacon(src)
+			src.recipes += new /datum/cookingrecipe/pot_pie(src)
+			src.recipes += new /datum/cookingrecipe/pie_chocolate(src)
 			src.recipes += new /datum/cookingrecipe/pie_ass(src)
+			src.recipes += new /datum/cookingrecipe/pie_fish(src)
+			src.recipes += new /datum/cookingrecipe/pie_weed(src)
 			src.recipes += new /datum/cookingrecipe/candy_apple_poison(src)
 			src.recipes += new /datum/cookingrecipe/candy_apple(src)
 			src.recipes += new /datum/cookingrecipe/cake_bacon(src)
-			src.recipes += new /datum/cookingrecipe/cake_downs(src)
 			src.recipes += new /datum/cookingrecipe/cake_meat(src)
 			src.recipes += new /datum/cookingrecipe/cake_chocolate(src)
 			src.recipes += new /datum/cookingrecipe/cake_cream(src)
@@ -528,15 +549,15 @@ table#cooktime a#start {
 	Topic(href, href_list)
 		if ((get_dist(src, usr) > 1 && (!issilicon(usr) && !isAI(usr))) || !isliving(usr) || iswraith(usr) || isintangible(usr))
 			return
-		if (usr.getStatusDuration("stunned") > 0 || usr.getStatusDuration("weakened") || usr.getStatusDuration("paralysis") > 0 || !isalive(usr) || usr.restrained())
+		if (is_incapacitated(usr) || usr.restrained())
 			return
 		if (href_list["cook"])
 			if (src.working)
-				boutput(usr, "<span style=\"color:red\">It's already working.</span>")
+				boutput(usr, "<span class='alert'>It's already working.</span>")
 				return
 			var/amount = src.contents.len
 			if (!amount)
-				boutput(usr, "<span style=\"color:red\">There's nothing in \the [src] to cook.</span>")
+				boutput(usr, "<span class='alert'>There's nothing in \the [src] to cook.</span>")
 				return
 			var/output = null
 			var/cook_amt = src.time
@@ -657,8 +678,12 @@ table#cooktime a#start {
 						for (var/obj/item/reagent_containers/food/snacks/ingredient/meat/humanmeat/M in src.contents)
 							F.name = "[M.subjectname] [foodname]"
 							F.desc += " It sort of smells like [M.subjectjob ? M.subjectjob : "pig"]s."
-							if (M.subjectjob && M.subjectjob == "Clown" && isnull(F.unlock_medal_when_eaten))
+							if(!isnull(F.unlock_medal_when_eaten))
+								continue
+							else if (M.subjectjob && M.subjectjob == "Clown")
 								F.unlock_medal_when_eaten = "That tasted funny"
+							else
+								F.unlock_medal_when_eaten = "Space Ham" //replace the old fat person method
 				src.icon_state = "oven_off"
 				src.working = 0
 				playsound(src.loc, "sound/machines/ding.ogg", 50, 1)
@@ -669,15 +694,15 @@ table#cooktime a#start {
 
 		if(href_list["time"])
 			if (src.working)
-				boutput(usr, "<span style=\"color:red\">It's already working.</span>")
+				boutput(usr, "<span class='alert'>It's already working.</span>")
 				return
-			src.time = CLAMP(text2num(href_list["time"]), 1, 10)
+			src.time = clamp(text2num(href_list["time"]), 1, 10)
 			src.updateUsrDialog()
 			return
 
 		if(href_list["heat"])
 			if (src.working)
-				boutput(usr, "<span style=\"color:red\">The dials are locked! THIS IS HOW OVENS WORK OK</span>")
+				boutput(usr, "<span class='alert'>The dials are locked! THIS IS HOW OVENS WORK OK</span>")
 				return
 			var/operation = text2num(href_list["heat"])
 			if (operation == 1) src.heat = "High"
@@ -687,7 +712,7 @@ table#cooktime a#start {
 
 		if(href_list["eject"])
 			if (src.working)
-				boutput(usr, "<span style=\"color:red\">Too late! It's already cooking, ejecting the food would ruin everything forever!</span>")
+				boutput(usr, "<span class='alert'>Too late! It's already cooking, ejecting the food would ruin everything forever!</span>")
 				return
 			for (var/obj/item/I in src.contents)
 				I.set_loc(src.loc)
@@ -698,10 +723,10 @@ table#cooktime a#start {
 	suicide(var/mob/user as mob)
 		if (!src.user_can_suicide(user))
 			return 0
-		user.visible_message("<span style='color:red'><b>[user] shoves [his_or_her(user)] head in the oven and turns it on.</b></span>")
+		user.visible_message("<span class='alert'><b>[user] shoves [his_or_her(user)] head in the oven and turns it on.</b></span>")
 		src.icon_state = "oven_bake"
 		user.TakeDamage("head", 0, 150)
-		sleep(50)
+		sleep(5 SECONDS)
 		src.icon_state = "oven_off"
 		SPAWN_DBG(55 SECONDS)
 			if (user && !isdead(user))
@@ -710,14 +735,17 @@ table#cooktime a#start {
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (isghostdrone(user))
-			boutput(usr, "<span style=\"color:red\">\The [src] refuses to interface with you, as you are not a properly trained chef!</span>")
+			boutput(usr, "<span class='alert'>\The [src] refuses to interface with you, as you are not a properly trained chef!</span>")
+			return
+		if (W.cant_drop) //For borg held items
+			boutput(user, "<span class='alert'>You can't put that in [src] when it's attached to you!</span>")
 			return
 		if (src.working)
-			boutput(usr, "<span style=\"color:red\">It's already on! Putting a new thing in could result in a collapse of the cooking waveform into a really lousy eigenstate, like a vending machine chili dog.</span>")
+			boutput(usr, "<span class='alert'>It's already on! Putting a new thing in could result in a collapse of the cooking waveform into a really lousy eigenstate, like a vending machine chili dog.</span>")
 			return
 		var/amount = src.contents.len
 		if (amount >= 8)
-			boutput(user, "<span style=\"color:red\">\The [src] cannot hold any more items.</span>")
+			boutput(user, "<span class='alert'>\The [src] cannot hold any more items.</span>")
 			return
 		var/proceed = 0
 		for(var/check_path in src.allowed)
@@ -734,13 +762,18 @@ table#cooktime a#start {
 			for (var/obj/item/reagent_containers/food/snacks/cake/cream/C in src.contents) cakecount++
 			if (cakecount == 1) proceed = 1
 		if (!proceed)
-			boutput(user, "<span style='color:red'>You can't put that in [src]!</span>")
+			boutput(user, "<span class='alert'>You can't put that in [src]!</span>")
 			return
-		user.visible_message("<span style='color:blue'>[user] loads [W] into [src].</span>")
+		user.visible_message("<span class='notice'>[user] loads [W] into [src].</span>")
 		user.u_equip(W)
 		W.set_loc(src)
 		W.dropped()
 		src.updateUsrDialog()
+
+	MouseDrop_T(obj/item/W as obj, mob/user as mob)
+		if (istype(W) && in_range(W, user) && in_range(src, user))
+			return src.attackby(W, user)
+		return ..()
 
 	proc/OVEN_checkitem(var/recipeitem, var/recipecount)
 		if (!locate(recipeitem) in src.contents) return 0
@@ -766,10 +799,10 @@ table#cooktime a#start {
 
 	attack_hand(var/mob/user as mob)
 		if (src.contents.len < 1)
-			boutput(user, "<span style=\"color:red\">There is nothing in the processor!</span>")
+			boutput(user, "<span class='alert'>There is nothing in the processor!</span>")
 			return
 		if (src.working == 1)
-			boutput(user, "<span style=\"color:red\">The processor is busy!</span>")
+			boutput(user, "<span class='alert'>The processor is busy!</span>")
 			return
 		src.icon_state = "processor-on"
 		src.working = 1
@@ -904,9 +937,9 @@ table#cooktime a#start {
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/satchel/))
 			var/obj/item/satchel/S = W
-			if (S.contents.len < 1) boutput(usr, "<span style=\"color:red\">There's nothing in the satchel!</span>")
+			if (S.contents.len < 1) boutput(usr, "<span class='alert'>There's nothing in the satchel!</span>")
 			else
-				user.visible_message("<span style=\"color:blue\">[user] loads [S]'s contents into [src]!</span>")
+				user.visible_message("<span class='notice'>[user] loads [S]'s contents into [src]!</span>")
 				var/amtload = 0
 				for (var/obj/item/reagent_containers/food/F in S.contents)
 					F.set_loc(src)
@@ -915,7 +948,7 @@ table#cooktime a#start {
 					P.set_loc(src)
 					amtload++
 				W:satchel_updateicon()
-				boutput(user, "<span style=\"color:blue\">[amtload] items loaded from satchel!</span>")
+				boutput(user, "<span class='notice'>[amtload] items loaded from satchel!</span>")
 				S.desc = "A leather bag. It holds [S.contents.len]/[S.maxitems] [S.itemstring]."
 			return
 		else
@@ -925,9 +958,9 @@ table#cooktime a#start {
 					proceed = 1
 					break
 			if (!proceed)
-				boutput(user, "<span style=\"color:red\">You can't put that in the processor!</span>")
+				boutput(user, "<span class='alert'>You can't put that in the processor!</span>")
 				return
-			user.visible_message("<span style=\"color:blue\">[user] loads [W] into the [src].</span>")
+			user.visible_message("<span class='notice'>[user] loads [W] into the [src].</span>")
 			user.u_equip(W)
 			W.set_loc(src)
 			W.dropped()
@@ -937,26 +970,26 @@ table#cooktime a#start {
 		..()
 		if (get_dist(src, usr) > 1 || !isliving(usr) || iswraith(usr) || isintangible(usr))
 			return
-		if (usr.getStatusDuration("stunned") > 0 || usr.getStatusDuration("weakened") || usr.getStatusDuration("paralysis") > 0 || !isalive(usr) || usr.restrained())
+		if (is_incapacitated(usr) || usr.restrained())
 			return
 		if (over_object == usr && (in_range(src, usr) || usr.contents.Find(src)))
 			for(var/obj/item/P in src.contents)
 				P.set_loc(get_turf(src))
 			for(var/mob/O in AIviewers(usr, null))
-				O.show_message("<span style=\"color:blue\">[usr] empties the [src].</span>")
+				O.show_message("<span class='notice'>[usr] empties the [src].</span>")
 			return
 
 	MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
 		if (get_dist(src, user) > 1 || !isliving(user) || iswraith(user) || isintangible(user))
 			return
-		if (user.getStatusDuration("stunned") > 0 || user.getStatusDuration("weakened") || user.getStatusDuration("paralysis") > 0 || !isalive(user) || user.restrained())
+		if (is_incapacitated(user) || user.restrained())
 			return
 
 		if (istype(O, /obj/storage))
 			if (O:locked)
-				boutput(user, "<span style=\"color:red\">You need to unlock it first!</span>")
+				boutput(user, "<span class='alert'>You need to unlock it first!</span>")
 				return
-			user.visible_message("<span style=\"color:blue\">[user] loads [O]'s contents into [src]!</span>")
+			user.visible_message("<span class='notice'>[user] loads [O]'s contents into [src]!</span>")
 			var/amtload = 0
 			for (var/obj/item/reagent_containers/food/M in O.contents)
 				M.set_loc(src)
@@ -964,20 +997,20 @@ table#cooktime a#start {
 			for (var/obj/item/plant/P in O.contents)
 				P.set_loc(src)
 				amtload++
-			if (amtload) boutput(user, "<span style=\"color:blue\">[amtload] items of food loaded from [O]!</span>")
-			else boutput(user, "<span style=\"color:red\">No food loaded!</span>")
+			if (amtload) boutput(user, "<span class='notice'>[amtload] items of food loaded from [O]!</span>")
+			else boutput(user, "<span class='alert'>No food loaded!</span>")
 		else if (istype(O, /obj/item/reagent_containers/food/) || istype(O, /obj/item/plant/))
-			user.visible_message("<span style=\"color:blue\">[user] begins quickly stuffing food into [src]!</span>")
+			user.visible_message("<span class='notice'>[user] begins quickly stuffing food into [src]!</span>")
 			var/staystill = user.loc
 			for(var/obj/item/reagent_containers/food/M in view(1,user))
 				M.set_loc(src)
-				sleep(3)
+				sleep(0.3 SECONDS)
 				if (user.loc != staystill) break
 			for(var/obj/item/plant/P in view(1,user))
 				P.set_loc(src)
-				sleep(3)
+				sleep(0.3 SECONDS)
 				if (user.loc != staystill) break
-			boutput(user, "<span style=\"color:blue\">You finish stuffing food into [src]!</span>")
+			boutput(user, "<span class='notice'>You finish stuffing food into [src]!</span>")
 		else ..()
 		src.updateUsrDialog()
 
@@ -998,6 +1031,7 @@ var/list/mixer_recipes = list()
 	var/working = 0
 
 	New()
+		..()
 		src.recipes = mixer_recipes
 		if (!src.recipes)
 			src.recipes = list()
@@ -1023,7 +1057,7 @@ var/list/mixer_recipes = list()
 	attackby(obj/item/W as obj, mob/user as mob)
 		var/amount = src.contents.len
 		if (amount >= 4)
-			boutput(user, "<span style=\"color:red\">The mixer is full.</span>")
+			boutput(user, "<span class='alert'>The mixer is full.</span>")
 			return
 		var/proceed = 0
 		for(var/check_path in src.allowed)
@@ -1031,16 +1065,16 @@ var/list/mixer_recipes = list()
 				proceed = 1
 				break
 		if (!proceed)
-			boutput(user, "<span style=\"color:red\">You can't put that in the mixer!</span>")
+			boutput(user, "<span class='alert'>You can't put that in the mixer!</span>")
 			return
-		user.visible_message("<span style=\"color:blue\">[user] puts [W] into the [src].</span>")
+		user.visible_message("<span class='notice'>[user] puts [W] into the [src].</span>")
 		user.u_equip(W)
 		W.set_loc(src)
 		W.dropped()
 
 	attack_hand(var/mob/user as mob)
 		if (!src.working)
-			user.machine = src
+			src.add_dialog(user)
 			var/dat = {"<B>KitchenHelper Mixer</B><BR>
 			<HR>
 			<B>Contents:</B><BR>"}
@@ -1052,7 +1086,7 @@ var/list/mixer_recipes = list()
 			user.Browse(dat, "window=mixer;size=400x500")
 			onclose(user, "mixer")
 		else
-			user.machine = src
+			src.add_dialog(user)
 			var/dat = {"<B>KitchenHelper Mixer</B><BR>
 			<HR><BR>
 			Mixing! Please wait!"}
@@ -1062,15 +1096,20 @@ var/list/mixer_recipes = list()
 	attack_ai(var/mob/user as mob)
 		return attack_hand(user)
 
+	MouseDrop_T(obj/item/W as obj, mob/user as mob)
+		if (istype(W) && in_range(W, user) && in_range(src, user))
+			return src.attackby(W, user)
+		return ..()
+
 	Topic(href, href_list)
 		if ((get_dist(src, usr) > 1 && (!issilicon(usr) && !isAI(usr))) || !isliving(usr) || iswraith(usr) || isintangible(usr))
 			return
-		if (usr.getStatusDuration("stunned") > 0 || usr.getStatusDuration("weakened") || usr.getStatusDuration("paralysis") > 0 || !isalive(usr) || usr.restrained())
+		if (is_incapacitated(usr) || usr.restrained())
 			return
 
 		if (href_list["mix"])
 			if (src.working)
-				boutput(usr, "<span style=\"color:red\">It's already working.</span>")
+				boutput(usr, "<span class='alert'>It's already working.</span>")
 				return
 			mix()
 		if(href_list["eject"])
@@ -1094,7 +1133,7 @@ var/list/mixer_recipes = list()
 	proc/mix()
 		var/amount = src.contents.len
 		if (!amount)
-			boutput(usr, "<span style=\"color:red\">There's nothing in the mixer.</span>")
+			boutput(usr, "<span class='alert'>There's nothing in the mixer.</span>")
 			return
 		working = 1
 		src.update_icon()
@@ -1133,14 +1172,19 @@ var/list/mixer_recipes = list()
 					for (var/obj/item/reagent_containers/food/snacks/ingredient/meat/humanmeat/M in src.contents)
 						F.name = "[M.subjectname] [foodname]"
 						F.desc += " It sort of smells like [M.subjectjob ? M.subjectjob : "pig"]s."
-						if (M.subjectjob && M.subjectjob == "Clown" && isnull(F.unlock_medal_when_eaten))
+						if(!isnull(F.unlock_medal_when_eaten))
+							continue
+						else if (M.subjectjob && M.subjectjob == "Clown")
 							F.unlock_medal_when_eaten = "That tasted funny"
+						else
+							F.unlock_medal_when_eaten = "Space Ham" //replace the old fat person method
 				for (var/obj/item/I in to_remove)
 					qdel(I)
+				to_remove.len = 0
 
 			for (var/obj/I in src.contents)
 				I.set_loc(src.loc)
-				src.visible_message("<span style=\"color:red\">[I] is tossed out of [src]!</span>")
+				src.visible_message("<span class='alert'>[I] is tossed out of [src]!</span>")
 				var/edge = get_edge_target_turf(src, pick(alldirs))
 				I.throw_at(edge, 25, 4)
 

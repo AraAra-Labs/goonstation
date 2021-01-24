@@ -81,6 +81,8 @@
 
 		/* sample loop gasses from sensors */
 		for(var/obj/machinery/power/stats_meter/M in meters)
+			if (!M.target || !M.tag)
+				continue
 			var/list/T[] = sample_air(M.target.return_air(), 1)
 			M.set_bars(T["thermal_energy"])
 			T["tag"] = M.tag
@@ -96,8 +98,8 @@
 		process_chamber(chamber_samples_avg)
 
 		/* process meter samples */
-		for(var/M in meter_samples)
-			process_meter(M["tag"], M)
+		for(var/M in src.meter_samples)
+			if (M) process_meter(M["tag"], M)
 
 		if(refresh)
 			src.updateUsrDialog()
@@ -109,7 +111,7 @@
 
 			/* get out of machine's scheduler, get in atmos_machines */
 			UnsubscribeProcess()
-			atmos_machines.Add(src)
+			START_TRACKING_CAT(TR_CAT_ATMOS_MACHINES)
 
 			/* get all of the loop meters */
 			meters = get_meters()
@@ -142,6 +144,7 @@
 					avg_meter["[N]"]["[Z]_d2x"] = 0
 
 		process_generator(var/list/L)
+			if(!L) return
 			master_generator_datapoints[++master_generator_datapoints.len] = L
 			if(master_generator_datapoints.len == 1) return
 
@@ -500,24 +503,24 @@
 
 			meter_metrics["[p_tag]"][++meter_metrics["[p_tag]"].len] = m_metric
 
-		sample_air(var/datum/gas_mixture/G, var/no_archived)
+		sample_air(var/datum/gas_mixture/G, var/ARCHIVED(no))
 			var/list/ret = new/list()
 
-			if(no_archived)
+			if(ARCHIVED(no))
 				if(G.oxygen) ret["o2"] = G.oxygen
 				if(G.toxins) ret["toxins"] = G.toxins
 				if(G.carbon_dioxide) ret["co2"] = G.carbon_dioxide
 				if(G.nitrogen) ret["n2"] = G.nitrogen
 
-				ret["pressure"] = G.return_pressure()
+				ret["pressure"] = MIXTURE_PRESSURE(G)
 				ret["temp"] = G.temperature
 				ret["burnt"] = G.fuel_burnt
-				ret["heat_capacity"] = G.heat_capacity()
-				ret["thermal_energy"] = G.thermal_energy()
-				ret["moles"] = G.total_moles()
+				ret["heat_capacity"] = HEAT_CAPACITY(G)
+				ret["thermal_energy"] = THERMAL_ENERGY(G)
+				ret["moles"] = TOTAL_MOLES(G)
 
-				if(G.trace_gases && G.trace_gases.len)
-					for(var/datum/gas/T in G.trace_gases)
+				if(length(G.trace_gases))
+					for(var/datum/gas/T as() in G.trace_gases)
 						if(istype(T, /datum/gas/sleeping_agent))
 							ret["n2o"] = T.moles
 						else if(istype(T, /datum/gas/oxygen_agent_b))
@@ -528,29 +531,29 @@
 							ret["rad"] = T.moles
 
 			else
-				if(G && G.oxygen_archived) ret["o2"] = G.oxygen_archived
-				if(G && G.toxins_archived) ret["toxins"] = G.toxins_archived
-				if(G && G.carbon_dioxide_archived) ret["co2"] = G.carbon_dioxide_archived
-				if(G && G.nitrogen_archived) ret["n2"] = G.nitrogen_archived
+				if(G?.ARCHIVED(oxygen)) ret["o2"] = G.ARCHIVED(oxygen)
+				if(G?.ARCHIVED(toxins)) ret["toxins"] = G.ARCHIVED(toxins)
+				if(G?.ARCHIVED(carbon_dioxide)) ret["co2"] = G.ARCHIVED(carbon_dioxide)
+				if(G?.ARCHIVED(nitrogen)) ret["n2"] = G.ARCHIVED(nitrogen)
 
 				if (G) //sorry, this was still somehow causing runtimes????
-					ret["pressure"] = G.return_pressure()
-					ret["temp"] = G.temperature_archived
+					ret["pressure"] = MIXTURE_PRESSURE(G)
+					ret["temp"] = G.ARCHIVED(temperature)
 					ret["burnt"] = G.fuel_burnt
-					ret["heat_capacity"] = G.heat_capacity_archived()
-					ret["thermal_energy"] = G.thermal_energy()
-					ret["moles"] = G.total_moles()
+					ret["heat_capacity"] = HEAT_CAPACITY_ARCHIVED(G)
+					ret["thermal_energy"] = THERMAL_ENERGY(G)
+					ret["moles"] = TOTAL_MOLES(G)
 
-				if(G && G.trace_gases && G.trace_gases.len)
-					for(var/datum/gas/T in G.trace_gases)
+				if(G && length(G.trace_gases))
+					for(var/datum/gas/T as() in G.trace_gases)
 						if(istype(T, /datum/gas/sleeping_agent))
-							ret["n2o"] = T.moles_archived
+							ret["n2o"] = T.ARCHIVED(moles)
 						else if(istype(T, /datum/gas/oxygen_agent_b))
-							ret["o2_b"] = T.moles_archived
+							ret["o2_b"] = T.ARCHIVED(moles)
 						else if(istype(T, /datum/gas/volatile_fuel))
-							ret["fuel"] = T.moles_archived
+							ret["fuel"] = T.ARCHIVED(moles)
 						else
-							ret["rad"] = T.moles_archived
+							ret["rad"] = T.ARCHIVED(moles)
 
 			return ret
 
@@ -558,14 +561,14 @@
 			var/list/ret = new/list()
 
 			ret["output"] = teg.lastgen
-			ret["hot_temp_in"] = teg_hot.air1.temperature
-			ret["hot_temp_out"] = teg_hot.air2.temperature
-			ret["hot_pressure_in"] = teg_hot.air1.return_pressure()
-			ret["hot_pressure_out"] = teg_hot.air2.return_pressure()
-			ret["cold_temp_in"] = teg_cold.air1.temperature
-			ret["cold_temp_out"] = teg_cold.air2.temperature
-			ret["cold_pressure_in"] = teg_cold.air1.return_pressure()
-			ret["cold_pressure_out"] = teg_cold.air2.return_pressure()
+			ret["hot_temp_in"] = teg_hot.air1?.temperature
+			ret["hot_temp_out"] = teg_hot.air2?.temperature
+			ret["hot_pressure_in"] = teg_hot.air1 ? MIXTURE_PRESSURE(teg_hot.air1) : 0
+			ret["hot_pressure_out"] = teg_hot.air2 ? MIXTURE_PRESSURE(teg_hot.air2) : 0
+			ret["cold_temp_in"] = teg_cold.air1?.temperature
+			ret["cold_temp_out"] = teg_cold.air2?.temperature
+			ret["cold_pressure_in"] = teg_cold.air1 ? MIXTURE_PRESSURE(teg_cold.air1) : 0
+			ret["cold_pressure_out"] = teg_cold.air2 ? MIXTURE_PRESSURE(teg_cold.air2) : 0
 
 			return ret
 
@@ -1314,6 +1317,8 @@
 
 		gen_loops_page(var/p_tag as text)
 			var/ret = ""
+			if(p_tag == "") return
+
 			var/list/cur_metric = meter_metrics["[p_tag]"][meter_metrics["[p_tag]"].len]
 			var/list/disc_sample = master_meter_datapoints["[p_tag]"][cur_metric["index"]]
 			var/list/avg = new/list()
@@ -1609,7 +1614,7 @@
 	"})
 	html.addToHead(kstyle)
 
-	user.machine = src
+	src.add_dialog(user)
 	if(user.client)
 		luser = user.client
 

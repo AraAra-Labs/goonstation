@@ -12,10 +12,10 @@
 	mat_changedesc = 0
 	var/associated_datum = /datum/artifact/art
 
-	New(var/loc, var/forceartitype)
+	New(var/loc, var/forceartiorigin)
 		..()
 		var/datum/artifact/AS = new src.associated_datum(src)
-		if (forceartitype) AS.validtypes = list("[forceartitype]")
+		if (forceartiorigin) AS.validtypes = list("[forceartiorigin]")
 		src.artifact = AS
 
 		SPAWN_DBG(0)
@@ -29,6 +29,7 @@
 		src.name = "[name_prefix(null, 1)][src.real_name][name_suffix(null, 1)]"
 
 	attack_hand(mob/user as mob)
+		user.lastattacked = src
 		src.ArtifactTouched(user)
 		return
 
@@ -36,6 +37,7 @@
 		return attack_hand(user)
 
 	attackby(obj/item/W as obj, mob/user as mob)
+		user.lastattacked = src
 		if (src.Artifact_attackby(W,user))
 			..()
 
@@ -44,13 +46,12 @@
 		..()
 
 	examine()
-		set src in oview()
-		boutput(usr, "You have no idea what this thing is!")
+		. = list("You have no idea what this thing is!")
 		if (!src.ArtifactSanityCheck())
 			return
 		var/datum/artifact/A = src.artifact
 		if (istext(A.examine_hint))
-			boutput(usr, "[A.examine_hint]")
+			. += A.examine_hint
 
 	ex_act(severity)
 		switch(severity)
@@ -80,7 +81,7 @@
 			if("uranium")
 				src.ArtifactStimulus("radiate", round(volume / 2))
 			if("dna_mutagen","mutagen","omega_mutagen")
-				if (A.artitype == "martian")
+				if (A.artitype.name == "martian")
 					ArtifactDevelopFault(80)
 			if("phlogiston","dbreath","el_diablo","thermite","thalmerite","argine")
 				src.ArtifactStimulus("heat", 310 + (volume * 5))
@@ -133,10 +134,9 @@
 				src.ArtifactStimulus("radiate", P.power)
 		..()
 
-	Bumped(M as mob|obj)
+	hitby(atom/movable/M, datum/thrown_thing/thr)
 		if (isitem(M))
 			var/obj/item/ITM = M
-			src.ArtifactStimulus("force", ITM.throwforce)
 			for (var/obj/machinery/networked/test_apparatus/impact_pad/I in src.loc.contents)
 				I.impactpad_senseforce(src, ITM)
 		..()
@@ -153,11 +153,11 @@
 	mat_changedesc = 0
 	var/associated_datum = /datum/artifact/art
 
-	New(var/loc, var/forceartitype)
+	New(var/loc, var/forceartiorigin)
 		..()
 		var/datum/artifact/AS = new src.associated_datum(src)
-		if (forceartitype)
-			AS.validtypes = list("[forceartitype]")
+		if (forceartiorigin)
+			AS.validtypes = list("[forceartiorigin]")
 		src.artifact = AS
 
 		SPAWN_DBG(0)
@@ -168,13 +168,12 @@
 		..()
 
 	examine()
-		set src in oview()
-		boutput(usr, "You have no idea what this thing is!")
+		. = list("You have no idea what this thing is!")
 		if (!src.ArtifactSanityCheck())
 			return
 		var/datum/artifact/A = src.artifact
 		if (istext(A.examine_hint))
-			boutput(usr, "[A.examine_hint]")
+			. += A.examine_hint
 
 	UpdateName()
 		src.name = "[name_prefix(null, 1)][src.real_name][name_suffix(null, 1)]"
@@ -231,7 +230,7 @@
 			if("uranium")
 				src.ArtifactStimulus("radiate", round(volume / 2))
 			if("dna_mutagen","mutagen","omega_mutagen")
-				if (A.artitype == "martian")
+				if (A.artitype.name == "martian")
 					ArtifactDevelopFault(80)
 			if("phlogiston","dbreath","el_diablo")
 				src.ArtifactStimulus("heat", 310 + (volume * 5))
@@ -281,10 +280,9 @@
 				src.ArtifactStimulus("radiate", P.power)
 		..()
 
-	Bumped(M as mob|obj)
+	hitby(atom/movable/M, datum/thrown_thing/thr)
 		if (isitem(M))
 			var/obj/item/ITM = M
-			src.ArtifactStimulus("force", ITM.throwforce)
 			for (var/obj/machinery/networked/test_apparatus/impact_pad/I in src.loc.contents)
 				I.impactpad_senseforce(src, ITM)
 		..()
@@ -298,10 +296,11 @@
 	mat_changedesc = 0
 	var/associated_datum = /datum/artifact/art
 
-	New(var/loc, var/forceartitype)
+	New(var/loc, var/forceartiorigin)
+		..()
 		var/datum/artifact/AS = new src.associated_datum(src)
-		if (forceartitype)
-			AS.validtypes = list("[forceartitype]")
+		if (forceartiorigin)
+			AS.validtypes = list("[forceartiorigin]")
 		src.artifact = AS
 
 		SPAWN_DBG(0)
@@ -312,13 +311,12 @@
 		..()
 
 	examine()
-		set src in oview()
-		boutput(usr, "You have no idea what this thing is!")
+		. = list("You have no idea what this thing is!")
 		if (!src.ArtifactSanityCheck())
 			return
 		var/datum/artifact/A = src.artifact
 		if (istext(A.examine_hint))
-			boutput(usr, "[A.examine_hint]")
+			. += A.examine_hint
 
 	UpdateName()
 		src.name = "[name_prefix(null, 1)][src.real_name][name_suffix(null, 1)]"
@@ -327,17 +325,52 @@
 		if (src.Artifact_attackby(W,user))
 			..()
 
+	hitby(atom/movable/M, datum/thrown_thing/thr)
+		if (isitem(M))
+			var/obj/item/ITM = M
+			for (var/obj/machinery/networked/test_apparatus/impact_pad/I in src.loc.contents)
+				I.impactpad_senseforce(src, ITM)
+		..()
+
 /obj/artifact_spawner
 	// pretty much entirely for debugging/gimmick use
-	New(var/loc,var/forceartitype = null,var/cinematic = 0)
+	New(var/loc,var/forceartiorigin = null,var/cinematic = 0)
+		..()
 		var/turf/T = get_turf(src)
 		if (cinematic)
-			T.visible_message("<span style=\"color:red\"><b>An artifact suddenly warps into existence!</b></span>")
+			T.visible_message("<span class='alert'><b>An artifact suddenly warps into existence!</b></span>")
 			playsound(T,"sound/effects/teleport.ogg",50,1)
 			var/obj/decal/teleport_swirl/swirl = unpool(/obj/decal/teleport_swirl)
 			swirl.set_loc(T)
 			SPAWN_DBG(1.5 SECONDS)
 				pool(swirl)
-		Artifact_Spawn(T,forceartitype)
+		Artifact_Spawn(T,forceartiorigin)
 		qdel(src)
 		return
+
+/obj/artifact_type_spawner
+	var/list/types = list()
+
+	New(var/loc)
+		..()
+		Artifact_Spawn(src.loc, forceartitype = pick(src.types))
+		qdel(src)
+		return
+
+/obj/artifact_type_spawner/vurdalak
+
+	New(var/loc)
+		src.types = concrete_typesof(/datum/artifact)
+		..()
+
+// I removed mining artifacts from this list because they are kinda not in the game right now
+/obj/artifact_type_spawner/gragg
+	types = list(
+		/datum/artifact/activator_key,
+		/datum/artifact/wallwand,
+		/datum/artifact/melee,
+		/datum/artifact/telewand,
+		/datum/artifact/energygun,
+		/datum/artifact/watercan,
+		/datum/artifact/pitcher
+		)

@@ -32,7 +32,7 @@
 			for(var/obj/machinery/mining_magnet/MM in range(7,src.ship))
 				MM.generate_interface(usr)
 				return null
-			boutput(usr, "<span style=\"color:red\">No magnet found in range of seven meters.</span>")
+			boutput(usr, "<span class='alert'>No magnet found in range of seven meters.</span>")
 			return null
 
 	syndicate
@@ -55,8 +55,7 @@
 		access_type_secondary = 2
 
 	opencomputer(mob/user as mob)
-		if(ship.intercom)
-			ship.intercom.attack_self(user)
+		ship.intercom?.attack_self(user)
 		return
 
 	deactivate()
@@ -101,8 +100,7 @@
 	New()
 		..()
 		SPAWN_DBG(0.5 SECONDS)
-			if(radio_controller)
-				radio_controller.add_object(src, "[frequency]")
+			radio_controller?.add_object(src, "[frequency]")
 
 			src.net_id = format_net_id("\ref[src]")
 

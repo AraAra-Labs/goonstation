@@ -52,8 +52,8 @@
 			hot_air = air2
 			cold_air = air1
 
-		var/hot_air_heat_capacity = hot_air.heat_capacity()
-		var/cold_air_heat_capacity = cold_air.heat_capacity()
+		var/hot_air_heat_capacity = HEAT_CAPACITY(hot_air)
+		var/cold_air_heat_capacity = HEAT_CAPACITY(cold_air)
 
 		var/delta_temperature = hot_air.temperature - cold_air.temperature
 
@@ -71,11 +71,9 @@
 			// uncomment to debug
 			// logTheThing("debug", null, null, "POWER: [lastgen] W generated at [efficiency*100]% efficiency and sinks sizes [cold_air_heat_capacity], [hot_air_heat_capacity]")
 
-			if(input1.network)
-				input1.network.update = 1
+			input1.network?.update = 1
 
-			if(input2.network)
-				input2.network.update = 1
+			input2.network?.update = 1
 
 			add_avail(lastgen)
 	// update icon overlays only if displayed level has changed
@@ -106,7 +104,7 @@
 		user << browse(null, "window=teg")
 		return
 
-	user.machine = src
+	src.add_dialog(user)
 
 	var/t = "<PRE><B>Thermo-Electric Generator</B><HR>"
 
@@ -114,11 +112,11 @@
 
 	t += "<B>Cold loop</B><BR>"
 	t += "Temperature: [round(input1.air_contents.temperature, 0.1)] K<BR>"
-	t += "Pressure: [round(input1.air_contents.return_pressure(), 0.1)] kPa<BR>"
+	t += "Pressure: [round(MIXTURE_PRESSURE(input1.air_contents), 0.1)] kPa<BR>"
 
 	t += "<B>Hot loop</B><BR>"
 	t += "Temperature: [round(input2.air_contents.temperature, 0.1)] K<BR>"
-	t += "Pressure: [round(input2.air_contents.return_pressure(), 0.1)] kPa<BR>"
+	t += "Pressure: [round(MIXTURE_PRESSURE(input2.air_contents), 0.1)] kPa<BR>"
 
 	t += "<BR><HR><A href='?src=\ref[src];close=1'>Close</A>"
 

@@ -108,7 +108,7 @@
 	for (amt, amt>0, amt--)
 		src.pixel_x = rand(-2,2)
 		src.pixel_y = rand(-2,2)
-		sleep(1)
+		sleep(0.1 SECONDS)
 	src.pixel_x = orig_x
 	src.pixel_y = orig_y
 	return 1
@@ -163,7 +163,7 @@
 
 /obj/submachine/laundry_machine/MouseDrop(over_object,src_location,over_location)
 	var/mob/user = usr
-	if (!user || !over_object || get_dist(user, src) > 1 || get_dist(user, over_object) > 1 || user.stat || user.getStatusDuration("paralysis") || user.getStatusDuration("stunned") || user.getStatusDuration("weakened") || (issilicon(user) && get_dist(src,user) > 1))
+	if (!user || !over_object || get_dist(user, src) > 1 || get_dist(user, over_object) > 1 || is_incapacitated(user) || (issilicon(user) && get_dist(src,user) > 1))
 		return
 	if (src.on)
 		src.visible_message("[user] tries to open [src]'s door, but [src] is running and the door is locked!")

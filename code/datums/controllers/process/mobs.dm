@@ -7,58 +7,63 @@ datum/controller/process/mobs
 	var/list/wraiths = list()
 	var/list/adminghosts = list()
 
+	var/nextpopcheck = 0
+
 	setup()
 		name = "Mob"
 		schedule_interval = 40
 		detailed_count = new
 		src.mobs = global.mobs
 
-	copyStateFrom(var/datum/controller/process/mobs/other)
-		detailed_count = other.detailed_count
+	copyStateFrom(datum/controller/process/target)
+		var/datum/controller/process/mobs/old_mobs = target
+		src.detailed_count = old_mobs.detailed_count
+		src.tick_counter = old_mobs.tick_counter
+		src.mobs = old_mobs.mobs
+		src.wraiths = old_mobs.wraiths
+		src.adminghosts = old_mobs.adminghosts
+		src.nextpopcheck = old_mobs.nextpopcheck
 
 	doWork()
 		src.mobs = global.mobs
 		var/c
 
-		for(var/mob/living/M in src.mobs)
-			if( M.z == 4 && !Z4_ACTIVE ) continue
-			M.Life(src)
-			if (!(c++ % 5))
+		if (TIME > nextpopcheck)
+			nextpopcheck = TIME + 4 MINUTES
+			var/clients_num = total_clients()
+			if (clients_num >= SLOWEST_LIFE_PLAYERCOUNT)
+				schedule_interval = 80
+				footstep_extrarange = -10
+			else if (clients_num >= SLOW_LIFE_PLAYERCOUNT)  //hacky lag saving measure
+				schedule_interval = 65
+				footstep_extrarange = 0
+			else
+				schedule_interval = 40
+				footstep_extrarange = 0
+
+		for(var/X in src.mobs)
+			if(istype(X, /mob/living))
+				var/mob/living/M = X
+				if( M.z == 4 && !Z4_ACTIVE ) continue
+				M.Life(src)
+				if (!(c++ % 5))
+					scheck()
+			else if(istype(X, /mob/wraith))
+				var/mob/wraith/W = X
+				W.Life(src)
 				scheck()
+			else if(istype(X, /mob/dead))
+				var/mob/dead/G = X
+				#ifdef HALLOWEEN
+				if (TRUE)
+				#else
+				if (isadminghost(G) || IS_TWITCH_CONTROLLED(G))
+				#endif
+					G:Life(src)
+					scheck()
 
-		for(var/mob/wraith/W in src.mobs)
-			W.Life(src)
-			scheck()
-
-		// For periodic antag overlay updates (Convair880).
-		for (var/mob/dead/G in src.mobs)
-#ifdef HALLOWEEN
-			if (TRUE)
-#else
-			if (isadminghost(G) || IS_TWITCH_CONTROLLED(G))
-#endif
-				G:Life(src)
-				scheck()
-
-		/*
-		for(var/mob/living/M in src.mobs)
-			tick_counter = world.timeofday
-
-			M.Life(src)
-
-			tick_counter = world.timeofday - tick_counter
-			if (M && tick_counter > 0)
-				detailed_count["[M.type]-[M.name]"] += tick_counter
-
-			scheck(currentTick)
-
-		// a r g h
-		for (var/mob/wraith/W in src.mobs)
-			W.Life(src)
-			scheck(currentTick)
-		*/
 	tickDetail()
-		if (detailed_count && detailed_count.len)
+		if (length(detailed_count))
 			var/stats = "<b>[name] ticks:</b><br>"
 			var/count
 			for (var/thing in detailed_count)

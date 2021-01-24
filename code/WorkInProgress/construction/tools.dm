@@ -6,9 +6,10 @@
 	density = 1
 	anchored = 1
 	New()
+		..()
 		SPAWN_DBG(1 SECOND)
 			var/obj/term = new /obj/machinery/power/terminal(get_step(get_turf(src), dir))
-			term.dir = get_dir(get_turf(term), src)
+			term.set_dir(get_dir(get_turf(term), src))
 			new /obj/machinery/power/smes(get_turf(src))
 			qdel(src)
 
@@ -38,14 +39,13 @@
 					if(B.owner.current.client)
 						valid = 1
 			if (!valid)
-				boutput(user, "<span style=\"color:red\">This brain doesn't look any good to use!</span>")
+				boutput(user, "<span class='alert'>This brain doesn't look any good to use!</span>")
 				processing = 0
 				return
 			var/mob/M = B.owner.current
 			M.set_loc(get_turf(src))
 			var/mob/living/silicon/ai/TheAI = M.AIize(0, 1)
 			TheAI.set_loc(src)
-			src.loc = null
 			B.set_loc(TheAI)
 			TheAI.brain = B
 			TheAI.anchored = 0
@@ -89,7 +89,7 @@
 					power_usage = 750
 				else
 					var/target = pick(targets)
-					src.dir = get_dir(src, target)
+					src.set_dir(get_dir(src, target))
 					if (src.enabled)
 						power_usage = 750
 						src.shootAt(target)
@@ -112,17 +112,16 @@
 				T.control = src
 
 	attack_hand(var/mob/user as mob)
-		if ( (get_dist(src, user) > 1 ))
-			if (!issilicon(user))
-				boutput(user, text("Too far away."))
-				user.machine = null
-				user.Browse(null, "window=turretid")
-				return
+		if (!in_range(src,user))
+			boutput(user, text("Too far away."))
+			src.remove_dialog(user)
+			user.Browse(null, "window=turretid")
+			return
 
-		user.machine = src
+		src.add_dialog(user)
 		var/t = "<TT><B>Turret Control Panel</B><BR><B>Controlled turrets:</B> [turrets.len] (<A href='?src=\ref[src];rescan=1'>Rescan</a>)<HR>"
 
-		if(src.locked && (!issilicon(user)))
+		if(src.locked && !can_access_remotely(user))
 			t += "<I>(Swipe ID card to unlock control panel.)</I><BR>"
 		else
 			t += text("Turrets [] - <A href='?src=\ref[];toggleOn=1'>[]?</a><br><br>", src.enabled?"activated":"deactivated", src, src.enabled?"Disable":"Enable")
@@ -135,7 +134,7 @@
 
 	Topic(href, href_list)
 		if (src.locked)
-			if (!issilicon(usr))
+			if (!can_access_remotely(usr))
 				boutput(usr, "Control panel is locked!")
 				return
 		if (href_list["rescan"])
@@ -181,55 +180,70 @@
 	var/datum/progress/designated = null
 
 	attack_self(var/mob/user)
-		if (!(ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/construction)))
-			boutput(user, "<span style=\"color:red\">You can only use this tool in construction mode.</span>")
+		if (!(ticker?.mode && istype(ticker.mode, /datum/game_mode/construction)))
+			boutput(user, "<span class='alert'>You can only use this tool in construction mode.</span>")
+			return
 		var/datum/game_mode/construction/C = ticker.mode
 		var/list/pickable = list()
 		for (var/datum/progress/P in C.milestones)
 			if (P.is_room && !P.completed)
 				pickable += P
 		if (!pickable.len)
-			boutput(user, "<span style=\"color:red\">No rooms available for designation.</span>")
+			boutput(user, "<span class='alert'>No rooms available for designation.</span>")
 		designated = input("Which room would you like to designate?", "Room", pickable[1]) in pickable
-		boutput(user, "<span style=\"color:blue\">Using this tool will now designate the room: [designated]. A room is surrounded by dense objects or walls on all sides.</span>")
+		boutput(user, "<span class='hint'>Using this tool will now designate the room: [designated]. A room is surrounded by dense objects or walls on all sides.</span>")
 		if (designated.minimum_width)
-			boutput(user, "<span style=\"color:blue\">The room must be at least [designated.minimum_width] tiles wide (including the walls).</span>")
+			boutput(user, "<span class='hint'>The room must be at least [designated.minimum_width] tiles wide (including the walls).</span>")
 		if (designated.minimum_height)
-			boutput(user, "<span style=\"color:blue\">The room must be at least [designated.minimum_height] tiles high (including the walls).</span>")
+			boutput(user, "<span class='hint'>The room must be at least [designated.minimum_height] tiles high (including the walls).</span>")
 		if (designated.requirements_cache)
-			boutput(user, "<span style=\"color:blue\">The room must contain at least the following objects: [designated.requirements_cache].</span>")
+			boutput(user, "<span class='hint'>The room must contain at least the following objects: [designated.requirements_cache].</span>")
 
 	afterattack(atom/target as mob|obj|turf|area, mob/user as mob)
 		if (!isturf(target))
 			return
 		if (!designated)
-			boutput(user, "<span style=\"color:red\">No designated room selected.</span>")
+			boutput(user, "<span class='alert'>No designated room selected.</span>")
 			return
 		if (designated.completed)
-			boutput(user, "<span style=\"color:blue\">The designated room already exists.</span>")
+			boutput(user, "<span class='notice'>The designated room already exists.</span>")
 			designated = null
 			return
 		if (using)
-			boutput(user, "<span style=\"color:red\">Already verifying a room. Please wait.</span>")
+			boutput(user, "<span class='alert'>Already verifying a room. Please wait.</span>")
 			return
 		using = 1
-		boutput(user, "<span style=\"color:blue\">Designating room.</span>")
+		boutput(user, "<span class='notice'>Designating room.</span>")
 		SPAWN_DBG(0)
 			if (designated.check_completion(target))
-				boutput(user, "<span style=\"color:blue\">Designation successful, room matches required parameters.</span>")
+				boutput(user, "<span class='notice'>Designation successful, room matches required parameters.</span>")
 				//new /obj/machinery/power/apc(get_turf(target))
-				//boutput(user, "<span style=\"color:red\">Yes I am aware that that APC is in a shit place. You will have to make do until I can actually finish working on power stuff okay???</span>")
+				//boutput(user, "<span class='alert'>Yes I am aware that that APC is in a shit place. You will have to make do until I can actually finish working on power stuff okay???</span>")
 				designated = null
 			else
-				boutput(user, "<span style=\"color:red\">Designation failed.</span>")
+				boutput(user, "<span class='alert'>Designation failed.</span>")
 			using = 0
 
 /obj/item/clothing/glasses/construction
 	name = "\improper Construction Visualizer"
-	icon_state = "meson"
-	item_state = "glasses"
+	icon_state = "construction"
+	item_state = "construction"
 	mats = 6
 	desc = "The latest technology in viewing live blueprints."
+
+/obj/item/lamp_manufacturer/organic
+	icon = 'icons/obj/items/tools/lampman.dmi'
+	desc = "A small manufacturing unit to produce and (re)place lamps in existing fittings. Load metal sheets before using."
+	icon_state = "bio-white"
+	flags = FPRINT | TABLEPASS | EXTRADELAY
+	w_class = 2
+	click_delay = 1
+	prefix = "bio"
+	metal_ammo = 20
+	inventory_counter_enabled = 1
+	New()
+		..()
+		inventory_counter.update_number(metal_ammo)
 
 /obj/item/material_shaper
 	name = "\improper Window Planner"
@@ -261,11 +275,11 @@
 			var/be_glass = 0
 			if (!metal)
 				be_metal = 1
-			else if (metal.mat_id == DM.mat_id)
+			else if (isSameMaterial(metal, DM))
 				be_metal = 1
 			if (!glass)
 				be_glass = 1
-			else if (glass.mat_id == DM.mat_id)
+			else if (isSameMaterial(glass, DM))
 				be_glass = 1
 			if (be_metal && be_glass)
 				which = input("Use [D] as?", "Pick", null) in list("metal", "glass")
@@ -275,32 +289,32 @@
 				which = "glass"
 			else
 				playsound(src.loc, sound_grump, 40, 1)
-				boutput(user, "<span style=\"color:red\">[D] incompatible with current metal or glass.</span>")
+				boutput(user, "<span class='alert'>[D] incompatible with current metal or glass.</span>")
 				return null
 		else if (DM.material_flags & MATERIAL_METAL)
 			if (!metal)
 				which = "metal"
-			else if (metal.mat_id == DM.mat_id)
+			else if (isSameMaterial(metal, DM))
 				which = "metal"
 			else
 				playsound(src.loc, sound_grump, 40, 1)
-				boutput(user, "<span style=\"color:red\">[D] incompatible with current metal.</span>")
+				boutput(user, "<span class='alert'>[D] incompatible with current metal.</span>")
 				return null
 		else if (DM.material_flags & MATERIAL_CRYSTAL)
 			if (!glass)
 				which = "glass"
-			else if (glass.mat_id == DM.mat_id)
+			else if (isSameMaterial(glass, DM))
 				which = "glass"
 			else
 				playsound(src.loc, sound_grump, 40, 1)
-				boutput(user, "<span style=\"color:red\">[D] incompatible with current glass.</span>")
+				boutput(user, "<span class='alert'>[D] incompatible with current glass.</span>")
 				return null
 		else
 			playsound(src.loc, sound_grump, 40, 1)
-			boutput(user, "<span style=\"color:red\">[D] is not a metal or glass material.</span>")
+			boutput(user, "<span class='alert'>[D] is not a metal or glass material.</span>")
 		if (!which)
 			playsound(src.loc, sound_grump, 40, 1)
-			boutput(user, "<span style=\"color:red\">[D] is not a metal or glass material.</span>")
+			boutput(user, "<span class='alert'>[D] is not a metal or glass material.</span>")
 
 		if (which == "metal" && !metal)
 			metal = DM
@@ -321,26 +335,26 @@
 			metal = null
 		if (glass_count <= 0)
 			glass = null
-		boutput(usr, "<span style=\"color:blue\">The shaper has [metal_count] units of metal and [glass_count] units of glass left.</span>")
+		boutput(usr, "<span class='notice'>The shaper has [metal_count] units of metal and [glass_count] units of glass left.</span>")
 
 	examine()
-		..()
+		. = ..()
 		if (metal)
-			boutput(usr, "<span style=\"color:blue\">Metal: [metal_count] units of [metal.name].</span>")
+			. += "<span class='notice'>Metal: [metal_count] units of [metal.name].</span>"
 		else
-			boutput(usr, "<span style=\"color:red\">Metal: 0 units.</span>")
+			. += "<span class='alert'>Metal: 0 units.</span>"
 
 		if (glass)
-			boutput(usr, "<span style=\"color:blue\">Glass: [glass_count] units of [glass.name].</span>")
+			. += "<span class='notice'>Glass: [glass_count] units of [glass.name].</span>"
 		else
-			boutput(usr, "<span style=\"color:red\">Glass: 0 units</span>")
+			. += "<span class='alert'>Glass: 0 units</span>"
 
 	attack_self(mob/user as mob)
 		mode = !mode
 		if (!mode)
-			boutput(user, "<span style=\"color:blue\">Mode: marking/unmarking plans for grille and glass structures.</span>")
+			boutput(user, "<span class='notice'>Mode: marking/unmarking plans for grille and glass structures.</span>")
 		else
-			boutput(user, "<span style=\"color:blue\">Mode: constructing planned grille and glass structures.</span>")
+			boutput(user, "<span class='notice'>Mode: constructing planned grille and glass structures.</span>")
 
 	attackby(var/obj/item/W, mob/user as mob)
 		if (W.disposed)
@@ -372,7 +386,7 @@
 		else
 			new /obj/plan_marker/glass_shaper(T)
 
-		boutput(user, "<span style=\"color:blue\">Done.</span>")
+		boutput(user, "<span class='notice'>Done.</span>")
 		return 1
 
 	MouseDrop_T(var/obj/over_object, mob/user as mob)
@@ -390,7 +404,7 @@
 			var/obj/item/material_piece/D = over_object
 			if (!D.material)
 				playsound(src.loc, sound_grump, 40, 1)
-				boutput(user, "<span style=\"color:red\">That does not have a usable material.</span>")
+				boutput(user, "<span class='alert'>That does not have a usable material.</span>")
 				return
 
 			var/which = determine_material(D, user)
@@ -406,7 +420,7 @@
 				processing = 0
 				return
 
-			user.visible_message("<span style=\"color:blue\">[user] begins stuffing materials into [src].</span>")
+			user.visible_message("<span class='notice'>[user] begins stuffing materials into [src].</span>")
 
 			for (var/obj/item/material_piece/M in over_object.loc)
 				if (user.loc != procloc)
@@ -414,17 +428,16 @@
 				var/datum/material/MT = M.material
 				if (!MT)
 					continue
-				if (MT.mat_id == DM.mat_id)
+				if (isSameMaterial(MT, DM))
 					playsound(src.loc, sound_process, 40, 1)
-					M.loc = null
 					if (which == "metal")
 						metal_count += 10
 					else
 						glass_count += 10
 					pool(M)
-					sleep(1)
+					sleep(0.1 SECONDS)
 			processing = 0
-			user.visible_message("<span style=\"color:blue\">[user] finishes stuffing materials into [src].</span>")
+			user.visible_message("<span class='notice'>[user] finishes stuffing materials into [src].</span>")
 
 /obj/item/room_planner
 	name = "\improper Floor and Wall Planner"
@@ -441,13 +454,13 @@
 	var/icons = list("floors" = 'icons/turf/construction_floors.dmi', "walls" = 'icons/turf/construction_walls.dmi')
 	var/marker_class = list("floors" = /obj/plan_marker/floor, "walls" = /obj/plan_marker/wall)
 	var/selected = "floor"
-	var/pod_turf = 0
+	// var/pod_turf = 0
 	var/turf_op = 0
 
 	attack_self(mob/user as mob)
 		// This seems to not actually stop anything from working so just axing it.
-		//if (!(ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/construction)))
-		//	boutput(user, "<span style=\"color:red\">You can only use this tool in construction mode.</span>")
+		//if (!(ticker?.mode && istype(ticker.mode, /datum/game_mode/construction)))
+		//	boutput(user, "<span class='alert'>You can only use this tool in construction mode.</span>")
 
 		if (selecting)
 			return
@@ -460,15 +473,15 @@
 			states += "* AUTO *"
 		states += icon_states(icons[mode])
 		selected = input("What kind?", "Marking", states[1]) in states
-		if (mode == "floors" && findtext(selected, "catwalk") != 0)
-			pod_turf = 1
-		else
-			pod_turf = 0
+		// if (mode == "floors" && findtext(selected, "catwalk") != 0)
+		// 	pod_turf = 1
+		// else
+		// 	pod_turf = 0
 		if (mode == "floors" || (mode == "walls" && findtext(selected, "window") != 0))
 			turf_op = 0
 		else
 			turf_op = 1
-		boutput(user, "<span style=\"color:blue\">Now marking plan for [mode] of type [selected].</span>")
+		boutput(user, "<span class='notice'>Now marking plan for [mode] of type [selected].</span>")
 		selecting = 0
 
 	pixelaction(atom/target, params, mob/user)
@@ -488,12 +501,12 @@
 		else
 			var/class = marker_class[mode]
 			old = new class(T, selected)
-			old.dir = get_dir(user, T)
-			if (pod_turf)
-				old:allows_vehicles = 1
+			old.set_dir(get_dir(user, T))
+			// if (pod_turf)
+			// 	old:allows_vehicles = 1
 			old.turf_op = turf_op
 			old:check()
-		boutput(user, "<span style=\"color:blue\">Done.</span>")
+		boutput(user, "<span class='notice'>Done.</span>")
 
 		return 1
 
@@ -638,13 +651,13 @@
 			return
 		var/turf/T = src.loc
 		if (T.density)
-			boutput(usr, "<span style=\"color:red\">Cannot complete material shaping: plan inside dense turf.</span>")
+			boutput(usr, "<span class='alert'>Cannot complete material shaping: plan inside dense turf.</span>")
 			filling = 0
 			return
 		else
 			for (var/atom/movable/O in T)
 				if ((istype(O, /obj) && O.density) || isliving(O))
-					boutput(usr, "<span style=\"color:red\">Cannot complete material shaping: [O] blocking construction.</span>")
+					boutput(usr, "<span class='alert'>Cannot complete material shaping: [O] blocking construction.</span>")
 					filling = 0
 					return
 		var/datum/material/metal = origin.metal
@@ -663,25 +676,23 @@
 		var/mask = bmask
 		if (mask & 1)
 			var/obj/window/reinforced/W = new /obj/window/reinforced(L)
-			W.dir = 1
+			W.set_dir(1)
 			W.setMaterial(glass)
 
 		if (mask & 2)
 			var/obj/window/reinforced/W = new /obj/window/reinforced(L)
-			W.dir = 2
+			W.set_dir(2)
 			W.setMaterial(glass)
 
 		if (mask & 4)
 			var/obj/window/reinforced/W = new /obj/window/reinforced(L)
-			W.dir = 4
+			W.set_dir(4)
 			W.setMaterial(glass)
 
 		if (mask & 8)
 			var/obj/window/reinforced/W = new /obj/window/reinforced(L)
-			W.dir = 8
+			W.set_dir(8)
 			W.setMaterial(glass)
-
-		src.loc = null
 		qdel(src)
 
 	proc/cancelled()
@@ -689,7 +700,6 @@
 		var/turf/S = locate(x, y - 1, 1)
 		var/turf/W = locate(x - 1, y, 1)
 		var/turf/E = locate(x + 1, y, 1)
-		src.loc = null
 		if (N)
 			var/obj/plan_marker/glass_shaper/G = locate() in N
 			if (G)
@@ -716,7 +726,7 @@
 			if (W:has_materials(2, borders))
 				spawn_in(W)
 			else
-				boutput(usr, "<span style=\"color:red\">Insufficient materials -- requires 2 metal and [borders] glass.</span>")
+				boutput(usr, "<span class='alert'>Insufficient materials -- requires 2 metal and [borders] glass.</span>")
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/material_shaper))
@@ -737,18 +747,16 @@
 			if (src.icon_state != "* AUTO *")
 				T.icon = src.icon
 				T.icon_state = src.icon_state
-				T.dir = src.dir
+				T.set_dir(src.dir)
 				T:allows_vehicles = src.allows_vehicles
 			else if (istype(T, /turf/simulated/wall/auto))
 				var/turf/simulated/wall/auto/AT = T
 				AT.icon = initial(AT.icon)
 				AT.icon_state = initial(AT.icon_state)
-				AT.dir = initial(AT.dir)
+				AT.set_dir(initial(AT.dir))
 				AT:allows_vehicles = initial(AT.allows_vehicles)
 				AT.update_icon()
 				AT.update_neighbors()
-
-			src.loc = null
 			qdel(src)
 
 /obj/plan_marker/floor
@@ -763,7 +771,6 @@
 			// so the various alternate designs weren't able to be converted
 			T.icon = src.icon
 			T.icon_state = src.icon_state
-			T.dir = src.dir
-			T:allows_vehicles = src.allows_vehicles
-			src.loc = null
+			T.set_dir(src.dir)
+			// T:allows_vehicles = src.allows_vehicles
 			qdel(src)

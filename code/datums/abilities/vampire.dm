@@ -1,15 +1,15 @@
 // Converted everything related to vampires from client procs to ability holders and used
 // the opportunity to do some clean-up as well (Convair880).
 
-/////////////////////////////////////////////////// Setup //////////////////////////////////////////
+/* 	/		/		/		/		/		/		Setup		/		/		/		/		/		/		/		/		*/
 
-/mob/proc/make_vampire(var/shitty = 0)
-	if (ishuman(src) || iscritter(src))
+/mob/proc/make_vampire(shitty = FALSE, nonantag = FALSE)
+	var/datum/abilityHolder/vampire/vampholder = src.get_ability_holder(/datum/abilityHolder/vampire)
+	if (vampholder && istype(vampholder))
+		return
+
+	if (ishuman(src) || ismobcritter(src))
 		if (ishuman(src))
-			var/datum/abilityHolder/vampire/A = src.get_ability_holder(/datum/abilityHolder/vampire)
-			if (A && istype(A))
-				return
-
 			var/datum/abilityHolder/vampire/V = src.add_ability_holder(/datum/abilityHolder/vampire)
 
 			if(shitty) // Infernal vampire.
@@ -22,13 +22,10 @@
 				V.addAbility(/datum/targetable/vampire/glare)
 				V.addAbility(/datum/targetable/vampire/hypnotize)
 
-			if (src.mind)
-				src.mind.is_vampire = V
-
-			SPAWN_DBG (25) // Don't remove.
+			SPAWN_DBG(2.5 SECONDS) // Don't remove.
 				if (src) src.assign_gimmick_skull()
 
-		else if (iscritter(src)) // For testing. Just give them all abilities that are compatible.
+		else if (ismobcritter(src)) // For testing. Just give them all abilities that are compatible.
 			var/mob/living/critter/C = src
 
 			if (isnull(C.abilityHolder)) // They do have a critter AH by default...or should.
@@ -48,14 +45,14 @@
 				C.abilityHolder.addAbility(/datum/targetable/vampire/vampire_scream)
 				C.abilityHolder.addAbility(/datum/targetable/vampire/enthrall)
 
-			if (C.mind)
-				C.mind.is_vampire = C.abilityHolder
-
 		if (src.mind && src.mind.special_role != "omnitraitor")
 			if(shitty)
-				boutput(src, "<span style=\"color:blue\">Oh shit, your fangs just broke off! Looks like you'll have to get blood the HARD way.</span>")
+				boutput(src, "<span class='notice'>Oh shit, your fangs just broke off! Looks like you'll have to get blood the HARD way.</span>")
 
 			SHOW_VAMPIRE_TIPS(src)
+
+		if(shitty || nonantag)
+			boutput(src, "<span class='alert'><h2>You are not an antagonist!</h2> Your vampireness was achieved by in-game means, you still have the powers but are <i>not</i> an antagonist.</span>")
 
 	else return
 
@@ -76,7 +73,7 @@
 		return 0
 
 /mob/proc/change_vampire_blood(var/change = 0, var/total_blood = 0, var/set_null = 0)
-	if (!isvampire(src))
+	if (!isvampire(src) && !isvampiriczombie(src))
 		return
 
 	var/datum/abilityHolder/vampire/AH = src.get_ability_holder(/datum/abilityHolder/vampire)
@@ -152,7 +149,7 @@
 
 ////////////////////////////////////////////////// Ability holder /////////////////////////////////////////////
 
-/obj/screen/ability/topBar/vampire
+/atom/movable/screen/ability/topBar/vampire
 	clicked(params)
 		var/datum/targetable/vampire/spell = owner
 		var/datum/abilityHolder/holder = owner.holder
@@ -169,11 +166,11 @@
 			else
 				owner.waiting_for_hotkey = 1
 				src.updateIcon()
-				boutput(usr, "<span style=\"color:blue\">Please press a number to bind this ability to...</span>")
+				boutput(usr, "<span class='notice'>Please press a number to bind this ability to...</span>")
 				return
 
 		if (!isturf(owner.holder.owner.loc))
-			boutput(owner.holder.owner, "<span style=\"color:red\">You can't use this spell here.</span>")
+			boutput(owner.holder.owner, "<span class='alert'>You can't use this spell here.</span>")
 			return
 		if (spell.targeted && usr.targeting_ability == owner)
 			usr.targeting_ability = null
@@ -193,7 +190,7 @@
 	usesPoints = 1
 	regenRate = 0
 	tabName = "Vampire"
-	notEnoughPointsMessage = "<span style=\"color:red\">You need more blood to use this ability.</span>"
+	notEnoughPointsMessage = "<span class='alert'>You need more blood to use this ability.</span>"
 	var/vamp_blood = 0
 	points = 0 // Replaces the old vamp_blood_remaining var.
 	var/vamp_blood_tracking = 1
@@ -225,11 +222,13 @@
 
 	onAbilityStat() // In the 'Vampire' tab.
 		..()
-		stat("Blood:", src.vamp_blood)
-		stat("Blood remaining:", src.points)
+		.= list()
+		.["Blood:"] = round(src.points)
+		.["Total:"] = round(src.vamp_blood)
 		return
 
 	onLife(var/mult = 1)
+		..()
 		if (traveling_to_coffin && isturf(owner.loc) && istype(traveling_to_coffin,/obj/storage/closet/coffin))
 			owner.set_loc(traveling_to_coffin)
 
@@ -316,7 +315,6 @@
 		return
 
 	remove_unlocks()
-		src.removeAbility(/datum/targetable/vampire/blood_steal)
 		src.removeAbility(/datum/targetable/vampire/phaseshift_vampire)
 		src.removeAbility(/datum/targetable/vampire/phaseshift_vampire/mk2)
 		src.removeAbility(/datum/targetable/vampire/mark_coffin)
@@ -411,7 +409,7 @@
 			SHOW_MINDSLAVE_TIPS(M)
 
 			boutput(owner, __blue("[M] has been revived as your thrall."))
-			logTheThing("combat", owner, M, "enthralled %target% at [log_loc(owner)].")
+			logTheThing("combat", owner, M, "enthralled [constructTarget(M,"combat")] at [log_loc(owner)].")
 
 
 
@@ -440,7 +438,7 @@
 	var/unlock_message = null
 
 	New()
-		var/obj/screen/ability/topBar/vampire/B = new /obj/screen/ability/topBar/vampire(null)
+		var/atom/movable/screen/ability/topBar/vampire/B = new /atom/movable/screen/ability/topBar/vampire(null)
 		B.icon = src.icon
 		B.icon_state = src.icon_state
 		B.owner = src
@@ -458,7 +456,7 @@
 	updateObject()
 		..()
 		if (!src.object)
-			src.object = new /obj/screen/ability/topBar/vampire()
+			src.object = new /atom/movable/screen/ability/topBar/vampire()
 			object.icon = src.icon
 			object.owner = src
 		if (src.last_cast > world.time)
@@ -506,7 +504,7 @@
 		if (!M)
 			return 0
 
-		if (!(iscarbon(M) || iscritter(M)))
+		if (!(iscarbon(M) || ismobcritter(M)))
 			boutput(M, __red("You cannot use any powers in your current form."))
 			return 0
 

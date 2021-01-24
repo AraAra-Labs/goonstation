@@ -1,6 +1,6 @@
 /obj/item/pinpointer
 	name = "pinpointer"
-	icon = 'icons/obj/device.dmi'
+	icon = 'icons/obj/items/device.dmi'
 	icon_state = "disk_pinoff"
 	flags = FPRINT | TABLEPASS| CONDUCT | ONBELT
 	w_class = 2.0
@@ -14,8 +14,8 @@
 	var/icon_type = "disk"
 	mats = 4
 	desc = "An extremely advanced scanning device used to locate things. It displays this with an extremely technicalogically advanced arrow."
-	stamina_damage = 5
-	stamina_cost = 5
+	stamina_damage = 0
+	stamina_cost = 0
 	stamina_crit_chance = 1
 
 	attack_self()
@@ -25,21 +25,22 @@
 				return
 			active = 1
 			work()
-			boutput(usr, "<span style=\"color:blue\">You activate the pinpointer</span>")
+			boutput(usr, "<span class='notice'>You activate the pinpointer</span>")
 		else
 			active = 0
 			icon_state = "[src.icon_type]_pinoff"
-			boutput(usr, "<span style=\"color:blue\">You deactivate the pinpointer</span>")
+			boutput(usr, "<span class='notice'>You deactivate the pinpointer</span>")
 
 	proc/work()
-		if(!active || !target_criteria) return
+		if(!active) return
 		if(!target)
-			target = locate(target_criteria)
-			if(!target)
+			if (target_criteria)
+				target = locate(target_criteria)
+			if(!target || target.qdeled)
 				active = 0
 				icon_state = "[src.icon_type]_pinonnull"
 				return
-		src.dir = get_dir(src,target)
+		src.set_dir(get_dir(src,target))
 		switch(get_dist(src,target))
 			if(0)
 				icon_state = "[src.icon_type]_pinondirect"
@@ -67,7 +68,7 @@
 
 /obj/item/idtracker
 	name = "ID tracker"
-	icon = 'icons/obj/device.dmi'
+	icon = 'icons/obj/items/device.dmi'
 	icon_state = "id_pinoff"
 	flags = FPRINT | TABLEPASS| CONDUCT | ONBELT
 	w_class = 2.0
@@ -87,11 +88,12 @@
 	attack_self()
 		if(!active)
 			if (!src.owner || !src.owner.mind)
-				boutput(usr, "<span style=\"color:red\">The target locator emits a sorrowful ping!</span>")
+				boutput(usr, "<span class='alert'>The target locator emits a sorrowful ping!</span>")
 				return
 			active = 1
-			for(var/X in by_type[/obj/item/card/id])
-				var/obj/item/card/id/I = X
+			for_by_tcl(I, /obj/item/card/id)
+				if(!I)
+					continue // the ID can get deleted in the lagcheck
 				for(var/datum/objective/regular/assassinate/A in src.owner.mind.objectives)
 					if(I.registered == null) continue
 					if(ckey(I.registered) == ckey(A.targetname))
@@ -101,14 +103,14 @@
 			target = input(usr, "Which ID do you wish to track?", "Target Locator", null) in targets
 			work()
 			if(!target)
-				boutput(usr, "<span style=\"color:blue\">You activate the target locator. No available targets!</span>")
+				boutput(usr, "<span class='notice'>You activate the target locator. No available targets!</span>")
 				active = 0
 			else
-				boutput(usr, "<span style=\"color:blue\">You activate the target locator. Tracking [target]</span>")
+				boutput(usr, "<span class='notice'>You activate the target locator. Tracking [target]</span>")
 		else
 			active = 0
 			icon_state = "id_pinoff"
-			boutput(usr, "<span style=\"color:blue\">You deactivate the target locator</span>")
+			boutput(usr, "<span class='notice'>You deactivate the target locator</span>")
 			target = null
 
 	proc/work()
@@ -116,7 +118,7 @@
 		if(!target)
 			icon_state = "id_pinonnull"
 			return
-		src.dir = get_dir(src,target)
+		src.set_dir(get_dir(src,target))
 		switch(get_dist(src,target))
 			if(0)
 				icon_state = "id_pinondirect"
@@ -132,7 +134,7 @@
 	attack_hand(mob/user as mob)
 		..(user)
 		if (!user.mind || user.mind.special_role != "spy_thief")
-			boutput(usr, "<span style=\"color:red\">The target locator emits a sorrowful ping!</span>")
+			boutput(usr, "<span class='alert'>The target locator emits a sorrowful ping!</span>")
 
 			//B LARGHHHHJHH
 			active = 0
@@ -143,12 +145,11 @@
 	attack_self()
 		if(!active)
 			if (!src.owner || !src.owner.mind || src.owner.mind.special_role != "spy_thief")
-				boutput(usr, "<span style=\"color:red\">The target locator emits a sorrowful ping!</span>")
+				boutput(usr, "<span class='alert'>The target locator emits a sorrowful ping!</span>")
 				return
 			active = 1
 
-			for(var/X in by_type[/obj/item/card/id])
-				var/obj/item/card/id/I = X
+			for_by_tcl(I, /obj/item/card/id)
 				if(I.registered == null) continue
 				for (var/datum/mind/M in ticker.mode.traitors)
 					if (src.owner.mind == M)
@@ -160,19 +161,19 @@
 			target = input(usr, "Which ID do you wish to track?", "Target Locator", null) in targets
 			work()
 			if(!target)
-				boutput(usr, "<span style=\"color:blue\">You activate the target locator. No available targets!</span>")
+				boutput(usr, "<span class='notice'>You activate the target locator. No available targets!</span>")
 				active = 0
 			else
-				boutput(usr, "<span style=\"color:blue\">You activate the target locator. Tracking [target]</span>")
+				boutput(usr, "<span class='notice'>You activate the target locator. Tracking [target]</span>")
 		else
 			active = 0
 			icon_state = "id_pinoff"
-			boutput(usr, "<span style=\"color:blue\">You deactivate the target locator</span>")
+			boutput(usr, "<span class='notice'>You deactivate the target locator</span>")
 			target = null
 
 /obj/item/bloodtracker
 	name = "BloodTrak"
-	icon = 'icons/obj/bloodtrak.dmi'
+	icon = 'icons/obj/items/bloodtrak.dmi'
 	icon_state = "blood_pinoff"
 	flags = FPRINT | TABLEPASS| CONDUCT | ONBELT
 	w_class = 2.0
@@ -183,38 +184,40 @@
 	var/active = 0
 	var/target = null
 	mats = 4
-	desc = "Tracks down people from their blood puddles! Requires you to stand still to function."
+	desc = "Tracks down people from their blood puddles!"
+	var/blood_timer = 0
 
 	afterattack(atom/A as mob|obj|turf|area, mob/user as mob)
 		if(!active && istype(A, /obj/decal/cleanable/blood))
 			var/obj/decal/cleanable/blood/B = A
 			if(B.dry > 0) //Fresh blood is -1
-				boutput(usr, "<span style=\"color:red\">Targeted blood is too dry to be useful!</span>")
+				boutput(usr, "<span class='alert'>Targeted blood is too dry to be useful!</span>")
 				return
 			for(var/mob/living/carbon/human/H in mobs)
 				if(B.blood_DNA == H.bioHolder.Uid)
 					target = H
+					blood_timer = TIME + (B.dry==-1?8 MINUTES:4 MINUTES)
 					break
 			active = 1
 			work()
-			user.visible_message("<span style=\"color:blue\"><b>[user]</b> scans [A] with [src]!</span>",\
-			"<span style=\"color:blue\">You scan [A] with [src]!</span>")
+			user.visible_message("<span class='notice'><b>[user]</b> scans [A] with [src]!</span>",\
+			"<span class='notice'>You scan [A] with [src]!</span>")
 
 	proc/work(var/turf/T)
 		if(!active) return
 		if(!T)
 			T = get_turf(src)
-		if(get_turf(src) != T)
+		if(TIME > blood_timer)
 			icon_state = "blood_pinoff"
 			active = 0
-			boutput(usr, "<span style=\"color:red\">[src] shuts down because you moved!</span>")
+			boutput(usr, "<span class='alert'>[src] shuts down because the blood in it became too dry!</span>")
 			return
 		if(!target)
 			icon_state = "blood_pinonnull"
 			active = 0
-			boutput(usr, "<span style=\"color:red\">No target found!</span>")
+			boutput(usr, "<span class='alert'>No target found!</span>")
 			return
-		src.dir = get_dir(src,target)
+		src.set_dir(get_dir(src,target))
 		switch(get_dist(src,target))
 			if(0)
 				icon_state = "blood_pinondirect"
@@ -226,3 +229,49 @@
 				icon_state = "blood_pinonfar"
 		SPAWN_DBG(0.5 SECONDS)
 			.(T)
+
+
+
+/obj/item/pinpointer/secweapons
+	name = "security weapon pinpointer"
+	icon = 'icons/obj/items/device.dmi'
+	icon_state = "sec_pinoff"
+	icon_type = "sec"
+	var/list/itemrefs
+	var/list/accepted_types
+	mats = null
+	desc = "An extremely advanced scanning device used to locate lost security tools. It displays this with an extremely technicalogically advanced arrow."
+
+	proc/track(var/list/L)
+		itemrefs = list()
+		accepted_types = list()
+		for(var/atom/A in L)
+			itemrefs += ref(A)
+			accepted_types += A.type
+
+	attack_self()
+		if(!active)
+
+			var/list/choices = list()
+			for (var/x in itemrefs)
+				var/atom/A = locate(x)
+				if (A && (A.type in accepted_types) && !A.qdeled && !A.pooled)
+					choices += A
+
+			if (!length(choices))
+				usr.show_text("No track targets exist - possibly destroyed. Cannot activate pinpointer", "red")
+				return
+
+			target = input("Select a card to deal.", "Choose Card") as null|anything in choices
+
+			if (!target)
+				usr.show_text("No target specified. Cannot activate pinpointer.", "red")
+				return
+
+			active = 1
+			work()
+			boutput(usr, "<span class='notice'>You activate the pinpointer</span>")
+		else
+			active = 0
+			icon_state = "[src.icon_type]_pinoff"
+			boutput(usr, "<span class='notice'>You deactivate the pinpointer</span>")

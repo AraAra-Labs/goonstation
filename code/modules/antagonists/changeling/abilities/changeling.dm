@@ -2,6 +2,9 @@
 	var/datum/abilityHolder/changeling/O = src.get_ability_holder(/datum/abilityHolder/changeling)
 	if (O)
 		return
+	var/mob/living/L = src
+	if(istype(L))
+		L.blood_id = "bloodc"
 
 	if (src.mind && !src.mind.is_changeling && (src.mind.special_role != "omnitraitor"))
 		src.Browse(grabResource("html/traitorTips/changelingTips.html"),"window=antagTips;size=600x400;title=Antagonist Tips")
@@ -16,7 +19,11 @@
 	C.addAbility(/datum/targetable/changeling/scream)
 	C.addAbility(/datum/targetable/changeling/spit)
 	C.addAbility(/datum/targetable/changeling/stasis)
+#ifdef RP_MODE
+	C.addAbility(/datum/targetable/changeling/sting/capulettium)
+#else
 	C.addAbility(/datum/targetable/changeling/sting/neurotoxin)
+#endif
 	C.addAbility(/datum/targetable/changeling/sting/lsd)
 	C.addAbility(/datum/targetable/changeling/sting/dna)
 	C.addAbility(/datum/targetable/changeling/transform)
@@ -32,12 +39,12 @@
 	if (src.mind)
 		src.mind.is_changeling = C
 
-	SPAWN_DBG (25) // Don't remove.
+	SPAWN_DBG(2.5 SECONDS) // Don't remove.
 		if (src) src.assign_gimmick_skull()
 
 	return
 
-/obj/screen/ability/topBar/changeling
+/atom/movable/screen/ability/topBar/changeling
 	clicked(params)
 		var/datum/targetable/changeling/spell = owner
 		var/datum/abilityHolder/holder = owner.holder
@@ -54,11 +61,11 @@
 			else
 				owner.waiting_for_hotkey = 1
 				src.updateIcon()
-				boutput(usr, "<span style=\"color:blue\">Please press a number to bind this ability to...</span>")
+				boutput(usr, "<span class='notice'>Please press a number to bind this ability to...</span>")
 				return
 
 		if (!isturf(owner.holder.owner.loc) && !spell.can_use_in_container)
-			boutput(owner.holder.owner, "<span style=\"color:red\">Using that in here will do just about no good for you.</span>")
+			boutput(owner.holder.owner, "<span class='alert'>Using that in here will do just about no good for you.</span>")
 			return
 		if (spell.targeted && usr.targeting_ability == owner)
 			usr.targeting_ability = null
@@ -78,7 +85,7 @@
 	usesPoints = 1
 	regenRate = 0
 	tabName = "Changeling"
-	notEnoughPointsMessage = "<span style=\"color:red\">We are not strong enough to do this.</span>"
+	notEnoughPointsMessage = "<span class='alert'>We are not strong enough to do this.</span>"
 	var/list/absorbed_dna = list()
 	var/in_fakedeath = 0
 	var/absorbtions = 0
@@ -89,19 +96,18 @@
 	var/original_controller_name = null
 	var/original_controller_real_name = null
 
-	New(var/mob/living/M)
+	New(var/mob/living/carbon/human/M)
 		..()
 		if (M)
-			var/datum/bioHolder/original = new/datum/bioHolder(M)
-			original.CopyOther(M.bioHolder)
+			var/datum/bioHolder/originalBHolder = new/datum/bioHolder(M)
+			originalBHolder.CopyOther(M.bioHolder)
+			absorbed_dna = list("[M.name]" = originalBHolder)
 
-			absorbed_dna = list("[M.name]" = original)
-
-	proc/addDna(var/mob/living/M, var/headspider_override = 0)
+	proc/addDna(var/mob/living/carbon/human/M, var/headspider_override = 0)
 		var/datum/abilityHolder/changeling/O = M.get_ability_holder(/datum/abilityHolder/changeling)
 		if (O)
-			boutput(owner, "<span style=\"color:blue\">[M] was a changeling! We have absorbed their entire genetic structure!</span>")
-			logTheThing("combat", owner, M, "absorbs %target% as a changeling [log_loc(owner)].")
+			boutput(owner, "<span class='notice'>[M] was a changeling! We have absorbed their entire genetic structure!</span>")
+			logTheThing("combat", owner, M, "absorbs [constructTarget(M,"combat")] as a changeling [log_loc(owner)].")
 
 			if (headspider_override != 1) // Headspiders shouldn't be free.
 				src.points += M.dna_to_absorb // 10 regular points for their body...
@@ -121,10 +127,14 @@
 				src.insert_into_hivemind(H)
 			O.hivemind = list()
 
+		/* LAGG NOTE:
+			tailsnake, strangles people and attaches themselves to peoples butts and makes it hard to do stuff */
+
 		else
-			var/datum/bioHolder/original = new/datum/bioHolder(M)
-			original.CopyOther(M.bioHolder)
-			src.absorbed_dna[M.real_name] = original
+			var/datum/bioHolder/originalBHolder = new/datum/bioHolder(M)
+			originalBHolder.CopyOther(M.bioHolder)
+			src.absorbed_dna[M.real_name] = originalBHolder
+
 			if (headspider_override != 1)
 				src.points += M.dna_to_absorb
 			src.absorbtions++
@@ -245,11 +255,12 @@
 
 			original_controller_name = null
 			original_controller_real_name = null
+		obs.can_exit_hivemind_time = world.time + 1 MINUTE
 		return obs
 
 	proc/return_control_to_master()
 		if(master)
-			logTheThing("combat", master, owner, "has retaken control of the changeling body from %target%.")
+			logTheThing("combat", master, owner, "has retaken control of the changeling body from [constructTarget(owner,"combat")].")
 			//Return the controller to the hivemind, with their original names.
 			boutput(src.owner,"<h2><span class='combat bold'>[master] has retaken control of the flesh!</span></h2>")
 			src.owner.mind.transfer_to(temp_controller)
@@ -268,10 +279,10 @@
 
 	onAbilityStat()
 		..()
+		.= list()
 		//On Changeling tab
-		stat("Absorbed DNA:", absorbtions)
-		stat("DNA Points:", points)
-
+		.["DNA:"] = round(points)
+		.["Total:"] = absorbtions
 
 	onAbilityHolderInstanceAdd()
 		..()
@@ -293,7 +304,7 @@
 	preferred_holder_type = /datum/abilityHolder/changeling
 
 	New()
-		var/obj/screen/ability/topBar/changeling/B = new /obj/screen/ability/topBar/changeling(null)
+		var/atom/movable/screen/ability/topBar/changeling/B = new /atom/movable/screen/ability/topBar/changeling(null)
 		B.icon = src.icon
 		B.icon_state = src.icon_state
 		B.owner = src
@@ -304,7 +315,7 @@
 	updateObject()
 		..()
 		if (!src.object)
-			src.object = new /obj/screen/ability/topBar/changeling()
+			src.object = new /atom/movable/screen/ability/topBar/changeling()
 			object.icon = src.icon
 			object.owner = src
 		if (src.last_cast > world.time)

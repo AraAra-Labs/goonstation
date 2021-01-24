@@ -37,9 +37,7 @@
 		return L.get_messages(message, (1 - health / max_health) * 16)
 
 	death(var/gibbed)
-		var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-		s.set_up(3, 1, src)
-		s.start()
+		elecflash(src,power = 3)
 		..()
 		ghostize()
 		qdel(src)
@@ -48,7 +46,7 @@
 		switch (act)
 			if ("scream")
 				if (src.emote_check(voluntary, 50))
-					playsound(get_turf(src), "sound/voice/screams/robot_scream.ogg" , 80, 1)
+					playsound(get_turf(src), "sound/voice/screams/robot_scream.ogg" , 80, 1, channel=VOLUME_CHANNEL_EMOTE)
 					return "<b>[src]</b> screams!"
 		return null
 

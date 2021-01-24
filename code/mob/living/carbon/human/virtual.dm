@@ -26,12 +26,12 @@
 		if (!escape_vr)
 			var/area/A = get_area(src)
 			if ((T && !(T.z == 2)) || (A && !A.virtual))
-				boutput(src, "<span style=\"color:red\">Is this virtual?  Is this real?? <b>YOUR MIND CANNOT TAKE THIS METAPHYSICAL CALAMITY</b></span>")
+				boutput(src, "<span class='alert'>Is this virtual?  Is this real?? <b>YOUR MIND CANNOT TAKE THIS METAPHYSICAL CALAMITY</b></span>")
 				src.gib()
 				return
 
 			if(!isghost && src.body)
-				if(isdead(src.body) || !src.body:network_device)
+				if(!istype(src.body, /mob/dead/aieye) && isdead(src.body) || !src.body:network_device)
 					src.gib()
 					return
 		return
@@ -49,7 +49,7 @@
 	disposing()
 		if (isghost && src.client)
 			var/mob/dead/observer/O = src.ghostize()
-			var/arrival_loc = pick(latejoin)
+			var/arrival_loc = pick_landmark(LANDMARK_LATEJOIN)
 			O.real_name = src.isghost
 			O.name = O.real_name
 			O.set_loc(arrival_loc)
@@ -78,7 +78,7 @@
 
 		. = src.say_dead(message, 1)
 
-	emote(var/act, var/voluntary = 0)
+	emote(var/act, var/voluntary = 0, var/emoteTarget = null)
 		if(isghost)
 			if (findtext(act, " ", 1, null))
 				var/t1 = findtext(act, " ", 1, null)
@@ -134,7 +134,7 @@
 
 
 
-/obj/screen/ability/topBar/virtual
+/atom/movable/screen/ability/topBar/virtual
 	clicked(params)
 		var/datum/targetable/virtual/spell = owner
 		//var/datum/abilityHolder/holder = owner.holder

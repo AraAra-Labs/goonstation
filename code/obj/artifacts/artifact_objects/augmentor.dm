@@ -85,11 +85,11 @@
 				return
 
 			working = 1
-			T.visible_message("<span style=\"color:red\"><b>[O]</b> suddenly lashes out at [H.name] with a flurry of sharp implements!</span>")
+			T.visible_message("<span class='alert'><b>[O]</b> suddenly lashes out at [H.name] with a flurry of sharp implements!</span>")
 			H.changeStatus("paralysis", 40)
 			playsound(H.loc, pick(work_sounds), 50, 1, -1)
 			random_brute_damage(user, 10)
-			sleep(10)
+			sleep(1 SECOND)
 
 			var/obj/item/part_type = augment.get_part_type(part_loc)
 			var/obj/item/part = new part_type()
@@ -111,10 +111,10 @@
 					replace_action = pick("inserts something else where it was", "places something else inside", "shoves something else in their body")
 					ArtifactLogs(user, null, O, "touched by [H.real_name]", "given organ [part] as [part_loc]", 0)
 
-				T.visible_message("<span style=\"color:red\"><b>[O]</b> [remove_action] [H.name]'s [organ_names[part_loc]], pulls it inside and [replace_action]![pick("", "Holy fuck!", "It looks incredibly painful!")]</span>")
+				T.visible_message("<span class='alert'><b>[O]</b> [remove_action] [H.name]'s [organ_names[part_loc]], pulls it inside and [replace_action]![pick("", "Holy fuck!", "It looks incredibly painful!")]</span>")
 
 			playsound(H.loc, pick(work_sounds), 50, 1, -1)
-			boutput(H, "<span style=\"color:red\"><b>[pick("IT HURTS!", "OH GOD!", "JESUS FUCK!")]</b></span>")
+			boutput(H, "<span class='alert'><b>[pick("IT HURTS!", "OH GOD!", "JESUS FUCK!")]</b></span>")
 			H.emote("scream")
 			random_brute_damage(user, 30)
 			bleed(H, 5, 5)
@@ -196,7 +196,7 @@
 			return
 		if(part_loc in part_list)
 			var/list/augmented_part_types = part_list[part_loc]
-			if(augmented_part_types && augmented_part_types.len > 0)
+			if(length(augmented_part_types))
 				return pick(augmented_part_types)
 
 	// check if given body part (in specific body location) should count as augmented or not

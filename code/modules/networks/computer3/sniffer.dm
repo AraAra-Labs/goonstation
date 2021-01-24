@@ -20,7 +20,7 @@
 
 	attack_hand(mob/user as mob)
 		if(mode)
-			src.interact(user)
+			src.interacted(user)
 			return
 
 		else
@@ -44,7 +44,7 @@
 
 					else
 
-						boutput(user, "<span style=\"color:red\">The [src] couldn't be attached here!</span>")
+						boutput(user, "<span class='alert'>The [src] couldn't be attached here!</span>")
 						return
 
 				else
@@ -55,17 +55,16 @@
 				mode = 0
 				user.visible_message("[user] detaches the [src] from the data terminal.","You detach the [src] from the data terminal.")
 				icon_state = "sniffer0"
-				if(src.link)
-					src.link.master = null
+				src.link?.master = null
 				src.link = null
 				return
 		else
 			..()
 
 	attack_self(mob/user as mob)
-		return interact(user)
+		return interacted(user)
 
-	proc/interact(mob/user as mob)
+	proc/interacted(mob/user as mob)
 
 		var/dat = "<html><head><title>Packet Sniffer</title></head><body>"
 
@@ -91,7 +90,7 @@
 				return
 
 			src.add_fingerprint(usr)
-			usr.machine = src
+			src.add_dialog(usr)
 
 			if(href_list["filtid"])
 				var/t = input(usr, "Please enter new filter net id", src.name, src.filter_id) as text

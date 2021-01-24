@@ -185,7 +185,7 @@
 						P3.locked = 1
 
 					if (P3.occupant)
-						logTheThing("station", usr, P3.occupant, "[P3.locked ? "locks" : "unlocks"] [P3.name] with %target% inside at [log_loc(P3)].")
+						logTheThing("station", usr, P3.occupant, "[P3.locked ? "locks" : "unlocks"] [P3.name] with [constructTarget(P3.occupant,"station")] inside at [log_loc(P3)].")
 
 					PDA.display_alert("<span style=\"color:blue\">The [src.machinery_name] is now [P3.locked ? "locked" : "unlocked"].</span>")
 
@@ -197,7 +197,7 @@
 				if (isAIeye(usr))
 					our_loc = get_turf(usr)
 					if (!(our_loc.cameras && our_loc.cameras.len))
-						boutput(usr, "<span style=\"color:red\">This area is not within your range of influence.</span>")
+						boutput(usr, "<span class='alert'>This area is not within your range of influence.</span>")
 						return
 
 				// Z-level check bypass for Port-a-Sci.
@@ -234,9 +234,7 @@
 							var/obj/storage/closet/port_a_sci/PS = P4
 							PS.on_teleport()
 
-						var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-						s.set_up(5, 1, P4)
-						s.start()
+						elecflash(P4)
 
 			if ("return")
 				var/obj/P5 = src.active
@@ -278,13 +276,12 @@
 								var/obj/machinery/sleeper/port_a_medbay/PM2 = P5
 								if (PM2.occupant)
 									PM2.occupant.set_loc(PM2)
+									PM2.PDA_alert_check()
 						if (istype(P5, /obj/storage/closet/port_a_sci/))
 							var/obj/storage/closet/port_a_sci/PS2 = P5
 							PS2.on_teleport()
 
-						var/datum/effects/system/spark_spread/s = unpool(/datum/effects/system/spark_spread)
-						s.set_up(5, 1, P5)
-						s.start()
+						elecflash(P5)
 
 		PDA.updateSelfDialog()
 		return
@@ -299,8 +296,7 @@
 		if (!src.master)
 			return
 
-		for (var/obj/machinery/port_a_brig/M in portable_machinery)//world)
-			LAGCHECK(LAG_LOW)
+		for (var/obj/machinery/port_a_brig/M in portable_machinery)
 			var/turf/M_loc = get_turf(M)
 			if (M && M_loc && isturf(M_loc) && isrestrictedz(M_loc.z)) // Don't show stuff in "somewhere", okay.
 				continue
@@ -318,8 +314,7 @@
 		if (!src.master)
 			return
 
-		for (var/obj/machinery/sleeper/port_a_medbay/M in portable_machinery)//world)
-			LAGCHECK(LAG_LOW)
+		for (var/obj/machinery/sleeper/port_a_medbay/M in portable_machinery)
 			var/turf/M_loc = get_turf(M)
 			if (M && M_loc && isturf(M_loc) && isrestrictedz(M_loc.z)) // Don't show stuff in "somewhere", okay.
 				continue
@@ -337,8 +332,7 @@
 		if (!src.master)
 			return
 
-		for (var/obj/machinery/vending/port_a_nanomed/M in portable_machinery)//world)
-			LAGCHECK(LAG_LOW)
+		for (var/obj/machinery/vending/port_a_nanomed/M in portable_machinery)
 			var/turf/M_loc = get_turf(M)
 			if (M && M_loc && isturf(M_loc) && isrestrictedz(M_loc.z)) // Don't show stuff in "somewhere", okay.
 				continue
@@ -357,8 +351,7 @@
 		if (!src.master)
 			return
 
-		for (var/obj/storage/closet/port_a_sci/M in portable_machinery)//world)
-			LAGCHECK(LAG_LOW)
+		for (var/obj/storage/closet/port_a_sci/M in portable_machinery)
 			/*var/turf/M_loc = get_turf(M)
 			if (M && M_loc && isturf(M_loc) && isrestrictedz(M_loc.z)) // Don't show stuff in "somewhere", okay.
 				continue*/

@@ -290,7 +290,7 @@
 
 /datum/supply_control/cable_kit
 	maximum_stock = 3
-	supply_packs = list(/datum/supply_packs/electrical4)
+	supply_packs = list(/datum/supply_packs/electrical/red)
 
 /datum/supply_control/homing_kit
 	maximum_stock = 3
@@ -339,6 +339,7 @@
 	maximum_stock = 1
 	supply_packs = list(/datum/supply_packs/complex/electronics_kit)
 
+#ifndef UNDERWATER_MAP
 /datum/supply_control/mini_magnet_kit
 	maximum_stock = 2
 	replenishment_time = 9000
@@ -349,6 +350,7 @@
 	replenishment_time = 36000
 	supply_packs = list(/datum/supply_packs/complex/magnet_kit)
 	workstation_grade = 2
+#endif
 
 /datum/supply_control/medkits
 	maximum_stock = 1
@@ -520,21 +522,21 @@
 		SPAWN_DBG(0)
 			while (charge < 100)
 				charge++
-				sleep(1)
+				sleep(0.1 SECONDS)
 
 	examine()
-		..()
-		boutput(usr, "<span style=\"color:blue\">The pad is currently at [charge]% charge.</span>")
+		. = ..()
+		. += "<span class='notice'>The pad is currently at [charge]% charge.</span>"
 		if (has_crystal)
-			boutput(usr, "<span style=\"color:blue\">The pad is complete with a telecrystal.</span>")
+			. += "<span class='notice'>The pad is complete with a telecrystal.</span>"
 		else
-			boutput(usr, "<span style=\"color:red\">The pad's telecrystal socket is empty!</span>")
+			. += "<span class='alert'>The pad's telecrystal socket is empty!</span>"
 
 	attackby(var/obj/item/I as obj, user as mob)
 		if (istype(I, /obj/item/raw_material/telecrystal))
 			qdel(I)
 			has_crystal++
-			boutput(user, "<span style=\"color:blue\">You plug the telecrystal into the teleportation pad.</span>")
+			boutput(user, "<span class='notice'>You plug the telecrystal into the teleportation pad.</span>")
 
 	ex_act()
 		return
@@ -721,7 +723,7 @@
 							if (!istype(Q))
 								Q.set_loc(T)
 								for (var/mob/M in viewers(Q))
-									boutput(M, "<span style=\"color:blue\">[Q] pops out of [CR]!</span>")
+									boutput(M, "<span class='notice'>[Q] pops out of [CR]!</span>")
 							else
 								profit += do_sell(Q)
 								qdel(Q)

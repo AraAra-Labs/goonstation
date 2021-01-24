@@ -24,7 +24,7 @@
 	New()
 		..()
 		update_overlays()
-		SPAWN_DBG (10)
+		SPAWN_DBG(1 SECOND)
 			if (!opened)		// if closed, any item at src's loc is put in the contents
 				for (var/obj/item/I in src.loc)
 					if (I.density || I.anchored || I == src) continue
@@ -67,7 +67,7 @@
 					reply.source = src
 					reply.transmission_method = TRANSMISSION_RADIO
 					reply.data = list("address_1" = sender, "command" = "lock=[locked]&open=[opened]", "sender" = src.net_id)
-					SPAWN_DBG (5)
+					SPAWN_DBG(0.5 SECONDS)
 						src.radio_control.post_signal(src, reply, 2)
 
 				if ("lock")
@@ -85,7 +85,7 @@
 						reply.data = list("address_1" = sender, "command" = "ack", "sender" = src.net_id)
 					else
 						reply.data = list("address_1" = sender, "command" = "nack", "data" = "badpass", "sender" = src.net_id)
-					SPAWN_DBG (5)
+					SPAWN_DBG(0.5 SECONDS)
 						src.radio_control.post_signal(src, reply, 2)
 
 				if ("unlock")
@@ -104,7 +104,7 @@
 					else
 						reply.data = list("address_1" = sender, "command" = "nack", "data" = "badpass", "sender" = src.net_id)
 
-					SPAWN_DBG (5)
+					SPAWN_DBG(0.5 SECONDS)
 						src.radio_control.post_signal(src, reply, 2)
 			return //todo
 		else if(signal.data["address_1"] == "ping")
@@ -345,7 +345,7 @@
 		src.desc = "It appears to be broken."
 		src.update_overlays()
 		if (user)
-			user.visible_message("<span style=\"color:blue\">The locker has been broken by [user] with an electromagnetic card!</span>")
+			user.visible_message("<span class='notice'>The locker has been broken by [user] with an electromagnetic card!</span>")
 		return 1
 	return 0
 
@@ -354,16 +354,16 @@
 		if (istype(W, /obj/item/grab))
 			src.MouseDrop_T(W:affecting, user)      //act like they were dragged onto the closet
 		user.drop_item()
-		if(W && W.loc && !(W.cant_drop || W.cant_self_remove))	W.set_loc(src.loc)
+		if(W?.loc && !(W.cant_drop || W.cant_self_remove))	W.set_loc(src.loc)
 	else if (istype(W, /obj/item/card/id))
 		if(src.broken)
-			boutput(user, "<span style=\"color:red\">It appears to be broken.</span>")
+			boutput(user, "<span class='alert'>It appears to be broken.</span>")
 			return
 		var/obj/item/card/id/I = W
 		if (src.allowed(user) || !src.registered || (istype(W, /obj/item/card/id) && src.registered == I.registered))
 			//they can open all lockers, or nobody owns this, or they own this locker
 			src.locked = !( src.locked )
-			user.visible_message("<span style=\"color:blue\">The locker has been [src.locked ? null : "un"]locked by [user].</span>")
+			user.visible_message("<span class='notice'>The locker has been [src.locked ? null : "un"]locked by [user].</span>")
 			src.update_overlays()
 			if (!src.registered)
 				src.registered = I.registered
@@ -929,12 +929,12 @@
 
 /obj/secure_closet/proc/bust_out()
 	if(health)
-		src.visible_message("<span style=\"color:red\"><b>[src]</b> [pick("cracks","bends","shakes","groans")].</span>")
+		src.visible_message("<span class='alert'><b>[src]</b> [pick("cracks","bends","shakes","groans")].</span>")
 		src.health--
 	if(health <= 0)
-		src.visible_message("<span style=\"color:red\"><b>[src]</b> breaks apart!</span>")
+		src.visible_message("<span class='alert'><b>[src]</b> breaks apart!</span>")
 		src.dump_contents()
-		sleep(1)
+		sleep(0.1 SECONDS)
 		var/newloc = src.loc
 		new /obj/decal/cleanable/machine_debris(newloc)
 		qdel(src)
@@ -981,7 +981,7 @@
 
 			var/obj/closet/warp_dest = pick(closets)
 			M.set_loc(warp_dest)
-			boutput(M, "<span style=\"color:red\">You are suddenly thrown elsewhere!</span>")
+			boutput(M, "<span class='alert'>You are suddenly thrown elsewhere!</span>")
 			M.playsound_local(M.loc, "warp", 50, 1)
 
 			continue
@@ -1072,7 +1072,7 @@
 		src.locked = 0
 		src.update_overlays()
 		if (user)
-			user.visible_message("<span style=\"color:blue\">The locker has been broken by [user] with an electromagnetic card!</span>")
+			user.visible_message("<span class='notice'>The locker has been broken by [user] with an electromagnetic card!</span>")
 		return 1
 	return 0
 
@@ -1088,23 +1088,23 @@
 			else
 				boutput(user, "The locker is too small to stuff [W] into!")
 		user.drop_item()
-		if(W && W.loc && !(W.cant_drop || W.cant_self_remove))	W.set_loc(src.loc)
+		if(W?.loc && !(W.cant_drop || W.cant_self_remove))	W.set_loc(src.loc)
 		return
 	else if(src.broken)
-		boutput(user, "<span style=\"color:red\">It appears to be broken.</span>")
+		boutput(user, "<span class='alert'>It appears to be broken.</span>")
 		return
 
 	if(src.allowed(user))
 		if(!src.opened)
 			src.locked = !src.locked
-			user.visible_message("<span style=\"color:blue\">The locker has been [src.locked ? null : "un"]locked by [user].</span>")
+			user.visible_message("<span class='notice'>The locker has been [src.locked ? null : "un"]locked by [user].</span>")
 			src.update_overlays()
 			return
 		else
 			src.close()
 			return
 
-	boutput(user, "<span style=\"color:red\">Access Denied</span>")
+	boutput(user, "<span class='alert'>Access Denied</span>")
 	user.unlock_medal("Rookie Thief", 1)
 	return
 
@@ -1121,7 +1121,7 @@
 	else
 		if (!src.jiggled)
 			src.jiggled = 1
-			boutput(user, "<span style=\"color:blue\">It's welded shut!</span>")
+			boutput(user, "<span class='notice'>It's welded shut!</span>")
 			user.unlock_medal("IT'S A TRAP", 1)
 			playsound(src.loc, "sound/effects/zhit.wav", 15, 1, -3)
 			var/shakes = 5
@@ -1129,7 +1129,7 @@
 				shakes--
 				src.pixel_x = rand(-5,5)
 				src.pixel_y = rand(-5,5)
-				sleep(1)
+				sleep(0.1 SECONDS)
 			src.pixel_x = 0
 			src.pixel_y = 0
 			SPAWN_DBG(0.5 SECONDS)
@@ -1146,18 +1146,18 @@
 
 	if (src.opened)
 		step_towards(usr, src)
-		sleep(10)
+		sleep(1 SECOND)
 		if (usr.loc == src.loc)
 			src.close()
 	else
 		if (src.locked && src.allowed(usr))
 			src.locked = !src.locked
-			src.visible_message("<span style=\"color:blue\">The locker has been [src.locked ? null : "un"]locked by [usr].</span>")
+			src.visible_message("<span class='notice'>The locker has been [src.locked ? null : "un"]locked by [usr].</span>")
 			src.update_overlays()
 
 		if (src.open())
 			step_towards(usr, src)
-			sleep(10)
+			sleep(1 SECOND)
 			if (usr.loc == src.loc)
 				src.close()
 	return
@@ -1171,11 +1171,11 @@
 		return
 	if(istype(O, /obj/secure_closet) || istype(O, /obj/closet))
 		return
-	if(istype(O, /obj/screen))
+	if(istype(O, /atom/movable/screen))
 		return
 	step_towards(O, src.loc)
 	if (user != O)
-		user.visible_message("<span style=\"color:red\">[user] stuffs [O] into [src]!</span>", "<span style=\"color:red\">You stuff [O] into [src]!</span>")
+		user.visible_message("<span class='alert'>[user] stuffs [O] into [src]!</span>", "<span class='alert'>You stuff [O] into [src]!</span>")
 	src.add_fingerprint(user)
 	return
 /*

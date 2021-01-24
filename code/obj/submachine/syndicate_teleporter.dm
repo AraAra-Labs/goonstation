@@ -12,14 +12,13 @@
 	New()
 		. = ..()
 		START_TRACKING
-	
+
 	disposing()
 		. = ..()
 		STOP_TRACKING
 
 	proc/teleport(mob/user)
-		for(var/X in by_type[/obj/submachine/syndicate_teleporter])
-			var/obj/submachine/syndicate_teleporter/S = X
+		for_by_tcl(S, /obj/submachine/syndicate_teleporter)
 			if(S.id == src.id && S != src)
 				if(recharging == 1)
 					return 1
@@ -35,7 +34,7 @@
 
 /obj/item/remote/syndicate_teleporter
 	name = "Syndicate Teleporter Remote"
-	icon = 'icons/obj/device.dmi'
+	icon = 'icons/obj/items/device.dmi'
 	desc = "Allows one to use a syndicate teleporter when standing on it."
 	icon_state = "locator"
 	item_state = "electronic"

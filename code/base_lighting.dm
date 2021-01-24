@@ -13,7 +13,7 @@
 /area
 	var
 		force_fullbright = 0
-		ambient_light = rgb(0.025 * 255, 0.025 * 255, 0.025 * 255)
+		ambient_light = null //rgb(0.025 * 255, 0.025 * 255, 0.025 * 255)
 
 	New()
 		..()
@@ -29,8 +29,7 @@
 			overlays += /image/fullbright
 		else
 			overlays -= /image/fullbright
-			for(var/X in src)
-				var/turf/T = X
+			for (var/turf/T as() in src)
 				T.RL_Init()
 
 /turf

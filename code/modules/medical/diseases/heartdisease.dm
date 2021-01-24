@@ -41,13 +41,12 @@
 			affected_mob.cure_disease(D)
 			return
 
-		H.ensure_bp_list()
 		var/cureprob = 0
 		if (H.blood_pressure["total"] < 666) // very high bp
 			cureprob += 5
 		if (H.blood_pressure["total"] < 585) // high bp
 			cureprob += 5
-		if (!H.bioHolder || !H.bioHolder.HasEffect("fat"))
+		if (!H.bioHolder)
 			cureprob += 5
 		if (!H.reagents || !H.reagents.has_reagent("cholesterol"))
 			cureprob += 5
@@ -64,12 +63,11 @@
 			if (prob(5))
 				var/msg = pick("Your chest hurts[prob(20) ? ". The pain radiates down your [pick("left arm", "back")]" : null]",\
 				"You feel a burning pain in your chest")
-				boutput(affected_mob, "<span style='color:red'>[msg].</span>")
+				boutput(affected_mob, "<span class='alert'>[msg].</span>")
 			if (prob(2))
 				affected_mob.losebreath ++
 			if (prob(2))
 				affected_mob.take_oxygen_deprivation(1)
-				affected_mob.updatehealth()
 			if (prob(2))
 				affected_mob.emote("gasp")
 

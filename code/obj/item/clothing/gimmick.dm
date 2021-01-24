@@ -3,7 +3,6 @@
 /obj/item/clothing/under/virtual
 	name = "virtual jumpsuit"
 	desc = "These clothes are unreal."
-	wear_image_fat = "virtual"
 	icon_state = "virtual"
 	item_state = "virtual"
 
@@ -61,6 +60,7 @@
 	see_face = 0.0
 
 	equipped(var/mob/user)
+		..()
 		if (ishuman(user))
 			var/mob/living/carbon/human/H = user
 			if (H.w_uniform && istype(H.w_uniform, /obj/item/clothing/under/gimmick/owl))
@@ -74,7 +74,7 @@
 		if (ishuman(user))
 			var/mob/living/carbon/human/H = user
 			if (istype(H.w_uniform, /obj/item/clothing/under/gimmick/owl) && !(user.stat || user.getStatusDuration("paralysis")))
-				user.visible_message("<span style='color:red'><b>[user] hoots loudly!</b></span>")
+				user.visible_message("<span class='alert'><b>[user] hoots loudly!</b></span>")
 				user.owlgib()
 				return 1
 			else
@@ -89,9 +89,9 @@
 	desc = "Twoooo!"
 	icon_state = "owl"
 	item_state = "owl"
-	compatible_species = list("human", "monkey")
 
 	equipped(var/mob/user)
+		..()
 		if (!user)
 			return 0
 		if (ishuman(user))
@@ -109,7 +109,7 @@
 		if (ishuman(user))
 			var/mob/living/carbon/human/H = user
 			if (istype(H.head, /obj/item/clothing/mask/owl_mask))
-				user.visible_message("<span style='color:red'><b>[user] hoots loudly!</b></span>")
+				user.visible_message("<span class='alert'><b>[user] hoots loudly!</b></span>")
 				user.owlgib()
 				return 1
 			else
@@ -329,18 +329,21 @@
 	//undo if bug
 	cant_self_remove = 0
 	cant_other_remove = 0
+	var/infectious = 0
 
 /obj/item/clothing/mask/cursedclown_hat/equipped(var/mob/user, var/slot)
+	..()
 	var/mob/living/carbon/human/Victim = user
-	if(istype(Victim) && slot == "mask")
-		boutput(user, "<span style=\"color:red\"><B> The mask grips your face!</B></span>")
+	if(istype(Victim) && slot == SLOT_WEAR_MASK)
+		boutput(user, "<span class='alert'><B> The mask grips your face!</B></span>")
 		src.desc = "This is never coming off... oh god..."
 		// Mostly for spawning a cluwne car and clothes manually.
 		// Clown's Revenge and Cluwning Around take care of every other scenario (Convair880).
-		if (user.mind)
-			user.mind.assigned_role = "Cluwne"
+		user.job = "Cluwne"
 		src.cant_self_remove = 1
 		src.cant_other_remove = 1
+		if(src.infectious && user.reagents)
+			user.reagents.add_reagent("painbow fluid",10)
 	return
 
 /obj/item/clothing/mask/cursedclown_hat/custom_suicide = 1
@@ -348,14 +351,14 @@
 /obj/item/clothing/mask/cursedclown_hat/suicide(var/mob/user, var/slot)
 	if (!user || user.wear_mask == src || get_dist(user, src) > 0)
 		return 0
-	user.visible_message("<span style=\"color:red\"><b>[user] gazes into the eyes of the [src.name]. The [src.name] gazes back!</b></span>") //And when you gaze long into an abyss, the abyss also gazes into you.
+	user.visible_message("<span class='alert'><b>[user] gazes into the eyes of the [src.name]. The [src.name] gazes back!</b></span>") //And when you gaze long into an abyss, the abyss also gazes into you.
 	SPAWN_DBG(1 SECOND)
 		playsound(src.loc, "sound/voice/chanting.ogg", 25, 0, 0)
-		playsound(src.loc, pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 25, 0, 0)
-		SPAWN_DBG(1.5 SECONDS)
-			user.emote("scream")
-			SPAWN_DBG(1.5 SECONDS)
-				user.implode()
+		playsound(src.loc, pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 35, 0, 0)
+		sleep(1.5 SECONDS)
+		user.emote("scream")
+		sleep(1.5 SECONDS)
+		user.implode()
 	return 1
 
 /obj/item/clothing/shoes/cursedclown_shoes
@@ -364,6 +367,7 @@
 	icon_state = "cursedclown"
 	item_state = "cclown_shoes"
 	step_sound = "cluwnestep"
+	compatible_species = list("human", "cow")
 	cant_self_remove = 1
 	cant_other_remove = 1
 	step_lots = 1
@@ -524,7 +528,7 @@
 
 /obj/item/device/energy_shield/viking
 	name = "Space Viking energy-shield"
-	icon = 'icons/obj/items.dmi'
+	icon = 'icons/obj/items/items.dmi'
 	icon_state = "viking_shield"
 	flags = FPRINT | TABLEPASS| CONDUCT
 	item_state = "vshield"
@@ -542,7 +546,7 @@
 	turn_on(var/mob/user2)
 
 		if(user2.energy_shield)
-			boutput(user2, "<span style=\"color:red\">Cannot activate more than one shield.</span>")
+			boutput(user2, "<span class='alert'>Cannot activate more than one shield.</span>")
 			return
 
 		user = user2
@@ -587,14 +591,14 @@
 // Sweet Bro and Hella Jeff
 
 /obj/item/clothing/under/gimmick/sbahj
-	name = "<font face='Comic Sans MS' size='3'><span style=\"color:blue\">blue janpsuit...</font>"
+	name = "<font face='Comic Sans MS' size='3'><span class='notice'>blue janpsuit...</font>"
 	desc = "<font face='Comic Sans MS' size='3'>looks like somethein to wear.........<br><br>in spca</font>"
 	icon_state = "sbahjB"
 	item_state = "sbahjB"
 
 	red
-		name = "<font face='Comic Sans MS' size='3'><span style=\"color:red\"><b><u>read</u></b></span><span style=\"color:blue\"> jumsut</span></font>"
-		desc = "<font face='Comic Sans MS' size='3'>\"samething to ware for <span style=\"color:red\"><i><u>studid fuckasses</u></i></span></font>"
+		name = "<font face='Comic Sans MS' size='3'><span class='alert'><b><u>read</u></b></span><span class='notice'> jumsut</span></font>"
+		desc = "<font face='Comic Sans MS' size='3'>\"samething to ware for <span class='alert'><i><u>studid fuckasses</u></i></span></font>"
 		icon_state = "sbahjR"
 		item_state = "sbahjR"
 
@@ -680,6 +684,11 @@
 
 //power armor
 
+/obj/item/clothing/head/power // placeholder icons until someone sprites an unpainted helmet
+	name = "plastic power helmet"
+	desc = "Wow this really looks like a noise marine helmet. But it's not!"
+	icon_state = "nm_helm"
+
 /obj/item/clothing/suit/power
 	name = "unpainted cardboard space marine armor"
 	desc = "Wow, what kind of dork fields an unpainted army? Gauche."
@@ -729,7 +738,8 @@
 	cant_self_remove = 1
 	cant_other_remove = 1
 	equipped(var/mob/user, var/slot)
-		if(slot == "i_clothing" && ishuman(user))
+		..()
+		if(slot == SLOT_W_UNIFORM && ishuman(user))
 			var/mob/living/carbon/human/H = user
 			if(H.shoes != null)
 				var/obj/item/clothing/shoes/c = H.shoes
@@ -746,7 +756,7 @@
 			newshoes.desc = "A pair of dirty white sneakers. Fortunately they don't have any blood stains."
 			H.equip_if_possible(newshoes, H.slot_shoes)
 
-			boutput(H, "<span style=\"color:red\"><b>You suddenly feel whiny and ineffectual.</b></span>")
+			boutput(H, "<span class='alert'><b>You suddenly feel whiny and ineffectual.</b></span>")
 			H.real_name = "Mike Dawson"
 			H.bioHolder.mobAppearance.customization_first = "Bedhead"
 			H.bioHolder.mobAppearance.customization_second = "Selleck"
@@ -757,8 +767,7 @@
 			H.bioHolder.mobAppearance.customization_second_color = "#412819"
 			H.bioHolder.mobAppearance.s_tone = "#FAD7D0"
 			H.bioHolder.AddEffect("clumsy")
-			H.set_face_icon_dirty()
-			H.set_body_icon_dirty()
+			H.update_colorful_parts()
 
 /obj/item/clothing/under/gimmick/chav
 	name = "blue tracksuit"
@@ -1027,6 +1036,7 @@
 	item_state = "weddress"
 	c_flags = SLEEVELESS
 
+ABSTRACT_TYPE(/obj/item/clothing/gloves/ring)
 /obj/item/clothing/gloves/ring
 	name = "ring"
 	desc = "A little ring, worn on the ring finger. You absolutely can't wear rings on any other fingers. It's just not possible."
@@ -1038,9 +1048,10 @@
 
 	attack(mob/M as mob, mob/user as mob, def_zone)
 		if ((user.bioHolder && user.bioHolder.HasEffect("clumsy") && prob(40)) || prob(1)) // honk
-			user.visible_message("<span style='color:red'><b>[user] fumbles and drops [src]!</b></span>",\
-			"<span style='color:red'><b>You fumble and drop [src]!</b></span>")
+			user.visible_message("<span class='alert'><b>[user] fumbles and drops [src]!</b></span>",\
+			"<span class='alert'><b>You fumble and drop [src]!</b></span>")
 			user.u_equip(src)
+			JOB_XP(user, "Clown", 2)
 			src.set_loc(get_turf(user))
 			src.oh_no_the_ring()
 			return
@@ -1053,16 +1064,15 @@
 			if (user.zone_sel.selecting == "l_arm" || user.zone_sel.selecting == "r_arm") // the ring always ends up on the left hand because I cba to let people dynamically choose the hand it goes on. yet. later, maybe.
 				if (ishuman(M))
 					var/mob/living/carbon/human/H = M
-					var/fat = H.bioHolder && H.bioHolder.HasEffect("fat") // also honk
 					if (H.gloves)
-						boutput(user, "<span style='color:red'>You can't put [src] on [H]'s finger while they're wearing [H.gloves], you oaf!</span>")
+						boutput(user, "<span class='alert'>You can't put [src] on [H]'s finger while they're wearing [H.gloves], you oaf!</span>")
 						return
 					if (user == H) // is this some form of masturbation?? giving yourself a wedding ring???? or are you too lazy to just equip it like a normal person????????
-						user.visible_message("<b>[user]</b> [fat ? "squeezes" : "slips"] [src] onto [his_or_her(user)] own finger. Legally, [he_or_she(user)] is now married to [him_or_her(user)]self. Congrats.",\
-						"You [fat ? "squeeze" : "slip"] [src] onto your own finger. Legally, you are now married to yourself. Congrats.")
+						user.visible_message("<b>[user]</b> slips [src] onto [his_or_her(user)] own finger. Legally, [he_or_she(user)] is now married to [him_or_her(user)]self. Congrats.",\
+						"You slip [src] onto your own finger. Legally, you are now married to yourself. Congrats.")
 					else
-						user.visible_message("<b>[user]</b> [fat ? "squeezes" : "slips"] [src] onto [H]'s finger.",\
-						"You [fat ? "squeeze" : "slip"] [src] onto [H]'s finger.")
+						user.visible_message("<b>[user]</b> slips [src] onto [H]'s finger.",\
+						"You slip [src] onto [H]'s finger.")
 					user.u_equip(src)
 					H.force_equip(src, H.slot_gloves)
 					return
@@ -1080,7 +1090,7 @@
 					"You try to give [src] to [M], but [M] has no fingers to put [src] on!")
 					return
 
-				else if (iscritter(M))
+				else if (ismobcritter(M))
 					var/mob/living/critter/C = M
 					if (C.hand_count > 0) // we got hands!  hands that things can be put onto!  er, into, I guess.
 						if (C.put_in_hand(src))
@@ -1127,7 +1137,7 @@
 						if (!src || !T || !isturf(src.loc))
 							break
 						if (src.loc == T.loc)
-							src.visible_message("<span style='color:red'>\The [src] rolls under [T]!</span>")
+							src.visible_message("<span class='alert'>\The [src] rolls under [T]!</span>")
 							playsound(src.loc, "sound/items/coindrop.ogg", 50, 1, null, 2)
 							if (prob(30))
 								qdel(src)
@@ -1137,7 +1147,7 @@
 								break
 						else
 							step_towards(src, T)
-							src.visible_message("<span style='color:red'>\The [src] bounces!</span>")
+							src.visible_message("<span class='alert'>\The [src] bounces!</span>")
 							playsound(src.loc, "sound/items/coindrop.ogg", 50, 1, null, 2)
 							sleep(rand(2,5))
 				else
@@ -1145,7 +1155,7 @@
 						if (!src || !isturf(src.loc))
 							break
 						step(src, pick(alldirs))
-						src.visible_message("<span style='color:red'>\The [src] bounces!</span>")
+						src.visible_message("<span class='alert'>\The [src] bounces!</span>")
 						playsound(src.loc, "sound/items/coindrop.ogg", 50, 1, null, 2)
 						sleep(rand(2,5))
 
@@ -1168,11 +1178,14 @@
 	material_prints = "deep scratches"
 
 	equipped(var/mob/user, var/slot)
-		if (slot == "gloves" && (!user.bioHolder || !user.bioHolder.HasEffect("hulk")))
-			boutput(user, "You feel your muscles swell to an immense size.")
+		if (slot == SLOT_GLOVES)
+			if (!user.bioHolder || !user.bioHolder.HasEffect("hulk"))
+				boutput(user, "You feel your muscles swell to an immense size.")
+			APPLY_MOVEMENT_MODIFIER(user, /datum/movement_modifier/hulkstrong, src.type)
 		return ..()
 
 	unequipped(var/mob/user)
+		REMOVE_MOVEMENT_MODIFIER(user, /datum/movement_modifier/hulkstrong, src.type)
 		if (!user.bioHolder || !user.bioHolder.HasEffect("hulk"))
 			boutput(user, "Your muscles shrink back down.")
 		return ..()
@@ -1303,9 +1316,8 @@
 	desc = "A jumpsuit with a cute frog pattern on it. Get it? <i>Jump</i>suit? Ribbit!"
 	icon_state = "frogsuit"
 	item_state = "lightgreen"
-
 	equipped(var/mob/user, var/slot)
-		if (slot == "i_clothing" && user.bioHolder)
+		if (slot == SLOT_W_UNIFORM && user.bioHolder)
 			user.bioHolder.AddEffect("jumpy_suit", 0, 0, 0, 1) // id, variant, time left, do stability, magical
 			SPAWN_DBG(0) // bluhhhhhhhh this doesn't work without a spawn
 				if (ishuman(user))
@@ -1322,6 +1334,16 @@
 				if (H.hud)
 					H.hud.update_ability_hotbar()
 		..()
+
+/obj/item/clothing/under/gimmick/pajamas
+	name = "pajamas"
+#ifdef UNDERWATER_MAP //gimmick jumpsuit descriptions are serious business
+	desc = "Going outside when in an ocean is kinda wet, so why bother getting dressed?"
+#else
+	desc = "Going outside when in space is kinda dangerous, so why bother getting dressed?"
+#endif
+	icon_state = "pajamas"
+	item_state = "pajamas"
 
 /obj/item/clothing/under/gimmick/shirtnjeans
 	name = "shirt and jeans"
@@ -1391,6 +1413,11 @@
 	desc = "The mask of a peculiarly tinted wolfman getup with an outrageous price tag."
 	icon_state = "gwmask"
 
+/obj/item/clothing/head/werewolf/taxidermy
+	name = "werewolf mask"
+	desc = "The pelt of a flayed werewolf's head formed into a wearable taxidermy mask. Wonderful."
+	icon_state = "gwmask"
+
 /obj/item/clothing/suit/gimmick/abomination
 	name = "abomination suit"
 	desc =  "The abomination suit straight out of the studio of Jon Woodworker's horror thriller, <i>The Whaddyacallit</i>"
@@ -1428,6 +1455,12 @@
 	desc = "Dracula who?"
 	body_parts_covered = TORSO
 	icon_state = "vampcape"
+
+/obj/item/clothing/under/gimmick/superhero
+	name = "crimefighting costume"
+	desc = "Definitely not just a pair of pajamas."
+	body_parts_covered = TORSO|LEGS|ARMS
+	icon_state = "superhero"
 
 /obj/item/clothing/under/gimmick/mummy
 	name = "linen body wrappings"
@@ -1500,16 +1533,18 @@
 	desc = "This hat looks patently ridiculous. Is this what passes for fashionable in the Commonwealth of Free Worlds?"
 	icon_state = "cwhat"
 	item_state = "cwhat"
+	seal_hair = 1
 
 /obj/item/clothing/head/fthat
 	name = "trader's headwear"
 	desc = "Why in the name of space would anyone trade with someone who wears a hat that looks this dumb? Yuck."
 	icon_state = "fthat"
 	item_state = "fthat"
+	seal_hair = 1
 
 /obj/item/clothing/gloves/handcomp
-	desc = "This is some sort of hand-mounted computer. Or it would be if it wasn't made out of cheap plastic and LEDs."
 	name = "Compudyne 0451 Handcomp"
+	desc = "This is some sort of hand-mounted computer. Or it would be if it wasn't made out of cheap plastic and LEDs."
 	icon_state = "handcomp"
 	item_state = "handcomp"
 	hide_prints = 0
@@ -1555,3 +1590,29 @@
 	desc = "a dress made for casual wear"
 	icon_state = "collardressb"
 	item_state = "collardressb"
+
+/obj/item/clothing/under/redtie
+	name = "collar shirt and red tie"
+	desc = "a pale dress shirt with a nice red tie to go with it"
+	icon_state = "red-tie"
+	item_state = "red-tie"
+
+/obj/item/clothing/suit/loosejacket
+	name = "loose jacket"
+	desc = "a loose and stylish jacket"
+	icon_state = "loose"
+	item_state = "loose"
+	body_parts_covered = TORSO|ARMS
+
+/obj/item/clothing/shoes/floppy
+	name = "floppy boots"
+	desc = "a pair of boots with very floppy design around the ankles"
+	icon_state = "floppy"
+	item_state = "floppy"
+
+/obj/item/clothing/suit/labcoatlong
+	name = "off-brand lab coat"
+	desc = "a long labcoat from some sort of supermarket"
+	icon_state = "labcoat-long"
+	item_state = "labcoat-long"
+	body_parts_covered = TORSO|LEGS|ARMS

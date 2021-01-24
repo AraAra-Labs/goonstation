@@ -1,8 +1,8 @@
-//Pick(1 tile), hammer(line across), drill(line in front), blaster(cone),
+/// Pick(1 tile), hammer(line across), drill(line in front), blaster(cone),
 /obj/item/mining_head
 	name = "mining tool head"
 	desc = "A mining tool head."
-	icon = 'icons/obj/mining.dmi'
+	icon = 'icons/obj/items/mining.dmi'
 	icon_state = "powerpick"
 
 	drill
@@ -28,7 +28,7 @@
 /obj/item/mining_mod
 	name = "mining mod"
 	desc = "A mod for mining tools."
-	icon = 'icons/obj/mining.dmi'
+	icon = 'icons/obj/items/mining.dmi'
 	icon_state = "mod_none"
 
 	conc
@@ -39,7 +39,7 @@
 /obj/item/mining_tools
 	name = "mining tool"
 	desc = "A simple mining tool."
-	icon = 'icons/obj/mining.dmi'
+	icon = 'icons/obj/items/mining.dmi'
 	inhand_image_icon = 'icons/mob/inhand/hand_tools.dmi'
 	icon_state = "powerpick"
 	item_state = "ppick"
@@ -51,6 +51,10 @@
 	var/hit_sound = 'sound/items/mining_drill.ogg'
 
 	flags = FPRINT | EXTRADELAY | TABLEPASS | CONDUCT | ONBELT
+
+	New()
+		..()
+		BLOCK_SETUP(BLOCK_ROD)
 
 	afterattack(atom/target as mob|obj|turf|area, mob/user as mob, var/reach)
 		if(user == target || (!isturf(target.loc) && !isturf(target)))
@@ -72,11 +76,10 @@
 		return
 
 	buildTooltipContent()
-		var/Tcontent = ..()
-		Tcontent += "<br>"
-		Tcontent += "<div><img src='[resource("images/tooltips/mining.png")]' alt='' class='icon' /><span>Mining Power: [power]</span></div>"
-
-		return Tcontent
+		. = ..()
+		. += "<br>"
+		. += "<div><img src='[resource("images/tooltips/mining.png")]' alt='' class='icon' /><span>Mining Power: [power]</span></div>"
+		lastTooltipContent = .
 
 /obj/item/mining_tools/pick
 	name = "Mining Pick"
@@ -169,8 +172,8 @@
 		var/obj/meleeeffect/blasterline/EA = new/obj/meleeeffect/blasterline(user.loc)
 		var/obj/meleeeffect/blasterline/EB = new/obj/meleeeffect/blasterline(start)
 
-		EA.dir = attackDir
-		EB.dir = turn(attackDir, 180)
+		EA.set_dir(attackDir)
+		EB.set_dir(turn(attackDir, 180))
 
 		animate(EA,alpha=0, time=5)
 		animate(EB,alpha=0, time=5)
@@ -305,7 +308,7 @@
 				anim_y = 0
 
 		var/obj/meleeeffect/drill/D = new/obj/meleeeffect/drill(start)
-		D.dir = attackDir
+		D.set_dir(attackDir)
 
 		animate(D, pixel_x = anim_x, pixel_y = anim_y, time = 5, easing = QUAD_EASING)
 		SPAWN_DBG(2 SECONDS) qdel(D)

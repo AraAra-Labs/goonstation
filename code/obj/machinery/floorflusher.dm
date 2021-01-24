@@ -10,6 +10,7 @@
 	density = 0
 	flags = NOSPLASH
 	event_handler_flags = USE_HASENTERED
+	plane = PLANE_NOSHADOW_BELOW
 
 	var/open = 0 //is it open
 	var/id = null //ID used for brig stuff
@@ -133,14 +134,14 @@
 				var/mob/living/M = AM
 				if (M.buckled)
 					M.buckled = null
-				boutput(M, "You fall into the [src].")
-				src.visible_message("[M] falls into the [src].")
+				boutput(M, "You fall into [src].")
+				src.visible_message("[M] falls into [src].")
 				M.set_loc(src)
 				flush = 1
 				update()
 
 	MouseDrop_T(mob/target, mob/user)
-		if (!istype(target) || target.buckled || get_dist(user, src) > 1 || get_dist(user, target) > 1 || user.stat || user.getStatusDuration("paralysis") || user.getStatusDuration("stunned") || user.getStatusDuration("weakened") || isAI(user))
+		if (!istype(target) || target.buckled || get_dist(user, src) > 1 || get_dist(user, target) > 1 || is_incapacitated(user) || isAI(user))
 			return
 
 		if(open != 1)
@@ -153,8 +154,8 @@
 			msg = "[user.name] falls into [src]."
 			boutput(user, "You fall into [src].")
 		else if(target != user && !user.restrained())
-			msg = "[user.name] pushes [target.name] into the [src]!"
-			boutput(user, "You push [target.name] into the [src]!")
+			msg = "[user.name] pushes [target.name] into [src]!"
+			boutput(user, "You push [target.name] into [src]!")
 		else
 			return
 		target.set_loc(src)
@@ -175,12 +176,12 @@
 	relaymove(mob/user as mob)
 		if(user.stat || src.flushing)
 			return
-		boutput(user, "<span style=\"color:red\">It's too deep. You can't climb out.</span>")
+		boutput(user, "<span class='alert'>It's too deep. You can't climb out.</span>")
 		return
 
 	// ai cannot interface.
 	attack_ai(mob/user as mob)
-		boutput(user, "<span style=\"color:red\">You cannot interface with this device.</span>")
+		boutput(user, "<span class='alert'>You cannot interface with this device.</span>")
 
 	// human interact with machine
 	attack_hand(mob/user as mob)
@@ -188,7 +189,7 @@
 		if (open != 1)
 			return
 		if(status & BROKEN)
-			user.machine = null
+			src.remove_dialog(user)
 			return
 
 		//fall in hilariously
@@ -218,10 +219,9 @@
 			var/mob/living/M = locate() in contents
 			if(M)
 				flush = 1
-				if(M.handcuffed)
+				if(M.hasStatus("handcuffed"))
 					boutput(M, "You feel your handcuffs being removed.")
-					M.handcuffed = null
-					new /obj/item/handcuffs(src)
+					M.handcuffs.drop_handcuffs(M)
 
 	// timed process
 	// charge the gas reservoir and perform flush if ready
@@ -229,10 +229,9 @@
 		if(status & BROKEN)			// nothing can happen if broken
 			return
 
-		src.updateDialog()
-
 		if(open && flush)	// flush can happen even without power, must be open first
-			flush()
+			SPAWN_DBG(0)
+				flush()
 
 		if(status & NOPOWER)			// won't charge if no power
 			return
@@ -256,9 +255,9 @@
 
 		air_contents.zero() // empty gas
 
-		sleep(10)
+		sleep(1 SECOND)
 		playsound(src, "sound/machines/disposalflush.ogg", 50, 0, 0)
-		sleep(5) // wait for animation to finish
+		sleep(0.5 SECONDS) // wait for animation to finish
 
 
 		H.start(src) // start the holder processing movement
@@ -285,6 +284,8 @@
 		open = 1
 		flick("floorflush_a", src)
 		src.icon_state = "floorflush_o"
+		for(var/atom/movable/AM in src.loc)
+			src.HasEntered(AM) // try to flush them
 
 	proc/closeup()
 		open = 0
@@ -302,9 +303,7 @@
 
 			AM.set_loc(src.loc)
 			AM.pipe_eject(0)
-			SPAWN_DBG(1 DECI SECOND)
-				if(AM)
-					AM.throw_at(target, 5, 1)
+			AM?.throw_at(target, 5, 1)
 
 		H.vent_gas(loc)
 		pool(H)
@@ -318,7 +317,7 @@
 
 	New()
 		..()
-		SPAWN_DBG (10)
+		SPAWN_DBG(1 SECOND)
 			openup()
 
 	Crossed(atom/movable/AM)
@@ -358,10 +357,8 @@
 		if(status & BROKEN)			// nothing can happen if broken
 			return
 
-		src.updateDialog()
-
 		if(open && flush)	// flush can happen even without power, must be open first
-			flush()
+			SPAWN_DBG(0) flush()
 
 		if(status & NOPOWER)			// won't charge if no power
 			return

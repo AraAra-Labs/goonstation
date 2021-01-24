@@ -38,11 +38,12 @@
 			// so that if it's getting created by the map it works, and if it isn't this will just return
 			src.setFloorUnderlay('icons/turf/floors.dmi', "plating", 0, 100, 0, "plating")
 			if (src.can_be_auto)
-				sleep(10)
 				for (var/turf/simulated/wall/auto/W in orange(1,src))
 					W.update_icon()
+				for (var/obj/grille/G in orange(1,src))
+					G.update_icon()
 
-	disposing()
+	Del()
 		src.RL_SetSprite(null)
 		if (floor_underlay)
 			qdel(floor_underlay)
@@ -86,17 +87,17 @@
 			//door is closed
 			if (known)
 				if (open())
-					boutput(user, "<span style=\"color:blue\">The wall slides open.</span>")
+					boutput(user, "<span class='notice'>The wall slides open.</span>")
 			else if (prob(prob_opens))
 				//it's hard to open
 				if (open())
-					boutput(user, "<span style=\"color:blue\">The wall slides open!</span>")
+					boutput(user, "<span class='notice'>The wall slides open!</span>")
 					known_by += user
 			else
 				return ..()
 		else
 			if (close())
-				boutput(user, "<span style=\"color:blue\">The wall slides shut.</span>")
+				boutput(user, "<span class='notice'>The wall slides shut.</span>")
 		return
 
 	attackby(obj/item/S as obj, mob/user as mob)
@@ -108,9 +109,9 @@
 				//without this, you can detect a false wall just by going down the line with screwdrivers
 				//if it's already open, you can disassemble it no problem
 				if (src.density && !known) //if it was closed, let them know that they did something
-					boutput(user, "<span style=\"color:blue\">It was a false wall!</span>")
+					boutput(user, "<span class='notice'>It was a false wall!</span>")
 				//disassemble it
-				boutput(user, "<span style=\"color:blue\">Now dismantling false wall.</span>")
+				boutput(user, "<span class='notice'>Now dismantling false wall.</span>")
 				var/floorname1	= src.floorname
 				var/floorintact1	= src.floorintact
 				var/floorburnt1	= src.floorburnt
@@ -125,7 +126,7 @@
 				F.name = floorname1
 				F.icon = flooricon1
 				F.icon_state = flooricon_state1
-				F.intact = floorintact1
+				F.setIntact(floorintact1)
 				F.burnt = floorburnt1
 				//a false wall turns into a sheet of metal and displaced girders
 				var/atom/A = new /obj/item/sheet(F)
@@ -166,7 +167,7 @@
 			src.update_air_properties()
 			src.RL_SetOpacity(0)
 			if(!floorintact)
-				src.intact = 0
+				src.setIntact(FALSE)
 				src.levelupdate()
 			if(checkForMultipleDoors())
 				update_nearby_tiles()
@@ -185,7 +186,7 @@
 		src.update_air_properties()
 		if (src.visible)
 			src.RL_SetOpacity(1)
-		src.intact = 1
+		src.setIntact(TRUE)
 		update_nearby_tiles()
 		SPAWN_DBG(delay)
 			//we want to return 1 without waiting for the animation to finish - the textual cue seems sloppy if it waits
@@ -242,7 +243,7 @@
 		if (src.visible)
 			src.opacity = 0
 			src.RL_SetOpacity(1)
-		src.intact = 1
+		src.setIntact(TRUE)
 		update_nearby_tiles()
 		if(src.was_rwall)
 			src.ReplaceWithRWall()

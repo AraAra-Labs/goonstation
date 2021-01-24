@@ -36,10 +36,10 @@ rcd light flash thingy on matter drain
 /client/proc/fireproof_core()
 	set category = "AI Modules"
 	set name = "Fireproof Core"
-	for(var/mob/living/silicon/ai/ai in AIs)
+	for_by_tcl(ai, /mob/living/silicon/ai)
 		ai.fire_res_on_core = 1
 	usr.verbs -= /client/proc/fireproof_core
-	boutput(usr, "<span style=\"color:red\">Core fireproofed.</span>")
+	boutput(usr, "<span class='alert'>Core fireproofed.</span>")
 
 /datum/game_mode/malfunction/AI_Module/large/upgrade_turrets
 	module_name = "AI Turret upgrade"
@@ -49,7 +49,7 @@ rcd light flash thingy on matter drain
 	set category = "AI Modules"
 	set name = "Upgrade Turrets"
 	usr.verbs -= /client/proc/upgrade_turrets
-	for(var/obj/machinery/turret/turret in machine_registry[MACHINES_TURRETS])
+	for(var/obj/machinery/turret/turret as() in machine_registry[MACHINES_TURRETS])
 		turret.health += 30
 		turret.shot_delay = 20
 
@@ -77,7 +77,7 @@ rcd light flash thingy on matter drain
 		if(overload.uses > 0)
 			overload.uses --
 			for(var/mob/V in hearers(7, M))
-				V.show_message(text("<span style=\"color:blue\">You hear a loud electrical buzzing sound!</span>"))
+				V.show_message(text("<span class='notice'>You hear a loud electrical buzzing sound!</span>"))
 			SPAWN_DBG(5 SECONDS)
 				explosion(M, get_turf(M), 0,1,1,0)
 		if(overload.uses <= 0)
@@ -96,7 +96,7 @@ rcd light flash thingy on matter drain
 			blackout.uses --
 			for(var/obj/machinery/power/apc/apc in machine_registry[MACHINES_POWER])
 				if(prob(30))
-				 apc.overload_lighting()
+					apc.overload_lighting()
 		if(blackout.uses <= 0)
 			usr.verbs -= /client/proc/blackout
 
@@ -123,7 +123,7 @@ rcd light flash thingy on matter drain
 				C.camera_status = !C.camera_status
 				camera.uses --
 				for(var/mob/V in hearers(3, C))
-					V.show_message(text("<span style=\"color:blue\">You hear a quiet click.</span>"))
+					V.show_message(text("<span class='notice'>You hear a quiet click.</span>"))
 			else
 				boutput(usr, "This camera is either active, or not repairable.")
 		if(camera.uses == 0)
@@ -135,11 +135,8 @@ rcd light flash thingy on matter drain
 	uses = 1
 
 /client/proc/attack_shuttle()
-	for (var/obj/landmark/A in landmarks)
-		LAGCHECK(LAG_LOW)
-		if (A.name == "AIgunbotshuttle")
-			new /obj/critter/gunbot(A.loc)
-			A.dispose()
+	for(var/turf/T in landmarks[LANDMARK_AI_GUNBOT_SHUTTLE])
+		new /obj/critter/gunbot(T)
 	usr.verbs -= /client/proc/attack_shuttle
 
 

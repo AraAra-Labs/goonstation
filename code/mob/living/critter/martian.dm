@@ -92,11 +92,11 @@
 		switch (act)
 			if ("scream")
 				if (src.emote_check(voluntary, 50))
-					playsound(get_turf(src), "sound/voice/screams/martian_screech.ogg", 80, 1)
+					playsound(get_turf(src), "sound/voice/screams/martian_screech.ogg", 80, 1, channel=VOLUME_CHANNEL_EMOTE)
 					return "<b>[src]</b> emits a psychic screech!"
 			if ("growl")
 				if (src.emote_check(voluntary, 50))
-					playsound(get_turf(src), "sound/voice/screams/martian_growl.ogg", 80, 1)
+					playsound(get_turf(src), "sound/voice/screams/martian_growl.ogg", 80, 1, channel=VOLUME_CHANNEL_EMOTE)
 					return "<b>[src]</b> gives a guttural psionic growl!"
 		return null
 
@@ -209,7 +209,7 @@ proc/martian_speak(var/mob/speaker, var/message as text, var/speak_as_admin=0)
 
 	var/rendered = ""
 	var/adminrendered = ""
-	if(C && C.holder && speak_as_admin)
+	if(C?.holder && speak_as_admin)
 		// admin mode go
 		var/show_other_key = 0
 		if (C.stealth || C.alt_key)
@@ -226,11 +226,14 @@ proc/martian_speak(var/mob/speaker, var/message as text, var/speak_as_admin=0)
 		adminrendered = "<span class='game [class]'><span class='name' data-ctx='\ref[speaker.mind]'>[speaker.real_name]</span> telepathically messages, <span class='message'>\"[message]\"</span></span>"
 
 
-	for (var/mob/M in mobs)
-		if(istype(M, /mob/new_player))
-			continue
 
-		if (M.client && ((ismartian(M)) || M.client.holder && !M.client.player_mode))
+	for (var/client/CC)
+		if (!CC.mob) continue
+		if(istype(CC.mob, /mob/new_player))
+			continue
+		var/mob/M = CC.mob
+
+		if ((ismartian(M)) || M.client.holder && !M.client.player_mode)
 			var/thisR = rendered
 			if ((istype(M, /mob/dead/observer)||M.client.holder) && speaker.mind)
 				thisR = "<span class='adminHearing' data-ctx='[M.client.chatOutput.getContextFlags()]'>[adminrendered]</span>"

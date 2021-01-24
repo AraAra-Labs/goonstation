@@ -28,8 +28,11 @@
 	// do i pay for building?
 	var/pays_to_construct = 1
 	// AI STUFF
-	var/datum/aiHolder/flock/ai = null
 	is_npc = 1
+
+	use_stamina = 0 //haha no
+
+	can_lie = 0 // no rotate when dead
 
 /mob/living/critter/flock/setup_healths()
 	add_hh_robot(-(src.health_brute), src.health_brute, src.health_brute_vuln)
@@ -121,7 +124,7 @@
 						pool(F)
 			playsound(get_turf(src), "sound/effects/spray.ogg", 50, 1, -3)
 			update_burning(-100)
-			sleep(20)
+			sleep(2 SECONDS)
 			src.extinguishing = 0
 
 // all flock bots should have the ability to rally somewhere (it's applicable to anything with flock AI)
@@ -129,7 +132,8 @@
 	if(src.is_npc)
 		// tell the npc AI to go after the target
 		if(src.ai)
-			src.ai.rally(target)
+			var/datum/aiHolder/flock/flockai = ai
+			flockai.rally(target)
 	else
 		// tell whoever's controlling the critter to come to the flockmind, pronto
 		boutput(src, "<span class='flocksay'><b>\[SYSTEM: The flockmind requests your presence immediately.\]</b></span>")
@@ -161,14 +165,14 @@
 	onUpdate()
 		..()
 		var/mob/living/critter/flock/F = owner
-		if (target == null || owner == null || get_dist(owner, target) > 1 || (F && !F.can_afford(20)))
+		if (target == null || owner == null || !in_range(owner, target, 1) || isfeathertile(target) || !F?.can_afford(20))
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
 	onStart()
 		..()
 		if(owner && target)
-			boutput(owner, "<span class='text-blue'>You begin spraying nanite strands onto the structure. You need to stay still for this.</span>")
+			boutput(owner, "<span class='notice'>You begin spraying nanite strands onto the structure. You need to stay still for this.</span>")
 			playsound(target, "sound/misc/flockmind/flockdrone_convert.ogg", 50, 1)
 
 			// do effect
@@ -179,7 +183,7 @@
 				src.decal = unpool(/obj/decal/flock_build_wall)
 				flick_anim = "spawn-wall"
 			if(src.decal)
-				src.decal.loc = target
+				src.decal.set_loc(target)
 				flick(flick_anim, src.decal)
 
 			var/mob/living/critter/flock/drone/F = owner
@@ -235,14 +239,14 @@
 	onUpdate()
 		..()
 		var/mob/living/critter/flock/F = owner
-		if (target == null || owner == null || get_dist(owner, target) > 1 || (F && !F.can_afford(src.cost)) || locate(structurepath) in target)
+		if (target == null || owner == null || !in_range(owner, target, 1) || !F?.can_afford(src.cost) || locate(structurepath) in target)
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
 	onStart()
 		..()
 		if(owner && target)
-			boutput(owner, "<span class='text-blue'>You begin weaving nanite strands into a solid structure. You need to stay still for this.</span>")
+			boutput(owner, "<span class='notice'>You begin weaving nanite strands into a solid structure. You need to stay still for this.</span>")
 			if(duration <= 30)
 				playsound(target, "sound/misc/flockmind/flockdrone_quickbuild.ogg", 50, 1)
 			else
@@ -252,7 +256,7 @@
 			var/flick_anim = "spawn-wall"
 			src.decal = unpool(/obj/decal/flock_build_wall)
 			if(src.decal)
-				src.decal.loc = target
+				src.decal.set_loc(target)
 				flick(flick_anim, src.decal)
 
 	onInterrupt(var/flag)
@@ -299,16 +303,15 @@
 	onStart()
 		..()
 		var/mob/living/critter/flock/drone/F = owner
-		if(F)
-			F.canmove = 0
-		boutput(owner, "<span class='text-blue'>Your internal fabricators spring into action. If you move the process will be ruined!</span>")
+		F?.canmove = 0
+		boutput(owner, "<span class='notice'>Your internal fabricators spring into action. If you move the process will be ruined!</span>")
 
 	onEnd()
 		..()
 		var/mob/living/critter/flock/drone/F = owner
-		if(F && F.flock)
+		if(F?.flock)
 			F.canmove = 1
-			F.visible_message("<span class='text-red'>[owner] deploys some sort of device!</span>", "<span class='text-blue'>You deploy a second-stage assembler.</span>")
+			F.visible_message("<span class='alert'>[owner] deploys some sort of device!</span>", "<span class='notice'>You deploy a second-stage assembler.</span>")
 			new /obj/flock_structure/egg(get_turf(F), F.flock)
 			playsound(get_turf(F), "sound/impact_sounds/Metal_Clang_1.ogg", 60, 1)
 			F.pay_resources(100)
@@ -322,7 +325,7 @@
 	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
 	duration = 10
 
-	var/mob/living/critter/flock/drone/target
+	var/atom/target
 
 	New(var/mob/living/critter/flock/drone/ntarg, var/duration_i)
 		..()
@@ -334,7 +337,7 @@
 	onUpdate()
 		..()
 		var/mob/living/critter/flock/F = owner
-		if (target == null || owner == null || get_dist(owner, target) > 1 || (F && !F.can_afford(10)))
+		if (target == null || owner == null || !in_range(owner, target, 1) || !F.can_afford(10))
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
@@ -342,20 +345,41 @@
 		..()
 		if(target)
 			var/mob/living/critter/flock/F = owner
+			var/T = target
+			var/mob/living/critter/flock/C
+			if(istype(T, /mob/living/critter/flock))
+				C = T
 			if(F)
-				F.tri_message("<span class='text-blue'>[owner] begins spraying glowing fibres onto [target].</span>",
-					F, "<span class='text-blue'>You begin repairing [target.real_name]. You will both need to stay still for this to work.</span>",
-					target, "<span class='text-blue'>[F.real_name] begins repairing you. You will both need to stay still for this to work.</span>",
-					"You hear hissing and spraying.")
-				playsound(target, "sound/misc/flockmind/flockdrone_quickbuild.ogg", 50, 1)
-				if(target.is_npc)
-					target.ai.wait()
+				if(C)
+					F.tri_message("<span class='notice'>[owner] begins spraying glowing fibres onto [C].</span>",
+						F, "<span class='notice'>You begin repairing [C.real_name]. You will both need to stay still for this to work.</span>",
+						T, "<span class='notice'>[F.real_name] begins repairing you. You will both need to stay still for this to work.</span>",
+						"You hear hissing and spraying.")
+				else
+					F.tri_message("<span class='notice'>[owner] begins spraying glowing fibres onto [T].</span>",
+						F, "<span class='notice'>You begin repairing [T]. You will both need to stay still for this to work.</span>",
+						T, "<span class='notice'>[F.real_name] begins repairing you. You will both need to stay still for this to work.</span>",
+						"You hear hissing and spraying.")
+				playsound(T, "sound/misc/flockmind/flockdrone_quickbuild.ogg", 50, 1)
+				if(C?.is_npc)
+					C.ai.wait()
 
 	onEnd()
 		..()
 		var/mob/living/critter/flock/F = owner
+		var/mob/living/critter/flock/T
+		if(istype(target, /mob/living/critter/flock))
+			T = target
 		if(F)
-			target.HealDamage("All", target.health_brute / 3, target.health_burn / 3)
+			if(istype(target, /obj/machinery/door/feather))
+//				dothin
+				var/obj/machinery/door/feather/D = target
+				D.health  = min(20, D.health_max - D.health) + D.health
+				if(D.broken && D.health_max/2 < D.health)
+					D.broken = 0 //fix the damn thing
+					D.icon_state = "door1"//make it not look broke
+			else
+				T.HealDamage("All", T.health_brute / 3, T.health_burn / 3)
 			F.pay_resources(10)
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -380,7 +404,7 @@
 	onUpdate()
 		..()
 		var/mob/living/critter/flock/F = owner
-		if (target == null || owner == null || get_dist(owner, target) > 1 || (F && !F.can_afford(15)))
+		if (target == null || owner == null || !in_range(owner, target, 1) || !F.can_afford(15))
 			interrupt(INTERRUPT_ALWAYS)
 			return
 
@@ -389,14 +413,15 @@
 		if(target)
 			var/mob/living/critter/flock/F = owner
 			if(F)
-				F.tri_message("<span class='text-blue'>[owner] begins forming a cuboid structure around [target].</span>",
-					F, "<span class='text-blue'>You begin imprisoning [target]. You will both need to stay still for this to work.</span>",
-					target, "<span class='text-red'>[F] is forming a structure around you!</span>",
+				F.tri_message("<span class='notice'>[owner] begins forming a cuboid structure around [target].</span>",
+					F, "<span class='notice'>You begin imprisoning [target]. You will both need to stay still for this to work.</span>",
+					target, "<span class='alert'>[F] is forming a structure around you!</span>",
 					"You hear strange building noises.")
+				target.was_harmed(F, null, "flock", INTENT_DISARM)
 				// do effect
 				src.decal = unpool(/obj/decal/flock_build_wall)
 				if(src.decal)
-					src.decal.loc = target
+					src.decal.set_loc(target)
 					flick("spawn-wall", src.decal)
 				playsound(get_turf(target), "sound/misc/flockmind/flockdrone_build.ogg", 50, 1)
 
@@ -410,8 +435,105 @@
 		if(src.decal)
 			pool(src.decal)
 		var/mob/living/critter/flock/F = owner
-		if(F)
+		if(F && target && in_range(owner, target))
 			var/obj/icecube/flockdrone/cage = new /obj/icecube/flockdrone(target.loc, target, F.flock)
-			cage.visible_message("<span class='text-red>[src] forms around [target], entombing them completely!</span>")
+			cage.visible_message("<span class='alert'>[cage] forms around [target], entombing them completely!</span>")
 			F.pay_resources(15)
 			playsound(get_turf(target), "sound/misc/flockmind/flockdrone_build_complete.ogg", 70, 1)
+
+///
+//decon action
+///
+/datum/action/bar/flock_decon
+	id = "flock_decon"
+	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
+	duration = 60
+
+	var/atom/target
+
+	New(var/atom/ntarg, var/duration_i)
+		..()
+		if (ntarg)
+			target = ntarg
+		if (duration_i)
+			duration = duration_i
+
+	onUpdate()
+		..()
+		if (target == null || owner == null || !in_range(owner, target, 1))
+			interrupt(INTERRUPT_ALWAYS)
+			return
+
+	onStart()
+		..()
+		owner.visible_message("<span style='color:blue'>[owner] begins deconstructing [target].</span>")
+
+	onInterrupt()
+		..()
+
+	onEnd()
+		..()
+		switch(target.type)
+			if(/obj/storage/closet/flock)
+				var/turf/T = get_turf(target)
+				var/obj/storage/closet/flock/c = target
+				playsound(T, "sound/impact_sounds/Glass_Shatter_3.ogg", 25, 1)
+				var/obj/item/raw_material/shard/S = unpool(/obj/item/raw_material/shard)
+				S.set_loc(T)
+				S.setMaterial(getMaterial("gnesisglass"))
+				c.dump_contents()
+				qdel(target)
+				target = null
+			if(/turf/simulated/wall/auto/feather)
+				var/turf/simulated/wall/auto/feather/f = target
+				f.dismantle_wall()
+			if(/obj/machinery/door/feather)
+				var/turf/T = get_turf(target)
+				playsound(T, "sound/impact_sounds/Glass_Shatter_3.ogg", 25, 1)
+				var/obj/item/raw_material/shard/S = unpool(/obj/item/raw_material/shard)
+				S.set_loc(T)
+				S.setMaterial(getMaterial("gnesisglass"))
+				S = unpool(/obj/item/raw_material/shard)
+				S.set_loc(T)
+				S.setMaterial(getMaterial("gnesis"))
+				qdel(target)
+				target = null
+			if(/obj/table/flock, /obj/table/flock/auto)
+				var/obj/table/flock/f = target
+				playsound(get_turf(f), "sound/items/Deconstruct.ogg", 50, 1)
+				f.deconstruct()
+//
+//deposit action
+//
+
+/datum/action/bar/flock_deposit
+	id = "flock_repair"
+	interrupt_flags = INTERRUPT_MOVE | INTERRUPT_ACT | INTERRUPT_STUNNED | INTERRUPT_ACTION
+	var/const/default_duration = 1 SECOND
+	duration = default_duration
+	var/obj/flock_structure/ghost/target = null
+
+	New(var/obj/flock_structure/ghost/target, var/duration = default_duration)
+		..()
+		src.target = target
+		src.duration = duration
+
+	onUpdate()
+		..()
+		if (target == null || owner == null || !in_range(owner, target, 1))
+			interrupt(INTERRUPT_ALWAYS)
+			return
+
+	onStart()
+		..()
+		playsound(target, "sound/misc/flockmind/flockdrone_quickbuild.ogg", 50, 1)
+
+	onEnd()
+		..()
+		owner.visible_message("<span class='alert'>[owner] deposits materials to the [target]!</span>", "<span class='notice'>You deposit materials to the tealprint</span>")
+		var/mob/living/critter/flock/drone/F = owner
+		var/amounttopay = 0
+		var/difference = target.goal - target.currentmats
+		amounttopay = min(F.resources, difference, 10)
+		F.pay_resources(amounttopay)
+		target.currentmats += amounttopay

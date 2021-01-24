@@ -8,13 +8,13 @@
 	icon = 'icons/misc/featherzone.dmi'
 	icon_state = "flockmind"
 
-	var/started = 0	
+	var/started = 0
 	var/last_time // when i say per second I MEAN PER SECOND DAMMIT
 
 /mob/living/intangible/flock/flockmind/New()
 	..()
 
-	src.abilityHolder = new /datum/abilityHolder/flockmind(src)	
+	src.abilityHolder = new /datum/abilityHolder/flockmind(src)
 	src.last_time = world.timeofday
 
 	src.flock = new /datum/flock()
@@ -27,14 +27,13 @@
 
 /mob/living/intangible/flock/flockmind/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> [src.real_name]"
-    special_desc += "<br><span class='bold'>Flock:</span> [src.flock ? src.flock.name : "none, somehow"]"
-    special_desc += "<br><span class='bold'>Resources:</span> [src.flock.total_resources()]"
-    special_desc += "<br><span class='bold'>System Integrity:</span> [round(src.flock.total_health_percentage()*100)]%"
-    special_desc += "<br><span class='bold'>Cognition:</span> COMPUTATIONAL NEXUS"    
-    special_desc += "<br>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> [src.real_name]
+    <br><span class='bold'>Flock:</span> [src.flock ? src.flock.name : "none, somehow"]
+    <br><span class='bold'>Resources:</span> [src.flock.total_resources()]
+    <br><span class='bold'>System Integrity:</span> [round(src.flock.total_health_percentage()*100)]%
+    <br><span class='bold'>Cognition:</span> COMPUTATIONAL NEXUS
+    <br>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -51,7 +50,7 @@
 
 /mob/living/intangible/flock/flockmind/Login()
 	..()
-	abilityHolder.updateButtons()			
+	abilityHolder.updateButtons()
 
 /mob/living/intangible/flock/flockmind/Life(datum/controller/process/mobs/parent)
 	if (..(parent))
@@ -61,24 +60,26 @@
 
 /mob/living/intangible/flock/flockmind/proc/spawnEgg()
 	if(src.flock)
-		new /obj/flock_structure/egg(get_turf(src), src.flock)
+		var/obj/flock_structure/rift/r = new(get_turf(src), src.flock)
+		r.mainflock = src.flock
 		playsound(get_turf(src), "sound/impact_sounds/Metal_Clang_1.ogg", 30, 1)
 	else
-		boutput(src, "<span class='text-red'>You don't have a flock, it's not going to listen to you! Also call a coder, this should be impossible!</span>")
+		boutput(src, "<span class='alert'>You don't have a flock, it's not going to listen to you! Also call a coder, this should be impossible!</span>")
 		return
 	src.started = 1
 	src.removeAbility(/datum/targetable/flockmindAbility/spawnEgg)
 	src.addAllAbilities()
 
-/mob/living/intangible/flock/flockmind/proc/addAllAbilities()	
+/mob/living/intangible/flock/flockmind/proc/addAllAbilities()
 	src.addAbility(/datum/targetable/flockmindAbility/designateTile)
 	src.addAbility(/datum/targetable/flockmindAbility/designateEnemy)
-	src.addAbility(/datum/targetable/flockmindAbility/partitionMind)	
+	src.addAbility(/datum/targetable/flockmindAbility/partitionMind)
 	src.addAbility(/datum/targetable/flockmindAbility/splitDrone)
 	src.addAbility(/datum/targetable/flockmindAbility/healDrone)
 	src.addAbility(/datum/targetable/flockmindAbility/doorsOpen)
 	src.addAbility(/datum/targetable/flockmindAbility/radioStun)
 	src.addAbility(/datum/targetable/flockmindAbility/directSay)
+	src.addAbility(/datum/targetable/flockmindAbility/createStructure)
 
 /mob/living/intangible/flock/flockmind/proc/addAbility(var/abilityType)
 	src.abilityHolder.addAbility(abilityType)
@@ -88,16 +89,15 @@
 
 /mob/living/intangible/flock/flockmind/death(gibbed)
 	if(src.client)
-		boutput(src, "<span class='text-red'>With the last of your drones dying, nothing is left to compute your consciousness. You abruptly cease to exist.</span>")
-	if(src.flock)
-		src.flock.perish()
+		boutput(src, "<span class='alert'>With the last of your drones dying, nothing is left to compute your consciousness. You abruptly cease to exist.</span>")
+	src.flock?.perish()
 	src.invisibility = 0
 	src.icon_state = "blank"
 	src.canmove = 0
 	flick("flockmind-death", src)
 	src.ghostize()
-	sleep(20) // wait for the animation to finish	
-	qdel(src)
+	spawn(2 SECONDS) // wait for the animation to finish
+		qdel(src)
 
 /mob/living/intangible/flock/flockmind/ghostize()
 	var/mob/dead/observer/O = ..()
@@ -125,15 +125,15 @@
 
 /mob/living/intangible/flock/flockmind/proc/receive_ghosts(var/list/ghosts)
 	if(!ghosts || ghosts.len <= 0)
-		boutput(src, "<span class='text-red'>Unable to partition, please try again later.</span>")
+		boutput(src, "<span class='alert'>Unable to partition, please try again later.</span>")
 		return
 	var/list/valid_ghosts = list()
 	for(var/mob/dead/observer/O in ghosts)
-		if(O && O.client)
+		if(O?.client)
 			valid_ghosts |= O
 	if(valid_ghosts.len <= 0)
-		SPAWN_DBG (10) 
-			boutput(src, "<span class='text-red'>Unable to partition, please try again later.</span>")
+		SPAWN_DBG(1 SECOND)
+			boutput(src, "<span class='alert'>Unable to partition, please try again later.</span>")
 		return
 	// pick a random ghost
 	var/mob/dead/observer/winner = valid_ghosts[rand(1, valid_ghosts.len)]
@@ -146,4 +146,5 @@
 /mob/living/intangible/flock/flockmind/proc/partition()
 	// send out a request to ghosts
 	ghost_notifier.send_notification(src, src, /datum/ghost_notification/respawn/flockdrone)
-	boutput(src, "<span class='text-blue'>Partitioning initiated. Stand by.</span>")
+	boutput(src, "<span class='notice'>Partitioning initiated. Stand by.</span>")
+

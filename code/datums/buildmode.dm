@@ -1,27 +1,29 @@
+ABSTRACT_TYPE(/datum/buildmode)
 /datum/buildmode
 	var/list/extra_buttons = list()
 	New(var/datum/buildmode_holder/H)
+		..()
 		holder = H
 
 	// Called when mode is selected
 	proc/selected()
-		for (var/obj/screen/S in extra_buttons)
+		for (var/atom/movable/screen/S in extra_buttons)
 			holder.owner.screen += S
 		update_button_text()
 
 	// Called when mode is deselected
 	proc/deselected()
-		for (var/obj/screen/S in extra_buttons)
+		for (var/atom/movable/screen/S in extra_buttons)
 			holder.owner.screen -= S
 
 	// Called when entering buildmode
 	proc/resumed()
-		for (var/obj/screen/S in extra_buttons)
+		for (var/atom/movable/screen/S in extra_buttons)
 			holder.owner.screen += S
 
 	// Called when exiting buildmode
 	proc/paused()
-		for (var/obj/screen/S in extra_buttons)
+		for (var/atom/movable/screen/S in extra_buttons)
 			holder.owner.screen -= S
 
 	proc/update_icon_state(var/newstate)
@@ -43,7 +45,7 @@
 	proc/click_right(atom/object, var/ctrl, var/alt, var/shift)
 
 	var/name = "You shouldn't see me."
-	var/desc = "<span style=\"color:red\">Someone is a lazy bum.</span>"
+	var/desc = "<span class='alert'>Someone is a lazy bum.</span>"
 	var/datum/buildmode_holder/holder = null
 	var/icon_state = null
 	var/admin_level = LEVEL_BABBY // restricts certain things to certain ranks
@@ -57,19 +59,20 @@
 	var/dir = SOUTH
 
 	New(var/client/C)
+		..()
 		owner = C
 		button_dir = new(null, src)
 		button_help = new(null, src)
 		button_mode = new(null, src)
 		button_quit = new(null, src)
 
-		for (var/T in childrentypesof(/datum/buildmode))
+		for (var/T in concrete_typesof(/datum/buildmode))
 			var/datum/buildmode/M = new T(src)
 			if ((!owner.holder && M.admin_level > LEVEL_BABBY) || M.admin_level > owner.holder.level)
 				DEBUG_MESSAGE("[key_name(owner)] is too low rank to have buildmode [M.name] ([M.type]) and the buildmode is being disposed (min level is [level_to_rank(M.admin_level)] and [owner.ckey] is [owner.holder ? level_to_rank(owner.holder.level) : "not an admin"])")
 				qdel(M)
 				continue
-			if (!mode)
+			if (!mode || istype(M, /datum/buildmode/spawn_single))
 				select_mode(M)
 			modes_cache += M.name
 			modes_cache[M.name] = M
@@ -90,7 +93,7 @@
 		button_mode.maptext_x = -62
 
 	proc/build_click(atom/target, location, control, list/params)
-		if (istype(target, /obj/screen/buildmode))
+		if (istype(target, /atom/movable/screen/buildmode))
 			target:clicked(params)
 			return
 		if (params.Find("left"))
@@ -117,18 +120,18 @@
 		mode.paused()
 
 	proc/display_help()
-		boutput(usr, "<font color='blue'>[mode.desc]</font>")
+		boutput(usr, "<span class='notice'>[mode.desc]</span>")
 
 	// You shouldn't actually interact with these anymore.
-	var/obj/screen/buildmode/builddir/button_dir
-	var/obj/screen/buildmode/buildhelp/button_help
-	var/obj/screen/buildmode/buildmode/button_mode
-	var/obj/screen/buildmode/buildquit/button_quit
+	var/atom/movable/screen/buildmode/builddir/button_dir
+	var/atom/movable/screen/buildmode/buildhelp/button_help
+	var/atom/movable/screen/buildmode/buildmode/button_mode
+	var/atom/movable/screen/buildmode/buildquit/button_quit
 
 /client/proc/togglebuildmode()
 	set name = "Build Mode"
 	set desc = "Toggle build Mode on/off."
-	set category = "Special Verbs"
+	SET_ADMIN_CAT(ADMIN_CAT_SELF)
 
 	if(!src.buildmode)
 		src.buildmode = new /datum/buildmode_holder(src)
@@ -148,7 +151,7 @@
 		usr.see_invisible = 21
 		src.show_popup_menus = 0
 
-/obj/screen/buildmode/builddir
+/atom/movable/screen/buildmode/builddir
 	name = "Set direction"
 	density = 1
 	anchored = 1
@@ -189,7 +192,7 @@
 
 		holder.dir = dir
 
-/obj/screen/buildmode/buildhelp
+/atom/movable/screen/buildmode/buildhelp
 	name = "Click for help"
 	density = 1
 	anchored = 1
@@ -208,7 +211,7 @@
 	clicked(location, control, params)
 		holder.display_help()
 
-/obj/screen/buildmode/buildquit
+/atom/movable/screen/buildmode/buildquit
 	name = "Click to exit build mode"
 	density = 1
 	anchored = 1
@@ -227,7 +230,7 @@
 	clicked(location, control, params)
 		holder.owner.togglebuildmode()
 
-/obj/screen/buildmode/buildmode
+/atom/movable/screen/buildmode/buildmode
 	name = "Click to select mode"
 	density = 1
 	anchored = 1
@@ -259,7 +262,7 @@ var/image/buildmodeBlink = image('icons/effects/effects.dmi',"empdisable")//guH 
 	SPAWN_DBG(0)//WHY DOUBLE SPAWN AND NEW IMAGE EVERY BLINK IT MAKES SOMEPOTATO SAD
 
 		T.overlays += buildmodeBlink
-		sleep(5)
+		sleep(0.5 SECONDS)
 		T.overlays -= buildmodeBlink
 
 	//kinda gross

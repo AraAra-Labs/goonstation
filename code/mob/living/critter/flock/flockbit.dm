@@ -10,12 +10,10 @@
 	fits_under_table = 1
 	flags = TABLEPASS
 
-/mob/living/critter/flock/bit/New(var/datum/flock/F=null)
-	..(F)
+/mob/living/critter/flock/bit/New(var/atom/location, var/datum/flock/F=null)
+	..(src, F)
 
-	// ai setup
-	src.ai = new /datum/aiHolder/flock/bit()
-	src.ai.owner = src
+	src.ai = new /datum/aiHolder/flock/bit(src)
 
 	SPAWN_DBG(1 SECOND) // aaaaaaa
 		animate_bumble(src)
@@ -26,13 +24,12 @@
 
 /mob/living/critter/flock/bit/special_desc(dist, mob/user)
 	if(isflock(user))
-		var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-		special_desc += "<br><span class='bold'>ID:</span> [src.real_name]"
-		special_desc += "<br><span class='bold'>Flock:</span> [src.flock ? src.flock.name : "none"]"
-		special_desc += "<br><span class='bold'>System Integrity:</span> [round(src.get_health_percentage()*100)]%"
-		special_desc += "<br><span class='bold'>Cognition:</span> PREDEFINED"
-		special_desc += "<br><span class='bold'>###=-</span></span>"
-		return special_desc
+		return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+		<br><span class='bold'>ID:</span> [src.real_name]
+		<br><span class='bold'>Flock:</span> [src.flock ? src.flock.name : "none"]
+		<br><span class='bold'>System Integrity:</span> [round(src.get_health_percentage()*100)]%
+		<br><span class='bold'>Cognition:</span> PREDEFINED
+		<br><span class='bold'>###=-</span></span>"}
 	else
 		return null // give the standard description
 
@@ -72,8 +69,7 @@
 
 /mob/living/critter/flock/bit/death(var/gibbed)
 	walk(src, 0)
-	if(src.flock)
-		src.flock.removeDrone(src)
+	src.flock?.removeDrone(src)
 	playsound(get_turf(src), "sound/impact_sounds/Glass_Shatter_3.ogg", 50, 1)
 	flockdronegibs(get_turf(src))
 	qdel(src)
@@ -81,8 +77,7 @@
 // okay so this might be fun for gimmicks
 /mob/living/critter/flock/bit/Login()
 	..()
-	if(src.client)
-		src.client.color = null
+	src.client?.color = null
 	walk(src, 0)
 	src.is_npc = 0
 
@@ -115,7 +110,7 @@
 		target = get_turf(target)
 
 	if(!istype(target, /turf/simulated) && !istype(target, /turf/space))
-		boutput(user, "<span class='text-red'>Something about this structure prevents it from being assimilated.</span>")
+		boutput(user, "<span class='alert'>Something about this structure prevents it from being assimilated.</span>")
 	else
 		playsound(get_turf(src), "sound/misc/flockmind/flockbit_wisp[pick("1","2","3","4","5","6")].ogg")
 		actions.start(new/datum/action/bar/flock_convert(target, 25), user)

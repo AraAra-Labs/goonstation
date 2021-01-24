@@ -9,7 +9,7 @@
 	var/obj/item/item							// the item being worn in this slot
 
 	var/list/type_filters = list()				// a list of parent types whose subtypes are equippable
-	var/obj/screen/hud/screenObj				// ease of life
+	var/atom/movable/screen/hud/screenObj				// ease of life
 
 	var/mob/holder = null
 
@@ -18,6 +18,15 @@
 	New(var/mob/M)
 		..()
 		holder = M
+
+	disposing()
+		if(screenObj)
+			screenObj.dispose()
+			screenObj = null
+		item = null
+		holder = null
+		..()
+
 
 	proc/can_equip(var/obj/item/I)
 		for (var/T in type_filters)
@@ -31,7 +40,7 @@
 		if (screenObj)
 			I.screen_loc = screenObj.screen_loc
 		item = I
-		item.loc = holder
+		item.set_loc(holder)
 		holder.update_clothing()
 		on_equip()
 		return 1
@@ -41,7 +50,7 @@
 			return 0
 		if ((item.cant_drop || item.cant_other_remove) && !force)
 			return 0
-		item.loc = get_turf(holder)
+		item.set_loc(get_turf(holder))
 		item.master = null
 		item.layer = initial(item.layer)
 		item = null
@@ -96,6 +105,13 @@
 					var/mob/living/critter/small_animal/bird/B = holder
 					offset_y = B.hat_offset_y
 					offset_x = B.hat_offset_x
+
+
+		bee
+			offset_y = -6
+
+		slime
+			offset_y = -15
 
 	suit
 		name = "suit"

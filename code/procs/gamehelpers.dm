@@ -55,11 +55,16 @@ var/list/stinkThingies = list("ass","taint","armpit","excretions","leftovers","R
 		return null
 	var/area/A = T.loc
 
-	if (A.type == /area)
+	if (area_space_nopower(A))
 		// dont search space for an apc
 		return null
 
-	for (var/obj/machinery/power/apc/APC in A.contents)
+	if (A.area_apc)
+		return A.area_apc
+
+	for (var/obj/machinery/power/apc/APC in machine_registry[MACHINES_POWER])
+		if (get_area(APC) != A)
+			continue
 		if (!(APC.status & BROKEN))
 			return APC
 
@@ -105,7 +110,7 @@ var/list/stinkThingies = list("ass","taint","armpit","excretions","leftovers","R
 				var/Y = source:y
 				var/Z = source:z
 				if (isrestrictedz(Z) || isrestrictedz(user:z))
-					boutput(user, "<span style=\"color:red\">Your telekinetic powers don't seem to work here.</span>")
+					boutput(user, "<span class='alert'>Your telekinetic powers don't seem to work here.</span>")
 					return 0
 				SPAWN_DBG(0)
 					//I really shouldnt put this here but i dont have a better idea
@@ -114,16 +119,25 @@ var/list/stinkThingies = list("ass","taint","armpit","excretions","leftovers","R
 					O.anchored = 1
 					O.set_density(0)
 					O.layer = FLY_LAYER
-					O.dir = pick(cardinal)
+					O.set_dir(pick(cardinal))
 					O.icon = 'icons/effects/effects.dmi'
 					O.icon_state = "nothing"
 					flick("empdisable",O)
-					SPAWN_DBG(0.5 SECONDS)
-						qdel(O)
+					sleep(0.5 SECONDS)
+					qdel(O)
 
 				return 1
-		if (istype(source, /obj/machinery) && isAI(user))
-			return 1
+
+		else if (isobj(source))
+			var/obj/SO = source
+			if(SO.can_access_remotely(user))
+				return 1
+
+	if (mirrored_physical_zone_created) //checking for vistargets if true
+		var/turf/T = get_turf(source)
+		if (T.vistarget)
+			if(bounds_dist(T.vistarget, user) == 0 || get_dist(T.vistarget, user) <= 1)
+				return 1
 
 	return 0 //not in range and not telekinetic
 
@@ -201,30 +215,18 @@ var/obj/item/dummy/click_dummy = new
 			L = L.loc
 	return 0
 
-/proc/AutoUpdateAI(obj/subject)
-	if (!subject)
-		return
-	for(var/mob/living/silicon/ai/M in AIs)
-		var/mob/AI = M
-		if (M.deployed_to_eyecam)
-			AI = M.eyecam
-
-		if (AI && AI.client && AI.machine == subject)
-			subject.attack_ai(AI)
 
 /proc/get_viewing_AIs(center = null, distance = 7)
+	RETURN_TYPE(/list/mob)
 	. = list()
 
 	var/turf/T = get_turf(center)
-	for (var/mob/living/silicon/ai/theAI in AIs)
+	for_by_tcl(theAI, /mob/living/silicon/ai)
 		if (theAI.deployed_to_eyecam)
 			var/mob/dead/aieye/AIeye = theAI.eyecam
-//			if (AIeye in view(center, distance))
-			if(DIST_CHECK(center, AIeye, distance) && T.cameras && T.cameras.len)
+			if(IN_RANGE(center, AIeye, distance) && T.cameras && T.cameras.len)
 				. += AIeye
 				. += theAI
-		//if (istype(theAI.current) && (theAI.current in view(center, distance)) )
-		//	. += theAI
 
 //Kinda sorta like viewers but includes observers. In theory.
 /proc/observersviewers(var/Dist=world.view, var/Center=usr)
@@ -243,7 +245,11 @@ var/obj/item/dummy/click_dummy = new
 		Center = Depth
 		Depth = newDepth
 
-	return viewers(Depth, Center) + get_viewing_AIs(Center, 7)
+	. = viewers(Depth, Center) + get_viewing_AIs(Center, 7)
+	if(length(by_cat[TR_CAT_OMNIPRESENT_MOBS]))
+		for(var/mob/M as() in by_cat[TR_CAT_OMNIPRESENT_MOBS])
+			if(get_step(M, 0)?.z == get_step(Center, 0)?.z)
+				. |= M
 
 //A unique network ID for devices that could use one
 /proc/format_net_id(var/refstring)
@@ -256,14 +262,11 @@ var/obj/item/dummy/click_dummy = new
 //A little wrapper around format_net_id to account for non-null tag values
 /proc/generate_net_id(var/atom/the_atom)
 	if(!the_atom) return
-	var/tag_holder = the_atom.tag
-	the_atom.tag = null //So we generate from internal ref id
 	. = format_net_id("\ref[the_atom]")
-	the_atom.tag = tag_holder
 
 /proc/can_act(var/mob/M, var/include_cuffs = 1)
 	if(!M) return 0 //Please pass the M, I need a sprinkle of it on my potatoes.
-	if(include_cuffs && M.handcuffed) return 0
+	if(include_cuffs && M.hasStatus("handcuffed")) return 0
 	if(M.getStatusDuration("stunned")) return 0
 	if(M.getStatusDuration("weakened")) return 0
 	if(M.getStatusDuration("paralysis")) return 0
@@ -292,12 +295,12 @@ var/obj/item/dummy/click_dummy = new
 	if (iscluwne(H))
 		message = honk(message)
 		if (world.time >= (H.last_cluwne_noise + CLUWNE_NOISE_DELAY))
-			playsound(get_turf(H), pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 70, 0, 0, H.get_age_pitch())
+			playsound(get_turf(H), pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 35, 0, 0, H.get_age_pitch())
 			H.last_cluwne_noise = world.time
 	if (ishorse(H))
 		message = neigh(message)
 		if (world.time >= (H.last_cluwne_noise + CLUWNE_NOISE_DELAY))
-			playsound(get_turf(H), pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 70, 0, 0, H.get_age_pitch())
+			playsound(get_turf(H), pick("sound/voice/cluwnelaugh1.ogg","sound/voice/cluwnelaugh2.ogg","sound/voice/cluwnelaugh3.ogg"), 35, 0, 0, H.get_age_pitch())
 			H.last_cluwne_noise = world.time
 
 	if ((H.reagents && H.reagents.get_reagent_amount("ethanol") > 30 && !isdead(H)) || H.traitHolder.hasTrait("alcoholic"))
@@ -362,7 +365,7 @@ var/obj/item/dummy/click_dummy = new
 		if(current.opacity)
 			return FALSE
 		for(var/atom/A in current)
-			if(A.opacity) 
+			if(A.opacity)
 				return FALSE
 		current = get_step_towards(current, target_turf)
 	return TRUE
@@ -375,8 +378,24 @@ var/obj/item/dummy/click_dummy = new
 	if(src.ears) . += src.ears
 	if(src.wear_mask) . += src.wear_mask
 
-	if(src.l_hand && src.l_hand.c_flags & EQUIPPED_WHILE_HELD) . += src.l_hand
-	if(src.r_hand && src.r_hand.c_flags & EQUIPPED_WHILE_HELD) . += src.r_hand
+	if(src.l_hand)
+		if (src.l_hand.c_flags & EQUIPPED_WHILE_HELD)
+			. += src.l_hand
+
+
+		if (src.l_hand.c_flags & HAS_GRAB_EQUIP)
+			for(var/obj/item/grab/G in src.l_hand)
+				if (G.c_flags & EQUIPPED_WHILE_HELD)
+					. += G
+
+	if(src.r_hand)
+		if (src.r_hand.c_flags & EQUIPPED_WHILE_HELD)
+			. += src.r_hand
+
+		if (src.r_hand.c_flags & HAS_GRAB_EQUIP)
+			for(var/obj/item/grab/G in src.r_hand)
+				if (G.c_flags & EQUIPPED_WHILE_HELD)
+					. += G
 
 
 /proc/get_step_towards2(var/atom/ref , var/atom/trg)
@@ -420,7 +439,6 @@ var/obj/item/dummy/click_dummy = new
 	. = new/list()
 
 	for(var/area/R in world)
-		LAGCHECK(LAG_LOW)
 		if(istype(R, areatype))
 			. += R
 
@@ -442,6 +460,28 @@ var/obj/item/dummy/click_dummy = new
 			for (var/turf/T in R)
 				. += R
 				break
+
+/proc/get_areas_with_unblocked_turfs(var/areatype)
+	//Takes: Area type as text string or as typepath OR an instance of the area.
+	//Returns: A list of all areas of that type in the world that have at least one unblocked turf.
+	//Also sets an unblocked turf for each area for the spy thief mode.
+	//Notes: Simple!
+	if(!areatype) return null
+	if(istext(areatype)) areatype = text2path(areatype)
+	if(isarea(areatype))
+		var/area/areatemp = areatype
+		areatype = areatemp.type
+
+	. = list()
+
+	for(var/area/R in world)
+		LAGCHECK(LAG_LOW)
+		if(istype(R, areatype))
+			for (var/turf/T in R)
+				if(!is_blocked_turf(T))
+					R.spyturf = T
+					. += R
+					break
 
 /proc/get_area_turfs(var/areatype, var/floors_only)
 	//Takes: Area type as text string or as typepath OR an instance of the area.
@@ -495,6 +535,7 @@ var/obj/item/dummy/click_dummy = new
 	var/a = null
 
 	New(_r,_g,_b,_a=255)
+		..()
 		r = _r
 		g = _g
 		b = _b
@@ -517,19 +558,11 @@ var/obj/item/dummy/click_dummy = new
 
 
 /area/proc/move_contents_to(var/area/A, var/turftoleave=null, var/ignore_fluid = 0)
-	set waitfor = 0
-
 	//Takes: Area. Optional: turf type to leave behind.
 	//Returns: Nothing.
 	//Notes: Attempts to move the contents of one area to another area.
 	//       Movement based on lower left corner. Tiles that do not fit
 	//		 into the new area will not be moved.
-
-	var/testmove = 0
-
-
-//	if(prob(5)) testmove = 1
-
 	if(!A || !src) return 0
 
 	var/list/turfs_src = get_area_turfs(src.type)
@@ -537,102 +570,38 @@ var/obj/item/dummy/click_dummy = new
 
 	var/src_min_x = 0
 	var/src_min_y = 0
-	for (var/turf/T in turfs_src)
+	for (var/turf/T as() in turfs_src)
 		if(T.x < src_min_x || !src_min_x) src_min_x	= T.x
 		if(T.y < src_min_y || !src_min_y) src_min_y	= T.y
-
 	DEBUG_MESSAGE("src_min_x = [src_min_x], src_min_y = [src_min_y]")
+
 	var/trg_min_x = 0
 	var/trg_min_y = 0
-	for (var/turf/T in turfs_trg)
+	var/trg_z = 0
+	for (var/turf/T as() in turfs_trg)
 		if(T.x < trg_min_x || !trg_min_x) trg_min_x	= T.x
 		if(T.y < trg_min_y || !trg_min_y) trg_min_y	= T.y
-
+		trg_z = T.z
 	DEBUG_MESSAGE("trg_min_x = [src_min_x], trg_min_y = [src_min_y]")
 
-	var/list/refined_src = new/list()
-	for(var/turf/T in turfs_src)
-		refined_src += T
-		refined_src[T] = new/datum/coords
-		var/datum/coords/C = refined_src[T]
-		C.x_pos = (T.x - src_min_x)
-		C.y_pos = (T.y - src_min_y)
+	for (var/turf/S in turfs_src)
+		var/turf/T = locate(S.x - src_min_x + trg_min_x, S.y - src_min_y + trg_min_y, trg_z)
+		if(T?.loc != A) continue
+		T.ReplaceWith(S.type, keep_old_material = 0, force=1)
+		T.appearance = S.appearance
+		T.set_density(S.density)
+		T.set_dir(S.dir)
 
-	var/list/refined_trg = new/list()
-	for(var/turf/T in turfs_trg)
-		refined_trg += T
-		refined_trg[T] = new/datum/coords
-		var/datum/coords/C = refined_trg[T]
-		C.x_pos = (T.x - trg_min_x)
-		C.y_pos = (T.y - trg_min_y)
-
-	var/list/fromupdate = new/list()
-	var/list/toupdate = new/list()
-
-	moving:
-		for (var/turf/T in refined_src)
-			var/datum/coords/C_src = refined_src[T]
-			for (var/turf/B in refined_trg)
-				var/datum/coords/C_trg = refined_trg[B]
-				if(C_src.x_pos == C_trg.x_pos && C_src.y_pos == C_trg.y_pos)
-
-					var/old_app = T.appearance
-					var/olddir = T.dir
-					//var/old_icon_state1 = T.icon_state
-
-					var/turf/X
-					if(testmove) X = new T.type(get_step(B,pick(cardinal))) //remove this
-					else X = new T.type (B)
-					X.appearance = old_app
-					X.dir = olddir
-					X.RL_Init()
-					//X.icon_state = old_icon_state1
-
-					for(var/obj/O in T)
-						if (!istype(O, /obj) || istype(O, /obj/forcefield) || istype(O, /obj/overlay/tile_effect)) continue
-						if (!ignore_fluid && istype(O, /obj/fluid)) continue
-						O.set_loc(X)
-					for(var/mob/M in T)
-						DEBUG_MESSAGE("Moving mob [M] from [T] to [X].")
-						if(!ismob(M)) continue
-						M.set_loc(X)
-
-					toupdate += X
-
-					if(turftoleave)
-						var/turf/ttl = new turftoleave(T)
-
-						fromupdate += ttl
-
-					else
-						T.ReplaceWithSpace()
-
-					refined_src -= T
-					refined_trg -= B
-					continue moving
-
-	var/list/doors = new/list()
-
-	if(toupdate.len)
-		for(var/turf/simulated/T1 in toupdate)
-			for(var/obj/machinery/door/D2 in T1)
-				doors += D2
-			if(T1.parent)
-				air_master.queue_update_group(T1.parent)
-			else
-				air_master.queue_update_tile(T1)
-
-	if(fromupdate.len)
-		for(var/turf/simulated/T2 in fromupdate)
-			for(var/obj/machinery/door/D2 in T2)
-				doors += D2
-			if(T2.parent)
-				air_master.queue_update_group(T2.parent)
-			else
-				air_master.queue_update_tile(T2)
-
-	for(var/obj/O in doors)
-		O:update_nearby_tiles(1)
+	for (var/turf/S in turfs_src)
+		var/turf/T = locate(S.x - src_min_x + trg_min_x, S.y - src_min_y + trg_min_y, trg_z)
+		for (var/atom/movable/AM as() in S)
+			if (istype(AM, /obj/forcefield) || istype(AM, /obj/overlay/tile_effect)) continue
+			if (!ignore_fluid && istype(AM, /obj/fluid)) continue
+			AM.set_loc(T)
+		if(turftoleave)
+			S.ReplaceWith(turftoleave, keep_old_material = 0, force=1)
+		else
+			S.ReplaceWithSpaceForce()
 
 
 

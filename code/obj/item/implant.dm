@@ -19,7 +19,7 @@ THROWING DARTS
 	w_class = 1.0
 	var/implanted = null
 	var/impcolor = "g"
-	var/owner = null
+	var/mob/owner = null
 	var/mob/former_implantee = null
 	var/image/implant_overlay = null
 	var/life_tick_energy = 0
@@ -36,17 +36,25 @@ THROWING DARTS
 
 	// called when an implant is implanted into M by I
 	proc/implanted(mob/M, mob/I)
-		logTheThing("combat", I, M, "has implanted %target% with a [src] implant ([src.type]) at [log_loc(M)].")
+		logTheThing("combat", I, M, "has implanted [constructTarget(M,"combat")] with a [src] implant ([src.type]) at [log_loc(M)].")
 		implanted = 1
+		SEND_SIGNAL(src, COMSIG_IMPLANT_IMPLANTED, M)
 		owner = M
 		if (implant_overlay)
 			M.update_clothing()
 		activate()
 		return
 
+	disposing()
+		owner = null
+		former_implantee = null
+		. = ..()
+
+
 	// called when an implant is removed from M
 	proc/on_remove(var/mob/M)
 		deactivate()
+		SEND_SIGNAL(src, COMSIG_IMPLANT_REMOVED, M)
 		if (ishuman(src.owner))
 			var/mob/living/carbon/human/H = owner
 			H.implant -= src
@@ -72,7 +80,7 @@ THROWING DARTS
 				crit_triggered = 0
 			if(death_triggered && isalive(H))
 				death_triggered = 0
-		else if (iscritter(src.owner))
+		else if (ismobcritter(src.owner))
 			var/mob/living/critter/C = owner
 			if (C.health < 0 && !crit_triggered && online)
 				on_crit()
@@ -112,10 +120,14 @@ THROWING DARTS
 					user.show_text("[Imp] already has an implant loaded.")
 					return
 				else
-					user.u_equip(src)
+					var/obj/item/storage/store
+					if(istype(src.loc, /obj/item/storage))
+						store = src.loc
 					src.set_loc(Imp)
 					Imp.imp = src
 					Imp.update()
+					user.u_equip(src)
+					store?.hud.remove_item(src)
 					user.show_text("You insert [src] into [Imp].")
 				return
 			else if (istype(I, /obj/item/implantcase))
@@ -145,10 +157,7 @@ THROWING DARTS
 	impcolor = "b"
 	//life_tick_energy = 0.1
 	var/healthstring = ""
-
-	var/message = null
-	var/mailgroup = "medbay"
-	var/mailgroup2 = "medresearch"
+	var/list/mailgroups = list(MGD_MEDBAY, MGD_MEDRESEACH, MGD_SPIRITUALAFFAIRS)
 	var/net_id = null
 	var/frequency = 1149
 	var/datum/radio_frequency/radio_connection
@@ -162,12 +171,30 @@ THROWING DARTS
 				src.net_id = generate_net_id(src)
 	disposing()
 		radio_controller.remove_object(src, "[frequency]")
+		mailgroups.Cut()
 		..()
 
 	implanted(mob/M, mob/I)
 		..()
 		if (!isdead(M) && M.client)
 			JOB_XP(I, "Medical Doctor", 5)
+
+	proc/getHealthList()
+		var/healthlist = list()
+		if (!src.implanted)
+			healthlist["OXY"] = 0
+			healthlist["TOX"] = 0
+			healthlist["BURN"] = 0
+			healthlist["BRUTE"] = 0
+		else
+			var/mob/living/L
+			if (isliving(src.owner))
+				L = src.owner
+				healthlist["OXY"] = round(L.get_oxygen_deprivation())
+				healthlist["TOX"] = round(L.get_toxin_damage())
+				healthlist["BURN"] = round(L.get_burn_damage())
+				healthlist["BRUTE"] = round(L.get_brute_damage())
+		return healthlist
 
 	proc/sensehealth()
 		if (!src.implanted)
@@ -208,13 +235,14 @@ THROWING DARTS
 		var/mob/living/carbon/human/H = src.owner
 		if (!H.mini_health_hud)
 			H.mini_health_hud = 1
-			var/datum/data/record/probably_my_record = null
-			for (var/datum/data/record/R in data_core.medical)
-				if (R.fields["name"] == H.real_name)
-					probably_my_record = R
-					break
-			if (probably_my_record)
-				probably_my_record.fields["h_imp"] = "[src.sensehealth()]"
+
+		var/datum/data/record/probably_my_record = null
+		for (var/datum/data/record/R in data_core.medical)
+			if (R.fields["name"] == H.real_name)
+				probably_my_record = R
+				break
+		if (probably_my_record)
+			probably_my_record.fields["h_imp"] = "[src.sensehealth()]"
 		..()
 
 	on_crit()
@@ -239,18 +267,24 @@ THROWING DARTS
 			return
 		var/coords = src.get_coords()
 		var/myarea = get_area(src)
-		src.message = "HEALTH ALERT: [src.owner][coords] in [myarea]: [src.sensehealth()]"
 		//DEBUG_MESSAGE("implant reporting crit")
-		src.send_message()
+		src.send_message("HEALTH ALERT: [src.owner][coords] in [myarea]: [src.sensehealth()]", MGA_MEDCRIT)
 
 	proc/death_alert()
 		if (!src.owner)
 			return
 		var/coords = src.get_coords()
 		var/myarea = get_area(src)
-		src.message = "DEATH ALERT: [src.owner][coords] in [myarea]"
+		var/has_record = src.check_for_valid_record()
+		var/message = "DEATH ALERT: [src.owner][coords] in [myarea], " //youre lucky im not onelining this
+		if (has_record) //the title for this next section of code is grammar sucks
+			if (he_or_she(src.owner) == "they")
+				message += "they [has_record ? "have a record in the cloner at [has_record]" : "do not have a cloning record." ]"
+			else
+				message += "[has_record ? "genetic record detected in cloning console at [has_record]" : "genetic record not detected."]"
+
 		//DEBUG_MESSAGE("implant reporting death")
-		src.send_message()
+		src.send_message(message, MGA_DEATH)
 
 	proc/get_coords()
 		if (ishuman(src.owner))
@@ -259,49 +293,48 @@ THROWING DARTS
 				var/turf/T = get_turf(H)
 				if (istype(T))
 					return " at [T.x],[T.y],[T.z]"
-		else if (iscritter(src.owner))
+		else if (ismobcritter(src.owner))
 			var/mob/living/critter/C = src.owner
 			if (locate(/obj/item/implant/tracking) in C.implants)
 				var/turf/T = get_turf(C)
 				if (istype(T))
 					return " at [T.x],[T.y],[T.z]"
 
-	proc/send_message()
-		DEBUG_MESSAGE("sending message: [src.message]")
-		if (message && mailgroup && radio_connection)
-			var/datum/signal/newsignal = get_free_signal()
-			newsignal.source = src
-			newsignal.transmission_method = TRANSMISSION_RADIO
-			newsignal.data["command"] = "text_message"
-			newsignal.data["sender_name"] = "HEALTH-MAILBOT"
-			newsignal.data["message"] = "[src.message]"
+	proc/check_for_valid_record() //returns the area of the cloner where we found our valid record - jank, but idk
+		if (src.owner && src.owner.ckey)
+			for_by_tcl(comp, /obj/machinery/computer/cloning)
+				if (comp.find_record(src.owner.ckey))
+					return get_area(comp)
+		return null
 
-			newsignal.data["address_1"] = "00000000"
-			newsignal.data["group"] = mailgroup
-			newsignal.data["sender"] = src.net_id
+	proc/send_message(var/message, var/alertgroup)
+		DEBUG_MESSAGE("sending message: [message]")
+		if(!radio_connection)
+			return
+		var/datum/signal/newsignal = get_free_signal()
+		newsignal.source = src
+		newsignal.transmission_method = TRANSMISSION_RADIO
+		newsignal.data["command"] = "text_message"
+		newsignal.data["sender_name"] = "HEALTH-MAILBOT"
+		newsignal.data["message"] = "[message]"
 
-			radio_connection.post_signal(src, newsignal)
-			//DEBUG_MESSAGE("message sent to [src.mailgroup]")
+		newsignal.data["address_1"] = "00000000"
+		newsignal.data["group"] = mailgroups + alertgroup
+		newsignal.data["sender"] = src.net_id
 
-		if (message && mailgroup2 && radio_connection)
-			var/datum/signal/newsignal = get_free_signal()
-			newsignal.source = src
-			newsignal.transmission_method = TRANSMISSION_RADIO
-			newsignal.data["command"] = "text_message"
-			newsignal.data["sender_name"] = "HEALTH-MAILBOT"
-			newsignal.data["message"] = "[src.message]"
-
-			newsignal.data["address_1"] = "00000000"
-			newsignal.data["group"] = mailgroup2
-			newsignal.data["sender"] = src.net_id
-
-			radio_connection.post_signal(src, newsignal)
-			//DEBUG_MESSAGE("message sent to [src.mailgroup2]")
+		radio_connection.post_signal(src, newsignal)
 
 /obj/item/implant/health/security
 	name = "health implant - security issue"
-	mailgroup = "medbay"
-	mailgroup2 = "security"
+
+	New()
+		mailgroups.Add(MGD_SECURITY)
+		..()
+
+/obj/item/implant/health/security/anti_mindslave //HoS implant
+	name = "mind protection health implant"
+	icon_state = "implant-b"
+	impcolor = "b"
 
 /obj/item/implant/freedom
 	name = "freedom implant"
@@ -324,15 +357,8 @@ THROWING DARTS
 			src.uses--
 			boutput(source, "You feel a faint click.")
 
-			if (source.handcuffed)
-				var/obj/item/W = source.handcuffed
-				source.handcuffed = null
-				if (W)
-					source.u_equip(W)
-					W.set_loc(source.loc)
-					source.update_clothing()
-					if (W)
-						W.layer = initial(W.layer)
+			if (source.hasStatus("handcuffed"))
+				source.handcuffs.drop_handcuffs(source)
 
 			// Added shackles here (Convair880).
 			if (ishuman(source))
@@ -350,8 +376,6 @@ THROWING DARTS
 		source.mind.store_memory("Freedom implant can be activated by using the [src.activation_emote] emote, <B>say *[src.activation_emote]</B> to attempt to activate.", 0, 0)
 		boutput(source, "The implanted freedom implant can be activated by using the [src.activation_emote] emote, <B>say *[src.activation_emote]</B> to attempt to activate.")
 
-var/global/list/tracking_implants = list() // things were looping through world to find these so let's just stop doing that and have this shit add itself to a global list instead maybe
-
 /obj/item/implant/tracking
 	name = "tracking implant"
 	//life_tick_energy = 0.1
@@ -360,19 +384,10 @@ var/global/list/tracking_implants = list() // things were looping through world 
 
 	New()
 		..()
-		SPAWN_DBG(0)
-			if (!islist(tracking_implants))
-				tracking_implants = list()
-			tracking_implants.Add(src)
+		START_TRACKING
 
 	disposing()
-		..()
-		if (islist(tracking_implants))
-			tracking_implants.Remove(src)
-
-	disposing()
-		if (islist(tracking_implants))
-			tracking_implants.Remove(src)
+		STOP_TRACKING
 		..()
 
 /** Deprecated **/
@@ -396,7 +411,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			H.reagents.add_reagent("epinephrine", 15) //inaprovaline no longer exists
 			H.reagents.add_reagent("omnizine", 25)
 			H.reagents.add_reagent("teporone", 20)
-			if (H.mind) boutput(src, "<span style=\"color:blue\">Your Robusttec-Implant uses all of its remaining energy to save you and deactivates.</span>")
+			if (H.mind) boutput(src, "<span class='notice'>Your Robusttec-Implant uses all of its remaining energy to save you and deactivates.</span>")
 			src.deactivate()
 		..()
 
@@ -404,7 +419,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 	do_process(var/mult = 1)
 		if (ishuman(src.owner))
 			var/mob/living/carbon/human/H = owner
-			if (src.health < 40 && !src.inactive)
+			if (H.health < 40 && !src.inactive)
 				if (!H.reagents.has_reagent("omnizine", 10))
 					H.reagents.add_reagent("omnizine", 10)
 				src.inactive = 1
@@ -423,9 +438,9 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			return
 		var/mob/living/carbon/human/H = src.owner
 
-		if (ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/revolution))
+		if (ticker?.mode && istype(ticker.mode, /datum/game_mode/revolution))
 			if (H.mind in ticker.mode:head_revolutionaries)
-				H.visible_message("<span style=\"color:red\"><b>[H] resists the loyalty implant!</b></span>")
+				H.visible_message("<span class='alert'><b>[H] resists the loyalty implant!</b></span>")
 				H.changeStatus("weakened", 1 SECOND)
 				H.force_laydown_standup()
 				playsound(H.loc, "sound/effects/electric_shock.ogg", 60, 0,0,pitch = 2.4)
@@ -440,7 +455,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 				playsound(H.loc, "sound/effects/electric_shock.ogg", 60, 0,0,pitch = 1.6)
 
 	do_process(var/mult = 1)
-		if (ticker && ticker.mode && istype(ticker.mode, /datum/game_mode/revolution))
+		if (ticker?.mode && istype(ticker.mode, /datum/game_mode/revolution))
 			if (!ishuman(src.owner))
 				return
 			var/mob/living/carbon/human/H = src.owner
@@ -463,6 +478,18 @@ var/global/list/tracking_implants = list() // things were looping through world 
 						H.emote("twitch_v")
 
 		..()
+
+
+// dumb joke
+/obj/item/implant/antirot
+	name = "\improper Rotbusttec implant"
+	icon_state = "implant-r"
+	impcolor = "r"
+
+	on_death()
+		if (ishuman(src.owner))
+			var/mob/living/carbon/human/H = owner
+			H.reagents.add_reagent("formaldehyde", 5)
 
 
 /* Deprecated old turds shit */
@@ -509,7 +536,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 					.+= other_bomb.explosionPower //tally the total power we're dealing with here
 
 			if (hasMacro)
-				source.visible_message("<span style=\"color:red\"><b>[source] emits a loud clunk!</b></span>")
+				source.visible_message("<span class='alert'><b>[source] emits a loud clunk!</b></span>")
 			else
 				source.visible_message("[source] emits a small clicking noise.")
 			logTheThing("bombing", source, null, "triggered a micro-/macrobomb implant on death.")
@@ -536,20 +563,19 @@ var/global/list/tracking_implants = list() // things were looping through world 
 					throwjunk += I
 
 			SPAWN_DBG(0) //Delete the overlay when finished with it.
-				if(source)
-					source.gib()
+				source?.gib()
 
 				for(var/obj/O in throwjunk) //Throw this junk around
 					var/edge = get_edge_target_turf(T, pick(alldirs))
 					O.throw_at(edge, 80, 4)
 
-				sleep(15)
+				sleep(1.5 SECONDS)
 				qdel(Ov)
 
 				if (ishuman(owner))
 					var/mob/living/carbon/human/H = owner
 					H.implant -= src
-				else if (iscritter(owner))
+				else if (ismobcritter(owner))
 					var/mob/living/critter/C = owner
 					C.implants -= src
 
@@ -616,11 +642,14 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		if (src.uses <= 0)
 			if (ismob(user)) user.show_text("[src] has been used up!", "red")
 			return 0
+		for(var/obj/item/implant/health/security/anti_mindslave/AM in H.implant)
+			boutput(user, "<span class='alert'>[H] is protected from enslaving by \an [AM.name]!</span>")
+			return 0
 		// It might happen, okay. I don't want to have to adapt the override code to take every possible scenario (no matter how unlikely) into considertion.
 		if (H.mind && ((H.mind.special_role == "vampthrall") || (H.mind.special_role == "spyslave")))
 			if (ismob(user)) user.show_text("<b>[H] seems to be immune to being enslaved!</b>", "red")
 			H.show_text("<b>You resist [implant_master]'s attempt to enslave you!</b>", "red")
-			logTheThing("combat", H, implant_master, "resists %target%'s attempt to mindslave them at [log_loc(H)].")
+			logTheThing("combat", H, implant_master, "resists [constructTarget(implant_master,"combat")]'s attempt to mindslave them at [log_loc(H)].")
 			return 0
 		// Necessary to get those expiration messages to trigger properly if the same mob is implanted again,
 		// since mindslave implants have spawns  going on.
@@ -661,16 +690,16 @@ var/global/list/tracking_implants = list() // things were looping through world 
 /*
 		for(var/obj/item/implant/IMP in M:implant)
 			if(IMP.check_access_imp(5))
-				boutput(I, "<span style=\"color:red\"><b>[M] seems immune to being enslaved!</b></span>")
-				boutput(M, "<span style=\"color:red\"><b>Your security implant prevents you from being enslaved!</b></span>")
+				boutput(I, "<span class='alert'><b>[M] seems immune to being enslaved!</b></span>")
+				boutput(M, "<span class='alert'><b>Your security implant prevents you from being enslaved!</b></span>")
 				return
 */
-		boutput(M, "<span style=\"color:red\">A stunning pain shoots through your brain!</span>")
+		boutput(M, "<span class='alert'>A stunning pain shoots through your brain!</span>")
 		M.changeStatus("stunned", 10 SECONDS)
-		M.changeStatus("weakened", 3 SECONDS)
+		M.changeStatus("weakened", 10 SECONDS)
 
 		if(M == I)
-			boutput(M, "<span style=\"color:red\">You feel utterly strengthened in your resolve! You are the most important person in the universe!</span>")
+			boutput(M, "<span class='alert'>You feel utterly strengthened in your resolve! You are the most important person in the universe!</span>")
 			alert(M, "You feel utterly strengthened in your resolve! You are the most important person in the universe!", "YOU ARE REALY GREAT!!")
 			return
 
@@ -682,36 +711,36 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			M.mind.master = I.ckey
 
 		if (src.suppress_mindslave_popup)
-			boutput(M, "<h2><span style=\"color:red\">You feel an unwavering loyalty to your new master, [I.real_name]! Do not tell anyone about this unless your new master tells you to!</span></h2>")
+			boutput(M, "<h2><span class='alert'>You feel an unwavering loyalty to your new master, [I.real_name]! Do not tell anyone about this unless your new master tells you to!</span></h2>")
 		else
-			boutput(M, "<h2><span style=\"color:red\">You feel an unwavering loyalty to [I.real_name]! You feel you must obey \his every order! Do not tell anyone about this unless your master tells you to!</span></h2>")
+			boutput(M, "<h2><span class='alert'>You feel an unwavering loyalty to [I.real_name]! You feel you must obey \his every order! Do not tell anyone about this unless your master tells you to!</span></h2>")
 			SHOW_MINDSLAVE_TIPS(M)
 		if (src.custom_orders)
-			boutput(M, "<h2><span style=\"color:red\">[I.real_name]'s will consumes your mind! <b>\"[src.custom_orders]\"</b> It <b>must</b> be done!</span></h2>")
+			boutput(M, "<h2><span class='alert'>[I.real_name]'s will consumes your mind! <b>\"[src.custom_orders]\"</b> It <b>must</b> be done!</span></h2>")
 
 		if (expire)
 			//25 minutes +/- 5
-			SPAWN_DBG(600 * (25 + rand(-5,5)) )
+			SPAWN_DBG((25 + rand(-5,5)) MINUTES)
 				if (src && !ishuman(src.loc)) // Drop-all, gibbed etc (Convair880).
 					if (src.expire && (src.expired != 1)) src.expired = 1
 					return
 				if (!src || !owner || (M != owner) || src.expired)
 					return
-				boutput(M, "<span style=\"color:red\">Your will begins to return. What is this strange compulsion [I.real_name] has over you? Yet you must obey.</span>")
+				boutput(M, "<span class='alert'>Your will begins to return. What is this strange compulsion [I.real_name] has over you? Yet you must obey.</span>")
 
 				// 1 minute left
-				SPAWN_DBG(1 MINUTE)
-					if (src && !ishuman(src.loc))
-						if (src.expire && (src.expired != 1)) src.expired = 1
-						return
-					if (!src || !owner || (M != owner) || src.expired)
-						return
-					// There's a proc for this now (Convair880).
-					if (M.mind && M.mind.special_role == "mindslave")
-						remove_mindslave_status(M, "mslave", "expired")
-					else if (M.mind && M.mind.master)
-						remove_mindslave_status(M, "otherslave", "expired")
-					src.expired = 1
+				sleep(1 MINUTE)
+				if (src && !ishuman(src.loc))
+					if (src.expire && (src.expired != 1)) src.expired = 1
+					return
+				if (!src || !owner || (M != owner) || src.expired)
+					return
+				// There's a proc for this now (Convair880).
+				if (M.mind && M.mind.special_role == "mindslave")
+					remove_mindslave_status(M, "mslave", "expired")
+				else if (M.mind && M.mind.master)
+					remove_mindslave_status(M, "otherslave", "expired")
+				src.expired = 1
 		return
 
 	on_remove(var/mob/M)
@@ -779,6 +808,10 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		name = ".22 round"
 		desc = "A cheap, small bullet, often used for recreational shooting and small-game hunting."
 
+	bullet_22HP
+		name = ".22 hollow point round"
+		desc = "A small calibre hollow point bullet for use against unarmored targets. Wait, aren't these a war crime?"
+
 	bullet_41
 		name = ".41 round"
 		desc = ".41? What the heck? Who even uses these anymore?"
@@ -808,8 +841,12 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		desc = "Rather unperfect round ball. Looks very old."
 		icon_state = "flintlockbullet"
 
+	bullet_50
+		name = ".50AE round"
+		desc = "Ouch."
 
 /obj/item/implant/projectile/implanted(mob/living/carbon/C, var/mob/I, var/bleed_time = 60)
+	SEND_SIGNAL(src, COMSIG_IMPLANT_IMPLANTED, C)
 	if (!istype(C) || !isnull(I)) //Don't make non-organics bleed and don't act like a launched bullet if some doofus is just injecting it somehow.
 		return
 
@@ -823,7 +860,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 
 	src.bleed_timer = bleed_time
 	SPAWN_DBG(0.5 SECONDS)
-//		boutput(C, "<span style=\"color:red\">You start bleeding!</span>") // the blood system takes care of this bit now
+//		boutput(C, "<span class='alert'>You start bleeding!</span>") // the blood system takes care of this bit now
 		src.bleed_loop()
 
 /obj/item/implant/projectile/proc/bleed_loop() // okay it doesn't actually cause bleeding now but um w/e
@@ -848,13 +885,13 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		if(prob(4))
 			C.emote(pick("pale", "shiver"))
 		if(prob(4))
-			boutput(C, "<span style=\"color:red\">You feel a [pick("sharp", "stabbing", "startling", "worrying")] pain in your chest![pick("", " It feels like there's something lodged in there!", " There's gotta be something stuck in there!", " You feel something shift around painfully!")]</span>")
+			boutput(C, "<span class='alert'>You feel a [pick("sharp", "stabbing", "startling", "worrying")] pain in your chest![pick("", " It feels like there's something lodged in there!", " There's gotta be something stuck in there!", " You feel something shift around painfully!")]</span>")
 		//werewolf silver implants handling
 		if (prob(60) && iswerewolf(C) && istype(src:material, /datum/material/metal/silver))
 			random_burn_damage(C, rand(5,10))
 			C.take_toxin_damage(rand(1,3))
 			C.stamina -= 30
-			boutput(C, "<span style=\"color:red\">You feel a [pick("searing", "hot", "burning")] pain in your chest![pick("", "There's gotta be silver in there!", )]</span>")
+			boutput(C, "<span class='alert'>You feel a [pick("searing", "hot", "burning")] pain in your chest![pick("", "There's gotta be silver in there!", )]</span>")
 	SPAWN_DBG(rand(40,70))
 		src.bleed_loop()
 	return
@@ -866,6 +903,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 	impcolor = "g"
 	var/uses = 8
 	var/obj/item/card/id/access = new /obj/item/card/id
+	tooltip_flags = REBUILD_DIST
 
 	get_desc(dist)
 		if (dist <= 1)
@@ -879,6 +917,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			return 0
 		else
 			uses -= 1
+			tooltip_rebuild = 1
 		return 1
 
 	infinite
@@ -889,6 +928,10 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			if (dist <= 1)
 				. += "This one has unlimited charges."
 
+		assistant
+			New()
+				..()
+				access.access = get_access("Staff Assistant")
 
 		shittybill //give im some access
 
@@ -915,6 +958,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 	w_class = 2.0
 	hide_attack = 2
 	var/sneaky = 0
+	tooltip_flags = REBUILD_DIST
 
 	New()
 		..()
@@ -926,6 +970,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			. += "It appears to contain \a [src.imp.name]."
 
 	proc/update()
+		tooltip_rebuild = 1
 		if (src.imp)
 			src.icon_state = src.imp.impcolor ? "implanter1-[imp.impcolor]" : "implanter1-g"
 		else
@@ -934,16 +979,16 @@ var/global/list/tracking_implants = list() // things were looping through world 
 
 	proc/implant(mob/M as mob, mob/user as mob)
 		if (sneaky)
-			boutput(user, "<span style=\"color:red\">You implanted the implant into [M].</span>")
+			boutput(user, "<span class='alert'>You implanted the implant into [M].</span>")
 		else
-			M.tri_message("<span style=\"color:red\">[M] has been implanted by [user].</span>",\
-			M, "<span style=\"color:red\">You have been implanted by [user].</span>",\
-			user, "<span style=\"color:red\">You implanted the implant into [M].</span>")
+			M.tri_message("<span class='alert'>[M] has been implanted by [user].</span>",\
+			M, "<span class='alert'>You have been implanted by [user].</span>",\
+			user, "<span class='alert'>You implanted the implant into [M].</span>")
 
 		if (ishuman(M))
 			var/mob/living/carbon/human/H = M
 			H.implant.Add(src.imp)
-		else if (iscritter(M))
+		else if (ismobcritter(M))
 			var/mob/living/critter/C = M
 			C.implants.Add(src.imp)
 
@@ -954,7 +999,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		src.update()
 
 	attack(mob/M as mob, mob/user as mob)
-		if (!ishuman(M) && !iscritter(M))
+		if (!ishuman(M) && !ismobcritter(M))
 			return ..()
 
 		if (src.imp && !src.imp.can_implant(M, user))
@@ -1123,6 +1168,9 @@ var/global/list/tracking_implants = list() // things were looping through world 
 	throw_range = 5
 	w_class = 1.0
 	var/implant_type = /obj/item/implant/tracking
+	tooltip_flags = REBUILD_DIST
+	//Whether this is the paper type that goes away when emptied
+	var/disposable = FALSE
 
 /obj/item/implantcase/tracking
 	name = "glass case - 'Tracking'"
@@ -1179,6 +1227,10 @@ var/global/list/tracking_implants = list() // things were looping through world 
 	name = "glass case - 'Robusttec'"
 	implant_type = "/obj/item/implant/robust"
 
+/obj/item/implantcase/antirot
+	name = "glass case - 'Rotbusttec'"
+	implant_type = "/obj/item/implant/antirot"
+
 /obj/item/implantcase/access
 	name = "glass case - 'Electronic Access'"
 	implant_type = "/obj/item/implant/access"
@@ -1195,8 +1247,16 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			if (dist <= 1 && src.imp)
 				. += "It appears to contain \a [src.imp.name] with unlimited charges."
 
-/obj/item/implantcase/New()
-	src.imp = new implant_type(src)
+/obj/item/implantcase/New(obj/item/implant/usedimplant = null)
+	if (usedimplant && istype(usedimplant))
+		src.imp = usedimplant
+		imp.set_loc(src)
+		disposable = TRUE
+		name = "removed implant"
+		desc = "A paper wad containing an implant extracted from someone. An implanting tool can reuse the implant."
+	else
+		src.imp = new implant_type(src)
+	update()
 	..()
 	return
 
@@ -1205,9 +1265,16 @@ var/global/list/tracking_implants = list() // things were looping through world 
 		. += "It appears to contain \a [src.imp.name]."
 
 /obj/item/implantcase/proc/update()
+	tooltip_rebuild = 1
 	if (src.imp)
-		src.icon_state = src.imp.impcolor ? "implantcase-[imp.impcolor]" : "implantcase-g"
+		if (disposable)
+			src.icon_state = src.imp.impcolor ? "implantpaper-[imp.impcolor]" : "implantpaper-g"
+		else
+			src.icon_state = src.imp.impcolor ? "implantcase-[imp.impcolor]" : "implantcase-g"
 	else
+		if (disposable) //ditch that grody paper "case"
+			qdel(src)
+			return
 		src.icon_state = "implantcase-0"
 	return
 
@@ -1223,6 +1290,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 			src.name = "glass case - '[t]'"
 		else
 			src.name = "glass case"
+		tooltip_rebuild = 1
 		return
 	else if (istype(I, /obj/item/implanter))
 		var/obj/item/implanter/Imp = I
@@ -1264,7 +1332,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 
 /obj/item/implantpad
 	name = "implantpad"
-	icon = 'icons/obj/items.dmi'
+	icon = 'icons/obj/items/items.dmi'
 	icon_state = "implantpad-0"
 	var/obj/item/implantcase/case = null
 	var/broadcasting = null
@@ -1314,7 +1382,7 @@ var/global/list/tracking_implants = list() // things were looping through world 
 
 /obj/item/implantpad/attack_self(mob/user as mob)
 
-	user.machine = src
+	src.add_dialog(user)
 	var/dat = "<B>Implant Mini-Computer:</B><HR>"
 	if (src.case)
 		if (src.case.imp)
@@ -1436,7 +1504,7 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 	if (usr.stat)
 		return
 	if ((usr.contents.Find(src) || (in_range(src, usr) && istype(src.loc, /turf))))
-		usr.machine = src
+		src.add_dialog(usr)
 		if (href_list["freq"])
 			if ((istype(src.case, /obj/item/implantcase) && istype(src.case.imp, /obj/item/implant/tracking)))
 				var/obj/item/implant/tracking/T = src.case.imp
@@ -1500,6 +1568,7 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 				return
 
 			my_implant = I
+			tooltip_rebuild = 1
 
 			if (istype(W, /obj/item/implant))
 				user.u_equip(W)
@@ -1544,6 +1613,7 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 			return ..()
 		my_implant.set_loc(P)
 		my_implant = null
+		tooltip_rebuild = 1
 
 /datum/projectile/implanter
 	name = "implant bullet"
@@ -1568,7 +1638,7 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 				H.implant.Add(my_implant)
 			else
 				my_implant.set_loc(get_turf(H))
-		else if (iscritter(hit))
+		else if (ismobcritter(hit))
 			var/mob/living/critter/C = hit
 			if (C.can_implant && my_implant.can_implant(C, implant_master))
 				my_implant.set_loc(C)
@@ -1595,12 +1665,12 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 	icon_state = "dart"
 	throw_spin = 0
 
-	throw_impact(M)
+	throw_impact(atom/M, datum/thrown_thing/thr)
 		..()
 		if (ishuman(M) && prob(5))
 			var/mob/living/carbon/human/H = M
 			H.implant.Add(src)
-			src.visible_message("<span style=\"color:red\">[src] gets embedded in [M]!</span>")
+			src.visible_message("<span class='alert'>[src] gets embedded in [M]!</span>")
 			playsound(src.loc, "sound/weapons/slashcut.ogg", 100, 1)
 			random_brute_damage(M, 1)
 			src.set_loc(M)
@@ -1620,12 +1690,12 @@ circuitry. As a result neurotoxins can cause massive damage.<BR>
 	throw_spin = 0
 	throw_speed = 3
 
-	throw_impact(M)
+	throw_impact(atom/M, datum/thrown_thing/thr)
 		..()
 		if (ishuman(M))
 			var/mob/living/carbon/human/H = M
 			H.implant.Add(src)
-			src.visible_message("<span style=\"color:red\">[src] gets embedded in [M]!</span>")
+			src.visible_message("<span class='alert'>[src] gets embedded in [M]!</span>")
 			playsound(src.loc, "sound/weapons/slashcut.ogg", 100, 1)
 			H.changeStatus("weakened", 2 SECONDS)
 			random_brute_damage(M, 20)//if it can get in you, it probably doesn't give a damn about your armor

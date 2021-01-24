@@ -1,8 +1,8 @@
 /obj/grille
 	desc = "A sturdy metal mesh. Blocks large objects, but lets small items, gas, or energy beams through."
 	name = "grille"
-	icon = 'icons/obj/grille.dmi'
-	icon_state = "grille"
+	icon = 'icons/obj/SL_windows_grilles.dmi'
+	icon_state = "grille0-0"
 	density = 1
 	stops_space_move = 1
 	var/health = 30
@@ -13,6 +13,10 @@
 	var/corrode_resist = 0
 	var/temp_resist = 0
 	var/shock_when_entered = 1
+	var/auto = TRUE
+	var/list/connects_to_turf = list(/turf/simulated/wall/auto, /turf/simulated/wall/auto/reinforced, /turf/simulated/shuttle/wall, /turf/unsimulated/wall)
+	var/list/connects_to_obj = list(/obj/indestructible/shuttle_corner,	/obj/grille/, /obj/machinery/door, /obj/window)
+	text = "<font color=#aaa>+"
 	anchored = 1
 	flags = FPRINT | CONDUCT | USEDELAY
 	pressure_resistance = 5*ONE_ATMOSPHERE
@@ -21,9 +25,27 @@
 
 	New()
 		..()
-		update_icon()
+		if(src.auto)
+			SPAWN_DBG(0) //fix for sometimes not joining on map load
+				if (map_setting && ticker)
+					src.update_neighbors()
+
+				src.update_icon()
+
+	disposing()
+		var/list/neighbors = null
+		if (src.auto && src.anchored && map_setting)
+			neighbors = list()
+			for (var/obj/grille/O in orange(1,src))
+				neighbors += O //find all of our neighbors before we move
+		..()
+		for (var/obj/grille/O in neighbors)
+			O?.update_icon() //now that we are in nullspace tell them to update
 
 	steel
+#ifdef IN_MAP_EDITOR
+		icon_state = "grille0-0"
+#endif
 		New()
 			..()
 			var/datum/material/M = getMaterial("steel")
@@ -41,15 +63,69 @@
 
 	catwalk
 		name = "catwalk surface"
+		icon = 'icons/obj/grille.dmi'
 		icon_state = "catwalk"
 		density = 0
 		desc = "This doesn't look very safe at all!"
 		layer = CATWALK_LAYER
 		shock_when_entered = 0
+		plane = PLANE_FLOOR
+		auto = FALSE
+		connects_to_turf = null
+		connects_to_turf = null
+
+		update_icon(special_icon_state)
+			if (ruined)
+				return
+
+			if (istext(special_icon_state))
+				icon_state = initial(src.icon_state) + "-" + special_icon_state
+				return
+
+			var/diff = get_fraction_of_percentage_and_whole(health,health_max)
+			switch(diff)
+				if(-INFINITY to 25)
+					icon_state = initial(src.icon_state) + "-3"
+				if(26 to 50)
+					icon_state = initial(src.icon_state) + "-2"
+				if(51 to 75)
+					icon_state = initial(src.icon_state) + "-1"
+				if(76 to INFINITY)
+					icon_state = initial(src.icon_state) + "-0"
 
 		cross //HEY YOU! YEAH, YOU LOOKING AT THIS. Use these for the corners of your catwalks!
 			name = "catwalk surface" //Or I'll murder you since you are making things ugly on purpose.
 			icon_state = "catwalk_cross" //(Statement does not apply when you actually want to use the other ones.)
+
+		jen // ^^ no i made my own because i am epic
+			name = "maintenance catwalk"
+			icon_state = "catwalk_jen"
+			desc = "This looks marginally more safe than the ones outside, at least..."
+			layer = PIPE_LAYER + 0.01
+
+			attack_hand(obj/M, mob/user)
+				return 0
+
+			attackby(obj/item/W, mob/user)
+				if (issnippingtool(W))
+					..()
+				else
+					src.loc.attackby(user.equipped(), user)
+
+			reagent_act(var/reagent_id,var/volume)
+				..()
+
+			side
+				icon_state = "catwalk_jen_side"
+
+			inner
+				icon_state = "catwalk_jen_inner"
+
+			fourcorners
+				icon_state = "catwalk_jen_4corner"
+
+			twosides
+				icon_state = "catwalk_jen_2sides"
 
 	onMaterialChanged()
 		..()
@@ -193,16 +269,16 @@
 			if("foof")
 				damage_heat(volume * 3)
 
-	hitby(AM as mob|obj)
+	hitby(atom/movable/AM, datum/thrown_thing/thr)
 		..()
-		src.visible_message("<span style=\"color:red\"><B>[src] was hit by [AM].</B></span>")
+		src.visible_message("<span class='alert'><B>[src] was hit by [AM].</B></span>")
 		playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Light_1.ogg', 100, 1)
 		if (ismob(AM))
 			damage_blunt(5)
 		else if (isobj(AM))
 			var/obj/O = AM
 			if (O.throwforce)
-				damage_blunt(max(0.5, O.throwforce / blunt_resist)) // we don't want people screaming right through these and you can still get through them by kicking/cutting/etc
+				damage_blunt(blunt_resist ? max(0.5, O.throwforce / blunt_resist) : 0.5) // we don't want people screaming right through these and you can still get through them by kicking/cutting/etc
 		return
 
 	attack_hand(mob/user)
@@ -217,7 +293,7 @@
 				damage = 10
 				text = "smashes [src] with incredible strength"
 
-			src.visible_message("<span style=\"color:red\"><b>[user]</b> [text]!</span>")
+			src.visible_message("<span class='alert'><b>[user]</b> [text]!</span>")
 			playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Light_1.ogg', 80, 1)
 
 			if (dam_type == "slashing")
@@ -231,14 +307,14 @@
 		if (ispulsingtool(W) || istype(W, /obj/item/device/t_scanner))
 			var/net = get_connection()
 			if(!net)
-				boutput(user, "<span style=\"color:blue\">No electrical current detected.</span>")
+				boutput(user, "<span class='notice'>No electrical current detected.</span>")
 			else
-				boutput(user, "<span style=\"color:red\">CAUTION: Dangerous electrical current detected.</span>")
+				boutput(user, "<span class='alert'>CAUTION: Dangerous electrical current detected.</span>")
 			return
 
 		else if(istype(W, /obj/item/sheet/))
 			var/obj/item/sheet/S = W
-			if (S.material && S.material.material_flags & MATERIAL_CRYSTAL)
+			if (S.material && S.material.material_flags & MATERIAL_CRYSTAL && S.amount_check(2))
 				var/obj/window/WI
 				var/win_thin = 0
 				var/win_dir = 2
@@ -284,16 +360,14 @@
 					if (S.material)
 						WI.setMaterial(S.material)
 					if(win_thin)
-						WI.dir = win_dir
+						WI.set_dir(win_dir)
 						WI.ini_dir = win_dir
 					logTheThing("station", usr, null, "builds a [WI.name] (<b>Material:</b> [WI.material && WI.material.mat_id ? "[WI.material.mat_id]" : "*UNKNOWN*"]) at ([showCoords(usr.x, usr.y, usr.z)] in [usr.loc.loc])")
 				else
 					user.show_text("<b>Error:</b> Couldn't spawn window. Try again and please inform a coder if the problem persists.", "red")
 					return
 
-				S.amount--
-				if (S.amount < 1)
-					qdel(S)
+				S.consume_sheets(2)
 				return
 			else
 				..()
@@ -316,24 +390,25 @@
 
 		if (issnippingtool(W))
 			damage_slashing(src.health_max)
-			src.visible_message("<span style=\"color:red\"><b>[usr]</b> cuts apart the [src] with [W].</span>")
+			src.visible_message("<span class='alert'><b>[usr]</b> cuts apart the [src] with [W].</span>")
 			playsound(src.loc, 'sound/items/Wirecutter.ogg', 100, 1)
 
 		else if (isscrewingtool(W) && (istype(src.loc, /turf/simulated) || src.anchored))
 			playsound(src.loc, 'sound/items/Screwdriver.ogg', 100, 1)
 			src.anchored = !( src.anchored )
-			src.visible_message("<span style=\"color:red\"><b>[usr]</b> [src.anchored ? "fastens" : "unfastens"] [src].</span>")
+			src.visible_message("<span class='alert'><b>[usr]</b> [src.anchored ? "fastens" : "unfastens"] [src].</span>")
 			return
 
 		else
 			user.lastattacked = src
 			attack_particle(user,src)
-			src.visible_message("<span style=\"color:red\"><b>[usr]</b> attacks [src] with [W].</span>")
+			src.visible_message("<span class='alert'><b>[usr]</b> attacks [src] with [W].</span>")
 			playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Light_1.ogg', 80, 1)
-			switch(W.damtype)
-				if("fire")
+
+			switch(W.hit_type)
+				if(DAMAGE_BURN)
 					damage_heat(W.force)
-				if("brute")
+				else
 					damage_blunt(W.force * 0.5)
 		return
 
@@ -342,18 +417,58 @@
 			return
 
 		if (istext(special_icon_state))
-			icon_state = initial(icon_state) + "-" + special_icon_state
-		else
-			var/diff = get_fraction_of_percentage_and_whole(health,health_max)
-			switch(diff)
-				if(-INFINITY to 25)
-					icon_state = initial(icon_state) + "-3"
-				if(26 to 50)
-					icon_state = initial(icon_state) + "-2"
-				if(51 to 75)
-					icon_state = initial(icon_state) + "-1"
-				if(76 to INFINITY)
-					icon_state = initial(icon_state) + "-0"
+			icon_state = "grille-" + special_icon_state
+			return
+
+		var/builtdir = 0
+		if (src.auto)
+			for (var/dir in cardinal)
+				var/turf/T = get_step(src, dir)
+				var/connectable_turf = FALSE
+				for (var/i in 1 to length(connects_to_turf))
+					if (istype(T, connects_to_turf[i]))
+						builtdir |= dir
+						connectable_turf = TRUE
+						break
+				if (!connectable_turf) //no turfs to connect to, check for obj's
+					for (var/i in 1 to length(connects_to_obj))
+						var/atom/movable/AM = locate(connects_to_obj[i]) in T
+						if (AM?.anchored)
+							builtdir |= dir
+							break
+
+			switch(builtdir) //many states share icons
+				if (0) //stand alone
+					builtdir = (NORTH) //1
+				if (SOUTH) //2
+					builtdir = (NORTH + SOUTH) //3
+				if (NORTH + EAST)//5
+					builtdir = EAST //4
+				if (SOUTH + EAST + NORTH) //7
+					builtdir = (SOUTH + EAST) //6
+				if (NORTH + WEST) //9
+					builtdir = WEST //8
+				if (NORTH + SOUTH + WEST) //11
+					builtdir = (SOUTH + WEST) //10
+				if (NORTH + EAST + WEST) //13
+					builtdir = (EAST + WEST) //12
+				if (NORTH + SOUTH + EAST + WEST) //15
+					builtdir = (SOUTH + EAST + WEST) //14
+
+		var/diff = get_fraction_of_percentage_and_whole(health,health_max)
+		switch(diff)
+			if(-INFINITY to 25)
+				icon_state = "grille[builtdir]" + "-3"
+			if(26 to 50)
+				icon_state = "grille[builtdir]" + "-2"
+			if(51 to 75)
+				icon_state = "grille[builtdir]" + "-1"
+			if(76 to INFINITY)
+				icon_state = "grille[builtdir]" + "-0"
+
+	proc/update_neighbors()
+		for (var/obj/grille/G in orange(1,src))
+			G.update_icon()
 
 	proc/drop_rods(var/amount)
 		if (!isnum(amount))

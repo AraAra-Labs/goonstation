@@ -7,6 +7,8 @@
 	var/custom_file = null
 
 	attack_self(var/mob/user as mob)
+		if (PROC_ON_COOLDOWN(1 SECOND))
+			return
 		if(custom_file)
 			playsound(src.loc, custom_file, 100, 1)
 			return
@@ -14,7 +16,7 @@
 			if ("honk") playsound(src.loc, "sound/musical_instruments/Bikehorn_1.ogg", 50, 1)
 			if ("fart")
 				if (farting_allowed)
-					playsound(src.loc, "sound/voice/farts/poo2_robot.ogg", 50, 1)
+					playsound(src.loc, "sound/voice/farts/poo2_robot.ogg", 50, 1, channel=VOLUME_CHANNEL_EMOTE)
 			if ("burp") playsound(src.loc, "sound/voice/burp_alien.ogg", 50, 1)
 			if ("squeak") playsound(src.loc, "sound/misc/clownstep1.ogg", 50, 1)
 			if ("cat") playsound(src.loc, "sound/voice/animal/cat.ogg", 50, 1)
@@ -41,9 +43,9 @@
 		var/newmode = input("Select sound to play", "Make some noise", src.mode) in list("honk", "fart", "burp", "squeak", "cat", "harmonica", "vuvuzela", "bang", "buzz", "gunshot", "siren", "coo", "rimshot", "trombone")
 
 		if (newmode && rand(1,150) == 1)
-			boutput(user, "<span style=\"color:red\">BZZZ SOUND SYNTHESISER ERROR</span>")
-			boutput(user, "<span style=\"color:blue\">Mode is now: ???</span>")
+			boutput(user, "<span class='alert'>BZZZ SOUND SYNTHESISER ERROR</span>")
+			boutput(user, "<span class='notice'>Mode is now: ???</span>")
 			src.mode = pick("un1","un2","un3")
 		else if (newmode)
-			boutput(user, "<span style=\"color:blue\">Mode is now: [newmode]</span>")
+			boutput(user, "<span class='notice'>Mode is now: [newmode]</span>")
 			src.mode = newmode

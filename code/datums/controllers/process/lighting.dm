@@ -3,7 +3,7 @@ var/datum/circular_queue/light_update_queue = new /datum/circular_queue(500) //L
 
 datum/controller/process/lighting
 
-	var/max_chunk_size = 20
+	var/max_chunk_size = 6 //20 prev
 	var/min_chunk_size = 2
 	var/count = 0
 	var/chunk_count = 0
@@ -14,6 +14,15 @@ datum/controller/process/lighting
 		name = "Lighting"
 		schedule_interval = 1
 		tick_allowance = 90
+
+	copyStateFrom(datum/controller/process/target)
+		var/datum/controller/process/lighting/old_lighting = target
+		src.tick_allowance = old_lighting.schedule_interval
+		src.max_chunk_size = old_lighting.max_chunk_size
+		src.min_chunk_size = old_lighting.min_chunk_size
+		src.count = old_lighting.count
+		src.chunk_count = old_lighting.chunk_count
+		src.chunk_count_increase_rate = old_lighting.chunk_count_increase_rate
 
 	enable()
 		..()
@@ -49,7 +58,7 @@ datum/controller/process/lighting
 					L.set_height(L.height_des, queued_run = 1)
 
 				if (L.dirty_flags & D_MOVE)
-					L.move(L.x_des,L.y_des,L.z_des, queued_run = 1)
+					L.move(L.x_des,L.y_des,L.z_des,L.dir_des, queued_run = 1)
 
 
 				if (L.dirty_flags & D_ENABLE)
@@ -89,6 +98,7 @@ datum/controller/process/lighting
 
 
 	New(ListSize = 500)
+		..()
 		list = list()
 		list.len = ListSize
 

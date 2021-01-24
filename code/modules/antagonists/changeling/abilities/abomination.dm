@@ -36,6 +36,15 @@
 			H.update_body()
 			H.update_clothing()
 			H.abilityHolder.transferOwnership(H)
+
+			H.delStatus("paralysis")
+			H.delStatus("stunned")
+			H.delStatus("weakened")
+			H.delStatus("disorient")
+			H.force_laydown_standup()
+
+			H.abilityHolder.updateButtons()
+
 			logTheThing("combat", H, null, "enters horror form as a changeling, [log_loc(H)].")
 			return 0
 
@@ -60,7 +69,8 @@
 		H.update_face()
 		H.update_body()
 		H.update_clothing()
-		C.transferOwnership(H)
+		H.abilityHolder.updateButtons()
+		C?.transferOwnership(H)
 		logTheThing("combat", H, null, "voluntarily leaves horror form as a changeling, [log_loc(H)].")
 		return 0
 
@@ -84,6 +94,6 @@
 		for (var/mob/living/O in viewers(holder.owner, null))
 			if (O == holder.owner)
 				continue
-			O.apply_sonic_stun(0, 0, 0, 10, 35, rand(0, 2))
+			O.apply_sonic_stun(0, 0, 0, 10, 70, rand(0, 2))
 
 		return 0

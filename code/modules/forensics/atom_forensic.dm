@@ -1,14 +1,15 @@
 /atom
-	var/fingerprints = null
-	var/list/fingerprintshidden = null//new/list()
-	var/fingerprintslast = null
-	var/blood_DNA = null
-	var/blood_type = null
+	var/tmp/fingerprints = null
+	var/tmp/list/fingerprintshidden = null//new/list()
+	var/tmp/fingerprintslast = null
+	var/tmp/blood_DNA = null
+	var/tmp/blood_type = null
 	//var/list/forensic_info = null
 	var/list/forensic_trace = null // list(fprint, bDNA, btype) - can't get rid of this so easy!
 
 /atom/movable
 	var/tracked_blood = null // list(bDNA, btype, color, count)
+	var/tracked_mud = null
 
 /*
 /atom/proc/add_forensic_info(var/key, var/value)
@@ -45,16 +46,18 @@
 
 	if (ishuman(M))
 		var/mob/living/carbon/human/H = M
-		var/list/L = params2list(src.fingerprints)
+		var/list/L = src.fingerprints
+		if(isnull(L))
+			L = list()
 
 		if (H.gloves) // Fixed: now adds distorted prints even if 'fingerprintslast == ckey'. Important for the clean_forensic proc (Convair880).
-			var/gloveprints = H.gloves.distort_prints(md5(H.bioHolder.Uid), 1)
+			var/gloveprints = H.gloves.distort_prints(H.bioHolder.uid_hash, 1)
 			if (!isnull(gloveprints))
 				L -= gloveprints
 				if (L.len >= 6) //Limit fingerprints in the list to 6
 					L.Cut(1,2)
 				L += gloveprints
-				src.fingerprints = list2params(L)
+				src.fingerprints = L
 
 			if(src.fingerprintslast != H.key)
 				src.fingerprintshidden += "(Wearing gloves). Real name: [H.real_name], Key: [H.key], Time: [time2text(world.timeofday, "hh:mm:ss")]"
@@ -63,7 +66,7 @@
 			return 0
 
 		if (!( src.fingerprints ))
-			src.fingerprints = "[md5(H.bioHolder.Uid)]"
+			src.fingerprints = list("[H.bioHolder.uid_hash]")
 			if(src.fingerprintslast != H.key)
 				src.fingerprintshidden += "Real name: [H.real_name], Key: [H.key], Time: [time2text(world.timeofday, "hh:mm:ss")]"
 				src.fingerprintslast = H.key
@@ -71,11 +74,11 @@
 			return 1
 
 		else
-			L -= md5(H.bioHolder.Uid)
+			L -= H.bioHolder.uid_hash
 			while(L.len >= 6) // limit the number of fingerprints to 6, previously 3
 				L -= L[1]
-			L += md5(H.bioHolder.Uid)
-			src.fingerprints = list2params(L)
+			L += H.bioHolder.uid_hash
+			src.fingerprints = L
 			if(src.fingerprintslast != H.key)
 				src.fingerprintshidden += "Real name: [H.real_name], Key: [H.key], Time: [time2text(world.timeofday, "hh:mm:ss")]"
 				src.fingerprintslast = H.key
@@ -89,7 +92,7 @@
 
 // WHAT THE ACTUAL FUCK IS THIS SHIT
 // WHO THE FUCK WROTE THIS
-/atom/proc/add_blood(mob/living/M as mob, var/amount = 5, var/reliquary = 0)
+/atom/proc/add_blood(mob/living/M as mob, var/amount = 5)
 //	if (!( isliving(M) ) || !M.blood_id)
 //		return 0
 	if (!( src.flags ) & FPRINT)
@@ -119,10 +122,7 @@
 			if (R)
 				new_icon.Blend(rgb(R.fluid_r, R.fluid_g, R.fluid_b), ICON_MULTIPLY)
 			else
-				if (reliquary)
-					new_icon.Blend("#0b1f8f", ICON_MULTIPLY)
-				else
-					new_icon.Blend(DEFAULT_BLOOD_COLOR, ICON_MULTIPLY)
+				new_icon.Blend(DEFAULT_BLOOD_COLOR, ICON_MULTIPLY)
 			new_icon.Blend(new /icon('icons/effects/blood.dmi', "itemblood"), ICON_MULTIPLY)
 			if (I.uses_multiple_icon_states)
 				new_icon.Blend(new /icon(I.icon), ICON_UNDERLAY)
@@ -133,10 +133,7 @@
 			I.blood_type = b_type
 			if (istype(I, /obj/item/clothing))
 				var/obj/item/clothing/C = src
-				if (reliquary)
-					C.add_stain("azure-stained")
-				else
-					C.add_stain("blood-stained")
+				C.add_stain("blood-stained")
 		else if (istype(src, /turf/simulated))
 			bleed(M, amount, 5, rand(1,3), src)
 		else if (ishuman(src)) // this will add the blood to their hands or something?
@@ -178,7 +175,7 @@
 				CI.blood_DNA = null
 				CI.icon = initial(icon)
 
-		else if (istype(src, /obj/decal/cleanable))
+		else if (istype(src, /obj/decal/cleanable) || istype(src, /obj/reagent_dispensers/cleanable))
 			pool(src)
 
 		else if (isturf(src))
@@ -245,6 +242,8 @@
 
 /atom/movable/proc/track_blood()
 	return
+/atom/movable/proc/track_mud()
+	return
 /* needs adjustment so let's stick with mobs for now
 /obj/track_blood()
 	if (!islist(src.tracked_blood))
@@ -281,17 +280,19 @@
 	if (!islist(src.tracked_blood))
 		return
 	var/turf/T = get_turf(src)
-	var/obj/decal/cleanable/blood/dynamic/tracks/B = T.messy ? (locate(/obj/decal/cleanable/blood/dynamic/tracks) in T) : 0
+	var/obj/decal/cleanable/blood/dynamic/tracks/B = null
+	if (T.messy > 0)
+		B = locate(/obj/decal/cleanable/blood/dynamic) in T
+
 	var/blood_color_to_pass = src.tracked_blood["color"] ? src.tracked_blood["color"] : DEFAULT_BLOOD_COLOR
 
 	if (!B)
 		if (T.active_liquid)
 			return
-		if (src.tracked_blood["reliquary"] == 1)
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks/reliquary,get_turf(src))
-		else
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
-	B.add_volume(blood_color_to_pass, 1, src.tracked_blood, "footprints[rand(1,2)]", src.last_move, 0)
+		B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
+		B.set_sample_reagent_custom(src.tracked_blood["sample_reagent"],0)
+
+	B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 1, 0, src.tracked_blood, "footprints[rand(1,2)]", src.last_move, 0)
 
 	if (src.tracked_blood && isnum(src.tracked_blood["count"])) // mirror from below
 		src.tracked_blood["count"] --
@@ -309,27 +310,31 @@
 		return
 
 	var/turf/T = get_turf(src)
-	var/obj/decal/cleanable/blood/dynamic/tracks/B = T.messy ? (locate(/obj/decal/cleanable/blood/dynamic/tracks) in T) : 0
+	var/obj/decal/cleanable/blood/dynamic/tracks/B = null
+	if (T.messy > 0)
+		B = locate(/obj/decal/cleanable/blood/dynamic) in T
+
 	var/blood_color_to_pass = src.tracked_blood["color"] ? src.tracked_blood["color"] : DEFAULT_BLOOD_COLOR
 
 	if (!B)
 		if (T.active_liquid)
 			return
-		if (src.tracked_blood["reliquary"] == 1)
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks/reliquary,get_turf(src))
+		B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
+		if (B)
+			B.set_sample_reagent_custom(src.tracked_blood["sample_reagent"],0)
 		else
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
-	if (!B)
-		return //must have been consumed by a fluid? this might be unnecessary...
+			return //must have been consumed by a fluid? this might be unnecessary...
 
 	if (src.limbs)
 		var/Lstate = istype(src.limbs.l_leg) ? src.limbs.l_leg.step_image_state : null
 		var/Rstate = istype(src.limbs.r_leg) ? src.limbs.r_leg.step_image_state : null
 		if (Lstate || Rstate)
-			if (Lstate) B.add_volume(blood_color_to_pass, 0.5, src.tracked_blood, Lstate, src.last_move, 0)
-			if (Rstate) B.add_volume(blood_color_to_pass, 0.5, src.tracked_blood, Rstate, src.last_move, 0)
+			if (Lstate)
+				B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 0.5, 0.5, src.tracked_blood, Lstate, src.last_move, 0)
+			if (Rstate)
+				B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 0.5, 0.5, src.tracked_blood, Rstate, src.last_move, 0)
 		else
-			B.add_volume(blood_color_to_pass, 1, src.tracked_blood, "smear2", src.last_move, 0)
+			B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 1, 1, src.tracked_blood, "smear2", src.last_move, 0)
 
 	if (src.tracked_blood && isnum(src.tracked_blood["count"])) // maybe this will fix the bad index runtime PART
 		src.tracked_blood["count"] --
@@ -353,18 +358,22 @@
 	if (!B)
 		if (T.active_liquid)
 			return
-		if (src.tracked_blood["reliquary"] == 1)
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks/reliquary,get_turf(src))
+		B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
+		if (B)
+			B.set_sample_reagent_custom(src.tracked_blood["sample_reagent"],0)
 		else
-			B = make_cleanable( /obj/decal/cleanable/blood/dynamic/tracks,get_turf(src))
+			return
 
 	var/Lstate = istype(src.part_leg_l) ? src.part_leg_l.step_image_state : null
 	var/Rstate = istype(src.part_leg_r) ? src.part_leg_r.step_image_state : null
+
 	if (Lstate || Rstate)
-		if (Lstate) B.add_volume(blood_color_to_pass, 0.5, src.tracked_blood, Lstate, src.last_move, 0)
-		if (Rstate) B.add_volume(blood_color_to_pass, 0.5, src.tracked_blood, Rstate, src.last_move, 0)
+		if (Lstate)
+			B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 0.5, 0.5, src.tracked_blood, Lstate, src.last_move, 0)
+		if (Rstate)
+			B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 0.5, 0.5, src.tracked_blood, Rstate, src.last_move, 0)
 	else
-		B.add_volume(blood_color_to_pass, 1, src.tracked_blood, "smear2", src.last_move, 0)
+		B.add_volume(blood_color_to_pass, src.tracked_blood["sample_reagent"], 1, 1, src.tracked_blood, "smear2", src.last_move, 0)
 
 	if (src.tracked_blood && isnum(src.tracked_blood["count"])) //mirror from above
 		src.tracked_blood["count"] --

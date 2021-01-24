@@ -33,9 +33,9 @@ var/global
 	/*
 	8 = LEVEL_HOST
 	7 = LEVEL_CODER
-	6 = LEVEL_SHITGUY
+	6 = LEVEL_ADMIN
 	5 = LEVEL_PA
-	4 = LEVEL_ADMIN
+	4 = LEVEL_IA
 	3 = LEVEL_SA
 	2 = LEVEL_MOD
 	1 = LEVEL_BABBY
@@ -137,6 +137,10 @@ var/global
 			var/data = json_encode(list("loadAdminCode" = replacetext(replacetext(grabResource("html/adminOutput.html"), "\n", ""), "\t", "")))
 			ehjax.send(src.owner, "browseroutput", url_encode(data))
 
+		changeTheme(theme)
+			var/data = json_encode(list("changeTheme" = theme))
+			ehjax.send(src.owner, "browseroutput", url_encode(data))
+
 		//Sends client connection details to the chat to handle and save
 		sendClientData()
 			//Fix for Cannot read null.ckey (how!?)
@@ -154,6 +158,21 @@ var/global
 		analyzeClientData(cookie = "")
 			if (!cookie) return
 			if (cookie != "none")
+				// Hotfix patch, credit to https://github.com/yogstation13/Yogstation/pull/9951
+				var/regex/json_decode_crasher = regex("^\\s*(\[\\\[\\{\\}\\\]]\\s*){5,}")
+				if (json_decode_crasher.Find(cookie))
+					if (src.owner)
+						message_admins("[src.owner] just attempted to crash the server using at least 5 '\['s in a row.")
+						logTheThing("admin", src.owner, null, "just attempted to crash the server using at least 5 '\['s in a row.", "admin")
+
+						//Irc message too
+						var/ircmsg[] = new()
+						ircmsg["key"] = owner.key
+						ircmsg["name"] = owner.mob.name
+						ircmsg["msg"] = "just attempted to crash the server using at least 5 '\['s in a row."
+						ircbot.export("admin", ircmsg)
+					return
+
 				var/list/connData = json_decode(cookie)
 				if (connData && islist(connData) && connData.len > 0 && connData["connData"])
 					src.connectionHistory = connData["connData"] //lol fuck
@@ -228,7 +247,7 @@ var/global
 					src.owner.addBanDialog(targetMob)
 				if ("gib")
 					src.owner.cmd_admin_gib(targetMob)
-					logTheThing("admin", src.owner, targetMob, "gibbed %target%.")
+					logTheThing("admin", src.owner, targetMob, "gibbed [constructTarget(targetMob,"admin")].")
 				if ("popt")
 					if(src.owner.holder)
 						src.owner.holder.playeropt(targetMob)
@@ -358,6 +377,8 @@ var/global
 		//Some macros remain in the string even after parsing and fuck up the eventual output
 		message = stripTextMacros(message)
 
+		message = replacetext(message, "\u2028", "") // this character crashes the js side and I don't know how to fix it there
+
 		//Grab us a client if possible
 		var/client/C
 		if (isclient(target))
@@ -367,7 +388,7 @@ var/global
 		else if (ismind(target) && target:current)
 			C = target:current:client
 
-		if (C && C.chatOutput && !C.chatOutput.loaded && C.chatOutput.messageQueue && islist(C.chatOutput.messageQueue))
+		if (C?.chatOutput && !C.chatOutput.loaded && C.chatOutput.messageQueue && islist(C.chatOutput.messageQueue))
 			//Client sucks at loading things, put their messages in a queue
 			C.chatOutput.messageQueue["[C.chatOutput.messageQueue.len]"] = list("message" = message, "group" = group)
 		else

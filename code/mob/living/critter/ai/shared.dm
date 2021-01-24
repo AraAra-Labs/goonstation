@@ -7,7 +7,7 @@
 // responsible for: selecting a target (and reporting back the evaluation score based on its value)
 // and moving through the following two tasks:
 // moving to a selected target, performing a /datum/action on the selected target
-/datum/aiTask/sequence/goalbased/	
+/datum/aiTask/sequence/goalbased/
 	name = "goal parent"
 	var/weight = 1 // for weighting the importance of the goal this sequence is in charge of
 	var/max_dist = 5 // the maximum tile distance that we look for targets
@@ -19,12 +19,12 @@
 	// SECOND TASK IS SUBGOAL SPECIFIC
 
 /datum/aiTask/sequence/goalbased/evaluate()
-	return score_goal() * weight
+	. = score_goal() * weight
 
 /datum/aiTask/sequence/goalbased/proc/get_best_target(var/list/targets)
 	. = null
 	var/best_score = -1.#INF
-	if(targets && targets.len)
+	if(length(targets))
 		for(var/atom/A in targets)
 			var/score = src.score_target(A)
 			if(score > best_score)
@@ -34,23 +34,26 @@
 
 /datum/aiTask/sequence/goalbased/proc/get_targets()
 	// obviously a specific goal will have specific requirements for targets
-	return list()
+	. = list()
 
 /datum/aiTask/sequence/goalbased/proc/score_target(var/atom/target)
 	if(target)
 		return max_dist - distance(get_turf(holder.owner), get_turf(target))
-	return 0
+	. = 0
 
 /datum/aiTask/sequence/goalbased/proc/precondition()
 	// useful for goals that have a requirement, return 0 to instantly make this state score 0 and not be picked
-	return 1
+	. = 1
 
 /datum/aiTask/sequence/goalbased/proc/score_goal()
 	// do any specific stuff here, eg. if the goal requires some conditions and they don't exist, reduce the score here
 	// by default, return the score of the best target
-	return precondition() * score_target(get_best_target(get_targets()))
+	. = 0
+	var/precond = precondition()
+	if(precond)
+		. = precond * score_target(get_best_target(get_targets()))
 
-/datum/aiTask/sequence/goalbased/on_tick()	
+/datum/aiTask/sequence/goalbased/on_tick()
 	..()
 	if(!holder.target)
 		holder.target = get_best_target(get_targets())
@@ -66,7 +69,6 @@
 					if(M.move_target)
 						return
 			M.move_target = target_turf
-	LAGCHECK(LAG_LOW)
 
 /datum/aiTask/sequence/goalbased/on_reset()
 	holder.target = null
@@ -80,13 +82,17 @@
 	maximum_task_ticks = 10
 
 /datum/aiTask/timed/wander/evaluate()
-	return 1 // it'd require every other task returning very small values for this to get selected
+	. = 1 // it'd require every other task returning very small values for this to get selected
 
 /datum/aiTask/timed/wander/on_tick()
 	// thanks zewaka for reminding me the previous implementation of this is BYOND NATIVE
-	step_rand(holder.owner, 0)
-	LAGCHECK(LAG_LOW)
+	// thanks byond forums for letting me know that the byond native implentation FUCKING SUCKS
+	holder.owner.move_dir = pick(alldirs)
+	holder.owner.process_move()
 
+/datum/aiTask/timed/wander/on_tick()
+	. = ..()
+	holder.stop_move()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TARGETED TASK
@@ -98,7 +104,7 @@
 /datum/aiTask/timed/targeted/proc/get_best_target(var/list/targets)
 	. = null
 	var/best_score = -1.#INF
-	if(targets && targets.len)
+	if(length(targets))
 		for(var/atom/A in targets)
 			var/score = src.score_target(A)
 			if(score > best_score)
@@ -108,13 +114,13 @@
 
 // vvv OVERRIDE THE PROCS BELOW AS REQUIRED vvv
 
-/datum/aiTask/timed/targeted/proc/get_targets()	
-	return list()
+/datum/aiTask/timed/targeted/proc/get_targets()
+	. = list()
 
 /datum/aiTask/timed/targeted/proc/score_target(var/atom/target)
 	if(target)
 		return target_range - distance(get_turf(holder.owner), get_turf(target))
-	return 0
+	. = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MOVE TASK
@@ -130,7 +136,7 @@
 	if(!move_target)
 		fails++
 		return
-	src.found_path = cirrAstar(get_turf(holder.owner), get_turf(move_target), 0, null, /proc/heuristic, 60)	
+	src.found_path = cirrAstar(get_turf(holder.owner), get_turf(move_target), 0, null, /proc/heuristic, 60)
 	if(!src.found_path) // no path :C
 		fails++
 
@@ -140,22 +146,22 @@
 
 /datum/aiTask/succeedable/move/on_tick()
 	walk(holder.owner, 0)
-	if(src.found_path)		
+	if(src.found_path)
 		if(src.found_path.len > 0)
-			// follow the path			
+			// follow the path
 			src.found_path.Cut(1, 2)
-			var/turf/next 
+			var/turf/next
 			if(src.found_path.len >= 1)
 				next = src.found_path[1]
 			else
 				next = move_target
-			walk_to(holder.owner, next, 0, 4)									
-			if(get_dist(get_turf(holder.owner), next) <= 1)								
+			walk_to(holder.owner, next, 0, 4)
+			if(get_dist(get_turf(holder.owner), next) <= 1)
 				fails = 0
 			else
 				// we aren't where we ought to be
 				fails++
-				get_path()				
+				get_path()
 	else
 		// get a path
 		get_path()
@@ -173,3 +179,31 @@
 	minimum_task_ticks = 10
 	maximum_task_ticks = 10
 
+/datum/aiTask/timed/hibernate
+	name = "hibernate"
+	minimum_task_ticks = 1
+	maximum_task_ticks = 1
+	var/min_time_between_hibernations = 20 SECONDS
+	var/hibernation_priority = 100
+
+	evaluate()
+		. = ..()
+		var/mob/living/critter/M = holder.owner
+		if (!M)
+			return 0
+		var/area/A = get_area(M)
+		if (A?.active)
+			return 0
+		if ((M.last_hibernation_wake_tick + min_time_between_hibernations) >= TIME)
+			return 0
+		return hibernation_priority
+
+	on_tick()
+		. = ..()
+		var/mob/living/critter/M = holder.owner
+		if (!M) return
+		holder.enabled = FALSE
+		M.is_hibernating = TRUE
+		M.registered_area = get_area(M)
+		if(M.registered_area)
+			M.registered_area.registered_mob_critters |= M

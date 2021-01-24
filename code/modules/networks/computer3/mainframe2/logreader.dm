@@ -49,7 +49,7 @@
 		if(..() || (status & (NOPOWER|BROKEN)))
 			return
 
-		user.machine = src
+		src.add_dialog(user)
 
 		var/dat = {"<html><head><title>Access Log Reader</title><style>
 .conn-box {
@@ -150,7 +150,7 @@
 		if (!(usr in range(1)))
 			return
 
-		usr.machine = src
+		src.add_dialog(usr)
 		src.add_fingerprint(usr)
 
 		if (href_list["reset"])
@@ -259,7 +259,7 @@
 				arguments += " -- [bash_sanitize(filter_name)]"
 			var/data = list2params(list("command"="record_query","query"="[arguments]"))
 			src.post_status(src.host_id, "command", "term_message", "data", data, "netid", "[net_id]", "device", device_tag)
-			SPAWN_DBG (300)
+			SPAWN_DBG(30 SECONDS)
 				if (refresh_id == my_refresh_id && refreshing)
 					timed_out = 1
 					refreshing = 0
@@ -375,7 +375,7 @@
 
 				src.post_status(target,"command","term_message","data","command=status&status=success")
 				for (var/mob/M in range(1))
-					if (M.machine == src)
+					if (M.using_dialog_of(src))
 						attack_hand(M)
 				return
 

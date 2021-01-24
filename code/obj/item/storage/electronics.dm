@@ -11,7 +11,7 @@
 /obj/item/storage/box/PDAbox
 	name = "spare PDAs"
 	desc = "A box of spare PDA microcomputers."
-	icon = 'icons/obj/storage.dmi'
+	icon = 'icons/obj/items/storage.dmi'
 	icon_state = "pdabox"
 	spawn_contents = list(/obj/item/device/pda2 = 4)
 
@@ -21,7 +21,9 @@
 		var/list/invalid_carts = list(/obj/item/disk/data/cartridge,
 		/obj/item/disk/data/cartridge/captain,
 		/obj/item/disk/data/cartridge/nuclear,
-		/obj/item/disk/data/cartridge/syndicate)
+		/obj/item/disk/data/cartridge/syndicate,
+		/obj/item/disk/data/cartridge/ai,
+		/obj/item/disk/data/cartridge/cyborg)
 
 		var/list/spawnable = typesof(/obj/item/disk/data/cartridge)
 		spawnable -= invalid_carts
@@ -60,7 +62,7 @@
 
 /obj/item/storage/box/lightbox
 	name = "replacement light bulbs"
-	icon = 'icons/obj/storage.dmi'
+	icon = 'icons/obj/items/storage.dmi'
 	icon_state = "light"
 	spawn_contents = list(/obj/item/light/bulb = 7)
 
@@ -113,3 +115,27 @@
 		blacklight
 			name = "blacklight light tubes"
 			spawn_contents = list(/obj/item/light/tube/blacklight = 7)
+
+/obj/item/storage/box/glowstickbox
+	name = "emergency glowsticks"
+	icon = 'icons/obj/items/storage.dmi'
+	icon_state = "glowstickbox"
+	spawn_contents = list(/obj/item/device/light/glowstick = 7)
+
+	assorted
+		name = "assorted glowsticks"
+		spawn_contents = list()
+		make_my_stuff()
+			..()
+			var/glowstick
+			for (var/i=7,i>0,i--)
+				glowstick = pick(/obj/item/device/light/glowstick,
+				/obj/item/device/light/glowstick/red,
+				/obj/item/device/light/glowstick/blue,
+				/obj/item/device/light/glowstick/cyan,
+				/obj/item/device/light/glowstick/orange,
+				/obj/item/device/light/glowstick/yellow,
+				/obj/item/device/light/glowstick/pink,
+				/obj/item/device/light/glowstick/purple)
+				new glowstick(src)
+

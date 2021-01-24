@@ -5,8 +5,7 @@ datum/computer/file/embedded_program
 
 	proc
 		post_signal(datum/signal/signal, comm_line)
-			if(master)
-				master.post_signal(signal, comm_line)
+			master?.post_signal(signal, comm_line)
 			//else
 			//	qdel(signal)
 
@@ -404,7 +403,7 @@ obj/machinery/embedded_controller
 
 	attack_hand(mob/user)
 		user.Browse(return_text(), "window=computer")
-		user.machine = src
+		src.add_dialog(user)
 		onclose(user, "computer")
 
 	disposing()
@@ -432,14 +431,12 @@ obj/machinery/embedded_controller
 		if(..())
 			return 0
 
-		if(program)
-			program.receive_user_command(href_list["command"])
+		program?.receive_user_command(href_list["command"])
 
-		usr.machine = src
+		src.add_dialog(usr)
 
 	process()
-		if(program)
-			program.process()
+		program?.process()
 
 		update_icon()
 		src.updateDialog()
@@ -653,13 +650,12 @@ obj/machinery/embedded_controller/radio/department_controller
 			icon_state = "access_control_off"
 
 	Topic(href, href_list)
-		if (src.locked && !issilicon(usr))
+		if (src.locked && !can_access_remotely(usr))
 			return
 
-		if(program)
-			program.receive_user_command(href_list["command"])
+		program?.receive_user_command(href_list["command"])
 
-		usr.machine = src
+		src.add_dialog(usr)
 
 	process()
 		if(status & NOPOWER)
@@ -679,7 +675,7 @@ obj/machinery/embedded_controller/radio/department_controller
 				user.visible_message("[user] [src.locked ? "unlocks" : "locks"] the access panel.","You [src.locked ? "unlock" : "lock"] the access panel.")
 				src.locked = !src.locked
 			else
-				boutput(user, "<span style=\"color:red\">Access denied.</span>")
+				boutput(user, "<span class='alert'>Access denied.</span>")
 		else
 			..()
 
@@ -692,7 +688,7 @@ obj/machinery/embedded_controller/radio/department_controller
 		if (src.status & NOPOWER)
 			return
 
-		user.machine = src
+		src.add_dialog(user)
 
 		var/state_options = null
 

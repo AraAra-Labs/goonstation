@@ -26,7 +26,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 		//fxlist =
 		if (ambientSound)
 
-			SPAWN_DBG (60)
+			SPAWN_DBG(6 SECONDS)
 				var/sound/S = new/sound()
 				S.file = ambientSound
 				S.repeat = 0
@@ -56,7 +56,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 		var/sound_delay = 0
 
 		while(current_state < GAME_STATE_FINISHED)
-			sleep(60)
+			sleep(6 SECONDS)
 
 			if(prob(10) && fxlist)
 				S = sound(file=pick(fxlist), volume=50)
@@ -97,7 +97,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 /obj/machinery/bot/guardbot/future
 	name = "Wally-392"
 	desc = "A PR-7 Robuddy!  Whoa, these don't even exist yet!  Why does this one look so old then?"
-	icon = 'icons/misc/newbots.dmi'
+	icon = 'icons/obj/bots/newbots.dmi'
 	health = 50
 	setup_unique_name = 1
 	hat_x_offset = -6
@@ -229,7 +229,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 
 		SPAWN_DBG(0) //Delete the overlay when finished with it.
 			src.on = 0
-			sleep(15)
+			sleep(1.5 SECONDS)
 			qdel(Ov)
 			qdel(src)
 
@@ -271,9 +271,9 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 					dialogChecklist |= WD_SLEEPER_SCREAM
 
 					src.master.speak("Oh no oh no oh no no no no")
-					src.master.visible_message( "<span style=\"color:red\">[src.master] points repeatedly at [maybe_that_somebody]![prob(50) ? "  With both arms, no less!" : null]</span>")
+					src.master.visible_message( "<span class='alert'>[src.master] points repeatedly at [maybe_that_somebody]![prob(50) ? "  With both arms, no less!" : null]</span>")
 					src.master.set_emotion("screaming")
-					SPAWN_DBG (40)
+					SPAWN_DBG(4 SECONDS)
 						if (src.master)
 							src.master.set_emotion("sad")
 					return
@@ -294,7 +294,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 				src.master.speak("Aaa! Please stay away from there! You can't wake him up, okay? It's not safe!")
 				SPAWN_DBG(1.5 SECONDS)
 					src.master.speak("I mean, for him.  Sleepers slow down aging, but it turns out that DNA or whatever still ages really, really slowly.")
-					sleep(10)
+					sleep(1 SECOND)
 					src.master.speak("And um, it's been so long that when the cell tries to divide it...doesn't work.")
 
 				return
@@ -308,9 +308,9 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 			src.master.speak( "Oh, this place is familiar!  It looks like a ship, a model...um...")
 			SPAWN_DBG(1 SECOND)
 				src.master.speak("I'm sorry, I don't recognize this ship!  Maybe I can interface with its onboard computer though?")
-				sleep(20)
+				sleep(2 SECONDS)
 				src.master.speak("Okay, it's yelling at me in a language I do not understand!  Weird!")
-				sleep(20)
+				sleep(2 SECONDS)
 				src.master.speak("...and now it's not responding. So much for that!")
 
 			return
@@ -341,7 +341,7 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 	dead_man_sleeping
 		New()
 			..()
-			SPAWN_DBG (10)
+			SPAWN_DBG(1 SECOND)
 				src.occupant = new /mob/living/carbon/human/future (src)
 				src.icon_state = "sleeper"
 				src.update_icon()
@@ -359,17 +359,17 @@ var/list/timewarp_interior_sounds = list('sound/ambience/industrial/Timeship_Gon
 	New()
 		..()
 
-		SPAWN_DBG(0)
-			bioHolder.mobAppearance.customization_second = "Tramp"
-			bioHolder.mobAppearance.underwear = "briefs"
-			bioHolder.age = 3500
-			gender = "male"
-			sleep(5)
-			bioHolder.mobAppearance.UpdateMob()
-			bioHolder.AddEffect("psy_resist") // Heh
-			src.equip_new_if_possible(/obj/item/clothing/shoes/red, slot_shoes)
-			src.equip_new_if_possible(/obj/item/clothing/under/color/white, slot_w_uniform)
-			src.equip_new_if_possible(/obj/item/device/key {name = "futuristic key"; desc = "It appears to be made of some kind of space-age material.  Like really fancy aluminium or something.";} , slot_l_store)
+		bioHolder.AddEffect("psy_resist") // Heh
+		src.equip_new_if_possible(/obj/item/clothing/shoes/red, slot_shoes)
+		src.equip_new_if_possible(/obj/item/clothing/under/color/white, slot_w_uniform)
+		src.equip_new_if_possible(/obj/item/device/key {name = "futuristic key"; desc = "It appears to be made of some kind of space-age material.  Like really fancy aluminium or something.";} , slot_l_store)
+
+	initializeBioholder()
+		bioHolder.mobAppearance.customization_second = "Tramp"
+		bioHolder.mobAppearance.underwear = "briefs"
+		bioHolder.age = 3500
+		. = ..()
+
 
 	Life(datum/controller/process/mobs/parent)
 		if (..(parent))

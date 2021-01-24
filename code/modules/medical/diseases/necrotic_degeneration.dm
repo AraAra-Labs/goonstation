@@ -15,21 +15,32 @@
 	if (affected_mob.get_burn_damage() >= 80 && prob(60))
 		affected_mob.cure_disease(D)
 		return
+	affected_mob.is_zombie = 1
 	switch(D.stage)
 		if(1)
 			if (prob(5))
 				affected_mob.emote(pick("shiver", "pale"))
 		if(2)
 			if (prob(8))
-				boutput(affected_mob, "<span style=\"color:red\">You notice a foul smell.</span>")
+				boutput(affected_mob, "<span class='alert'>You notice a foul smell.</span>")
 			if (prob(10))
-				boutput(affected_mob, "<span style=\"color:red\">You lose track of your thoughts.</span>")
+				boutput(affected_mob, "<span class='alert'>You lose track of your thoughts.</span>")
 				affected_mob.take_brain_damage(10)
 			if (prob(4))
-				boutput(affected_mob, "<span style=\"color:red\">You pass out momentarily.</span>")
+				boutput(affected_mob, "<span class='alert'>You pass out momentarily.</span>")
 				affected_mob.changeStatus("paralysis", 40)
 			if (prob(5))
 				affected_mob.emote(pick("shiver","pale","drool"))
+
+			//spaceacillin stalls the infection...
+			var/amt = affected_mob.reagents?.get_reagent_amount("spaceacillin")
+			if (amt)
+				if (amt > 15)
+					affected_mob.reagents?.remove_reagent("spaceacillin", 1)
+				else
+					affected_mob.reagents?.remove_reagent("spaceacillin", 0.4)
+				D.stage--
+
 		if(3)
 			affected_mob.stuttering = 10
 			if (prob(10))
@@ -37,7 +48,7 @@
 			if (prob(20))
 				affected_mob.say(pick("Hungry...", "Must... kill...", "Brains..."))
 		if(4)
-			boutput(affected_mob, "<span style=\"color:red\">Your heart seems to have stopped...</span>")
+			boutput(affected_mob, "<span class='alert'>Your heart seems to have stopped...</span>")
 			affected_mob.set_mutantrace(zombie_mutantrace)
 			if (ishuman(affected_mob))
 				affected_mob:update_face()

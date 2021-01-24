@@ -7,7 +7,7 @@
 		if (islist(path))
 			path = pick(path)
 		var/obj/O = new path(get_turf(object))
-		O.dir = holder.dir
+		O.set_dir(holder.dir)
 		O.onVarChanged("dir", SOUTH, O.dir)
 		blink(O.loc)
 
@@ -19,7 +19,7 @@
 	selected()
 		var/kind = input(usr, "What kind of decoration?", "Decoration type", "Skeleton") in src.decals
 		objtype = src.decals[kind]
-		boutput(usr, "<span style=\"color:blue\">Now placing [kind] objects in single spawn mode.</span>")
+		boutput(usr, "<span class='notice'>Now placing [kind] objects in single spawn mode.</span>")
 
 	settings(var/ctrl, var/alt, var/shift)
 		selected()

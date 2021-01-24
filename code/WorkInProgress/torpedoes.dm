@@ -11,7 +11,7 @@
 		if (T)
 			for (var/mob/living/carbon/human/M in view(src, 2))
 				if (istype(M.wear_suit, /obj/item/clothing/suit/armor))
-					boutput(M, "<span style=\"color:red\">Your armor blocks the shrapnel!</span>")
+					boutput(M, "<span class='alert'>Your armor blocks the shrapnel!</span>")
 					M.TakeDamage("chest", 5, 0)
 				else
 					M.TakeDamage("chest", 15, 0)
@@ -19,7 +19,7 @@
 					implanted.owner = M
 					M.implant += implanted
 					implanted.implanted(M, null, 2)
-					boutput(M, "<span style=\"color:red\">You are struck by shrapnel!</span>")
+					boutput(M, "<span class='alert'>You are struck by shrapnel!</span>")
 					if (!M.stat)
 						M.emote("scream")
 		qdel(src)
@@ -30,7 +30,7 @@
 	icon_state_on_tray = "torped_hiexp_tray"
 	icon_state_off_tray = "torped_hiexp_notray"
 	icon_state_fired = "torped_hiexp_fired"
-	numPierce = 6 //Max amount of steps that can pierce before it blows up instantly.
+	numPierce = 0 //Max amount of steps that can pierce before it blows up instantly.
 	stepsAfterPierce = 12 //Will blow up this many steps after first pierce at most.
 	sleepPerStep = 2 //How long to sleep between steps.
 
@@ -129,9 +129,9 @@
 		return movement_controller
 
 	attack_hand(mob/user as mob)
-		if(src.controller && !src.controller.loc == src)
+		if(src.controller && src.controller.loc != src)
 			src.exit(0)
-		
+
 		if(inUse) return
 
 		if(tube == null)
@@ -147,10 +147,10 @@
 			inUse = 1
 			user.set_loc(src)
 			user.pixel_y = -8
-			boutput(user, "<span style=\"color:blue\"><b>Press Q or E to exit targeting.</b></span>")
+			boutput(user, "<span class='hint'><b>Press Q or E to exit targeting.</b></span>")
 			vis_contents += user
 			controller = user
-			user.update_keymap()
+			user.reset_keymap()
 			if(user.client && targeter)
 				user.client.images += targeter.trgImage
 				user.client.eye = targeter
@@ -182,7 +182,7 @@
 			if(set_location)
 				controller.set_loc(get_step(src, SOUTH))
 			vis_contents.Cut()
-			controller.update_keymap()
+			controller.reset_keymap()
 			if(controller.client && targeter)
 				controller.client.images -= targeter.trgImage
 				controller.client.eye = controller
@@ -191,8 +191,7 @@
 		return
 
 	proc/fire()
-		if(tube)
-			tube.launch()
+		tube?.launch()
 		return
 
 /obj/machinery/torpedo_switch
@@ -253,7 +252,7 @@
 		underlays.Add(tube)
 
 		SPAWN_DBG(1 SECOND) //You might wonder what is going on here. IF I DON'T SPAWN THIS THE DIRECTION IS NOT SET IS WHAT'S GOING ON HERE.
-			dir = NORTH
+			set_dir(NORTH)
 
 		rebuildOverlays()
 		return .
@@ -285,12 +284,12 @@
 
 	proc/open()
 		if(is_blocked_turf(get_step(src, SOUTH)))
-			boutput(usr, "<span style=\"color:red\"><b>You can't open the tube, something is blocking the way.</b></span>")
+			boutput(usr, "<span class='alert'><b>You can't open the tube, something is blocking the way.</b></span>")
 			return
 		tray_obj = new/obj/torpedo_tube_tray(get_step(src, SOUTH))
 		tray_obj.parent = src
 		if(loaded)
-			loaded.loc = tray_obj.loc
+			loaded.set_loc(tray_obj.loc)
 			loaded = null
 		rebuildOverlays()
 		return
@@ -323,22 +322,20 @@
 			if(ismob(loaded))
 				var/mob/M = loaded
 				M.set_loc(start)
-				M.dir = src.dir
-				SPAWN_DBG(0)
-					M.throw_at(target, 600, 2)
+				M.set_dir(src.dir)
+				M.throw_at(target, 600, 2)
 
 
 			else if(istype(loaded, /obj/storage/closet))
 				var/obj/storage/closet/C = loaded
 				C.set_loc(start)
-				C.dir = src.dir
-				SPAWN_DBG(0)
-					C.throw_at(target, 600, 2)
+				C.set_dir(src.dir)
+				C.throw_at(target, 600, 2)
 
 			else if(istype(loaded, /obj/torpedo))
 				var/obj/torpedo/T = loaded
 				T.set_loc(start)
-				T.dir = src.dir
+				T.set_dir(src.dir)
 				T.lockdir = src.dir
 				T.fired = 1
 				SPAWN_DBG(0)
@@ -365,8 +362,7 @@
 	var/obj/machinery/torpedo_tube/parent = null
 
 	attack_hand(mob/living/carbon/human/M as mob)
-		if(parent)
-			parent.close()
+		parent?.close()
 		return
 
 	MouseDrop_T(atom/target, mob/user)
@@ -378,17 +374,17 @@
 				logTheThing("diary", usr, null, " loads \a [O] into \the [src] at [showCoords(src.x, src.y, src.z)]", "combat")
 			var/mob/M = target
 			if (ishuman(M))
-				M.resting = 1
+				M.setStatus("resting", INFINITE_STATUS)
 				M.force_laydown_standup()
 				M.set_loc(src.loc)
-				logTheThing("combat", user, target, " laods %target% onto \the [src] at [showCoords(user.x, user.y, user.z)]")
-				logTheThing("diary", user, target, " laods %target% onto \the [src] at [showCoords(user.x, user.y, user.z)]", "combat")
-				user.visible_message("<span style=\"color:red\"><b>[user.name] shoves [target.name] onto [src]!</b></span>")
+				logTheThing("combat", user, target, " laods [constructTarget(target,"combat")] onto \the [src] at [showCoords(user.x, user.y, user.z)]")
+				logTheThing("diary", user, target, " laods [constructTarget(target,"diary")] onto \the [src] at [showCoords(user.x, user.y, user.z)]", "combat")
+				user.visible_message("<span class='alert'><b>[user.name] shoves [target.name] onto [src]!</b></span>")
 			else
 				M.set_loc(src.loc)
-				logTheThing("combat", usr, target, " loads %target% into \the [src] at [showCoords(src.x, src.y, src.z)]")
-				logTheThing("diary", usr, target, " loads %target% into \the [src] at [showCoords(src.x, src.y, src.z)]", "combat")
-				user.visible_message("<span style=\"color:red\"><b>[user.name] shoves [target.name] onto \the [src]!</b></span>")
+				logTheThing("combat", usr, target, " loads [constructTarget(target,"combat")] into \the [src] at [showCoords(src.x, src.y, src.z)]")
+				logTheThing("diary", usr, target, " loads [constructTarget(target,"diary")] into \the [src] at [showCoords(src.x, src.y, src.z)]", "combat")
+				user.visible_message("<span class='alert'><b>[user.name] shoves [target.name] onto \the [src]!</b></span>")
 				return
 
 	attackby(var/obj/item/I, var/mob/user)
@@ -397,11 +393,11 @@
 			if (ismob(G.affecting))
 				var/mob/GM = G.affecting
 				GM.set_loc(src.loc)
-				GM.resting = 1
+				GM.setStatus("resting", INFINITE_STATUS)
 				GM.force_laydown_standup()
-				user.visible_message("<span style=\"color:red\"><b>[user.name] shoves [GM.name] onto [src]!</b></span>")
-				logTheThing("combat", usr, GM, " loads %target% into \the [src] at [showCoords(src.x, src.y, src.z)]")
-				logTheThing("diary", usr, GM, " loads %target% into \the [src] at [showCoords(src.x, src.y, src.z)]", "combat")
+				user.visible_message("<span class='alert'><b>[user.name] shoves [GM.name] onto [src]!</b></span>")
+				logTheThing("combat", usr, GM, " loads [constructTarget(GM,"combat")] into \the [src] at [showCoords(src.x, src.y, src.z)]")
+				logTheThing("diary", usr, GM, " loads [constructTarget(GM,"diary")] into \the [src] at [showCoords(src.x, src.y, src.z)]", "combat")
 				qdel(G)
 		else
 			return ..(I,user)
@@ -458,11 +454,12 @@
 		if(..(NewLoc, Dir, step_x, step_y))
 			if(dir != lastdir)
 				if(dir == NORTHEAST || dir == SOUTHWEST || dir == SOUTHEAST || dir == NORTHWEST)
-					dir = lastdir
+					set_dir(lastdir)
 					changeIcon()
 				else
 					lastdir = dir
 					changeIcon()
+			return TRUE
 
 	set_loc(var/newloc as turf|mob|obj in world)
 		..(newloc)
@@ -475,7 +472,7 @@
 	proc/add(var/obj/torpedo/T)
 		if(loaded) return
 		if(!can_act(usr) || !can_reach(usr, src) || !can_reach(usr, T)) return
-		T.loc = src
+		T.set_loc(src)
 		src.loaded = T
 		changeIcon()
 		return
@@ -485,7 +482,7 @@
 		if(!can_act(usr) || !can_reach(usr, src) || !can_reach(usr, target)) return
 		var/obj/torpedo/T = loaded
 		loaded = null
-		T.dir = (direction ? direction : src.dir)
+		T.set_dir((direction ? direction : src.dir))
 		T.set_loc(target)
 		changeIcon()
 		return
@@ -664,6 +661,7 @@
 		else
 			for(var/atom/movable/M in T)
 				if(M == src) continue
+				if(istype(M, /obj/machinery/the_singularity)) numPierce = 0 //detonate instantly on the singularity
 				if(!M.CanPass(src, T)) return 1
 				if(M.density) return 1
 		return 0

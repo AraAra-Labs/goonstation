@@ -10,9 +10,9 @@ VUVUZELA
 /obj/item/bananapeel
 	name = "Banana Peel"
 	desc = "A peel from a banana."
-	icon = 'icons/obj/items.dmi'
-	icon_state = "banana_peel"
-	item_state = "banana_peel"
+	icon = 'icons/obj/foodNdrink/food_produce.dmi'
+	icon_state = "banana-peel"
+	item_state = "banana-peel"
 	w_class = 1.0
 	throwforce = 0
 	throw_speed = 4
@@ -33,30 +33,27 @@ VUVUZELA
 		return
 	if (iscarbon(AM))
 		var/mob/M =	AM
-		if (!M.can_slip())
-			return
-		M.pulling = null
-		boutput(M, "<span style=\"color:blue\">You slipped on the banana peel!</span>")
-		if (ishuman(M))
-			var/mob/living/carbon/human/H = M
-			if (H.sims)
-				H.sims.affectMotive("fun", -10)
-				if (H == last_touched)
+		if (M.slip(ignore_actual_delay = 1))
+			boutput(M, "<span class='notice'>You slipped on the banana peel!</span>")
+			if (ishuman(M))
+				var/mob/living/carbon/human/H = M
+				if (H.sims)
 					H.sims.affectMotive("fun", -10)
-		if (istype(last_touched) && (last_touched in viewers(src)) && last_touched != M)
-			if (last_touched.sims)
-				last_touched.sims.affectMotive("fun", 10)
-		playsound(src.loc, "sound/misc/slip.ogg", 50, 1, -3)
-		if(M.bioHolder.HasEffect("clumsy"))
-			M.changeStatus("stunned", 80)
-			M.changeStatus("weakened", 5 SECONDS)
-		else
-			M.changeStatus("weakened", 2 SECONDS)
-		M.force_laydown_standup()
+					if (H == last_touched)
+						H.sims.affectMotive("fun", -10)
+			if (istype(last_touched) && (last_touched in viewers(src)) && last_touched != M)
+				if (last_touched.sims)
+					last_touched.sims.affectMotive("fun", 10)
+			if(M.bioHolder.HasEffect("clumsy"))
+				M.changeStatus("weakened", 5 SECONDS)
+				JOB_XP(M, "Clown", 2)
+			else
+				if (prob(20))
+					JOB_XP(last_touched, "Clown", 1)
 
 /obj/item/canned_laughter
 	name = "Canned laughter"
-	icon = 'icons/obj/can.dmi'
+	icon = 'icons/obj/foodNdrink/can.dmi'
 	icon_state = "cola-5"
 	desc = "All of the rewards of making a good joke with none of the effort! In a can!"
 	var/opened = 0
@@ -70,12 +67,18 @@ VUVUZELA
 		icon_state = "crushed-5"
 		playsound(user.loc, "sound/items/can_open.ogg", 50, 0)
 
-		SPAWN_DBG(5)
+		SPAWN_DBG(0.5 SECONDS)
 			// Wow your joke sucks
 			if(prob(5))
 				playsound(user.loc,"sound/misc/laughter/boo.ogg",50,0)
 			else
-				playsound(user.loc,"sound/misc/laughter/laughtrack[pick("1","2","3","4")].ogg",50,0)
+				playsound(user.loc,"sound/misc/laughter/laughtrack[rand(1, 5)].ogg",50,0)
+
+	crushed
+		name = "used up Canned laughter"
+		opened = 1
+		icon_state = "crushed-5"
+		desc = "Someone had a good laugh - that is for certain!"
 
 /obj/item/storage/box/box_o_laughs
 	name = "Box o' Laughs"

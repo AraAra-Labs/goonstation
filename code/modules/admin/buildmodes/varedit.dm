@@ -34,7 +34,7 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 		if (!newvn)
 			return
 
-		var/vartype = input("Choose variable type[ctrl ? " (CTRL)" : alt ? " (ALT)" : shift ? " (SHIFT)" : null]:","Variable Type[ctrl ? " (CTRL)" : alt ? " (ALT)" : shift ? " (SHIFT)" : null]") as null|anything in list("text", "num", "type", "reference", "mob reference", "turf by coordinates", "reference picker", "new instance of a type", "icon", "file", "color")
+		var/vartype = input("Choose variable type[ctrl ? " (CTRL)" : alt ? " (ALT)" : shift ? " (SHIFT)" : null]:","Variable Type[ctrl ? " (CTRL)" : alt ? " (ALT)" : shift ? " (SHIFT)" : null]") as null|anything in list("text", "num", "type", "reference", "mob reference", "turf by coordinates", "reference picker", "new instance of a type", "icon", "file", "color", "json", "ref")
 		is_refpicking = 0
 		var/newvalue = null
 		var/is_newinst = 0
@@ -63,6 +63,15 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 			if ("color")
 				newvalue = input("Pick color:","Color") as null|color
 
+			if ("json")
+				newvalue = json_decode(input("Enter json:") as text|null)
+
+			if ("ref")
+				var/inp = input("Enter ref:","Ref") as null|text
+				newvalue = locate(inp)
+				if(isnull(newvalue))
+					newvalue = locate("\[inp\]")
+
 			if ("turf by coordinates")
 				var/x = input("X coordinate", "Set to turf at \[_, ?, ?\]", 1) as num
 				var/y = input("Y coordinate", "Set to turf at \[[x], _, ?\]", 1) as num
@@ -71,19 +80,19 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 				if (istype(T))
 					newvalue = T
 				else
-					boutput(usr, "<span style='color:red'>Invalid coordinates!</span>")
+					boutput(usr, "<span class='alert'>Invalid coordinates!</span>")
 					return
 
 			if ("reference picker")
-				boutput(usr, "<span style='color:blue'>Click the mob, object or turf to use as a reference.</span>")
+				boutput(usr, "<span class='notice'>Click the mob, object or turf to use as a reference.</span>")
 				is_refpicking = 1
 
 			if ("new instance of a type")
-				boutput(usr, "<span style='color:blue'>Type part of the path of type of thing to instantiate.</span>")
+				boutput(usr, "<span class='notice'>Type part of the path of type of thing to instantiate.</span>")
 				var/typename = input("Part of type path.", "Part of type path.", "/obj") as null|text
 				if (typename)
 					var/basetype = /obj
-					if (holder.owner.holder.rank in list("Host", "Coder", "Shit Person"))
+					if (holder.owner.holder.rank in list("Host", "Coder", "Administrator"))
 						basetype = /datum
 					var/match = get_one_match(typename, basetype)
 					if (match)
@@ -112,7 +121,7 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 
 	click_left(atom/object, var/ctrl, var/alt, var/shift)
 		if (is_refpicking)
-			boutput(usr, "<span style=\"color:blue\">Reference grabbed from [object].</span>")
+			boutput(usr, "<span class='notice'>Reference grabbed from [object].</span>")
 			var/newvalue = object
 			if (ctrl)
 				varname_c = newvalue
@@ -152,10 +161,10 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 			else
 				object.vars[varn2use] = varv2use
 			object.onVarChanged(varn2use, ov, object.vars[varn2use])
-			boutput(usr, "<span style='color:blue'>Set [object].[varn2use] to [varv2use].</span>")
+			boutput(usr, "<span class='notice'>Set [object].[varn2use] to [varv2use].</span>")
 			blink(get_turf(object))
 		else
-			boutput(usr, "<span style='color:red'>[object] has no var named [varn2use].</span>")
+			boutput(usr, "<span class='alert'>[object] has no var named [varn2use].</span>")
 
 	click_right(atom/object, var/ctrl, var/alt, var/shift)
 		if (is_refpicking)
@@ -172,13 +181,13 @@ Hold down CTRL, ALT or SHIFT to modify, call or reset variable bound to those ke
 			varn2use = varname_n
 
 		if (!varn2use)
-			boutput(usr, "<span style='color:red'>No var name defined[ctrl ? " for CTRL" : alt ? " for ALT" : shift ? " for SHIFT" : null]!</span>")
+			boutput(usr, "<span class='alert'>No var name defined[ctrl ? " for CTRL" : alt ? " for ALT" : shift ? " for SHIFT" : null]!</span>")
 			return
 		if (varn2use in object.vars)
 			var/ov = object.vars[varn2use]
 			object.vars[varn2use] = initial(object.vars[varn2use])
 			object.onVarChanged(varn2use, ov, object.vars[varn2use])
-			boutput(usr, "<span style='color:blue'>Reset [object].[varn2use] to initial value ([object.vars[varn2use]]).</span>")
+			boutput(usr, "<span class='notice'>Reset [object].[varn2use] to initial value ([object.vars[varn2use]]).</span>")
 			blink(get_turf(object))
 		else
-			boutput(usr, "<span style='color:red'>[object] has no var named [varn2use].</span>")
+			boutput(usr, "<span class='alert'>[object] has no var named [varn2use].</span>")

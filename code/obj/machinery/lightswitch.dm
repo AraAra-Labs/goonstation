@@ -8,6 +8,8 @@
 	icon = 'icons/obj/power.dmi'
 	icon_state = "light1"
 	anchored = 1.0
+	plane = PLANE_NOSHADOW_ABOVE
+	text = ""
 	var/on = 1
 	var/area/area = null
 	var/otherarea = null
@@ -32,9 +34,8 @@
 		src.on = src.area.lightswitch
 		updateicon()
 
-		mechanics = new(src)
-		mechanics.master = src
-		mechanics.addInput("trigger", "trigger")
+		AddComponent(/datum/component/mechanics_holder)
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"trigger", "trigger")
 
 		if (on)
 			light.set_color(0.5, 1, 0.50)
@@ -53,7 +54,12 @@
 	if(status & NOPOWER)
 		icon_state = "light-p"
 		light.disable()
+		src.UpdateOverlays(null, "light")
 	else
+		var/mutable_appearance/light_ov = mutable_appearance(src.icon, "light-light")
+		light_ov.plane = PLANE_LIGHTING
+		light_ov.alpha = 70
+		src.UpdateOverlays(light_ov, "light")
 		if (icon_state == "light-p")
 			light.enable()
 		if(on)
@@ -63,11 +69,9 @@
 			icon_state = "light0"
 			light.set_color(1, 0.50, 0.50)
 
-/obj/machinery/light_switch/examine()
-	set src in oview(1)
-	set category = "Local"
-	if(usr && !usr.stat)
-		boutput(usr, "A light switch. It is [on? "on" : "off"].")
+/obj/machinery/light_switch/get_desc(dist, mob/user)
+	if(user && !user.stat)
+		return "A light switch. It is [on? "on" : "off"]."
 
 /obj/machinery/light_switch/attack_hand(mob/user)
 
@@ -79,12 +83,11 @@
 
 	interact_particle(user,src)
 
-	for(var/obj/machinery/light_switch/L in area)
+	for(var/obj/machinery/light_switch/L in area.machines)
 		L.on = on
 		L.updateicon()
-		LAGCHECK(LAG_MED)
 
-	if(mechanics) mechanics.fireOutgoing(mechanics.newSignal("[on ? "lightOn":"lightOff"]"))
+	SEND_SIGNAL(src,COMSIG_MECHCOMP_TRANSMIT_SIGNAL,"[on ? "lightOn":"lightOff"]")
 
 	playsound(get_turf(src), "sound/misc/lightswitch.ogg", 50, 1)
 

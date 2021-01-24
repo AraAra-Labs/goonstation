@@ -6,7 +6,7 @@
 Click on the secondary adventure button to begin your adventure journey!<br>
 ***********************************************************"}
 	icon_state = "buildadventure"
-	var/obj/screen/buildmode/buildadventure/adventure_mode
+	var/atom/movable/screen/buildmode/buildadventure/adventure_mode
 	var/datum/adventure_submode/submode
 	var/list/submodes = list()
 
@@ -21,17 +21,17 @@ Click on the secondary adventure button to begin your adventure journey!<br>
 
 	click_left(atom/object, var/ctrl, var/alt, var/shift)
 		if (!submode)
-			boutput(usr, "<span style=\"color:red\">Select an adventure mode first.</span>")
+			boutput(usr, "<span class='alert'>Select an adventure mode first.</span>")
 			return
 		submode.click_left(object, ctrl, alt, shift)
 	click_right(atom/object, var/ctrl, var/alt, var/shift)
 		if (!submode)
-			boutput(usr, "<span style=\"color:red\">Select an adventure mode first.</span>")
+			boutput(usr, "<span class='alert'>Select an adventure mode first.</span>")
 			return
 		submode.click_right(object, ctrl, alt, shift)
 	click_raw(var/atom/object, location, control, params)
 		if (!submode)
-			boutput(usr, "<span style=\"color:red\">Select an adventure mode first.</span>")
+			boutput(usr, "<span class='alert'>Select an adventure mode first.</span>")
 			return
 		submode.click_raw(object, location, control, params)
 
@@ -50,6 +50,7 @@ Click on the secondary adventure button to begin your adventure journey!<br>
 	var/datum/buildmode/adventure/adventure
 
 	New(H, A)
+		..()
 		holder = H
 		adventure = A
 
@@ -61,7 +62,7 @@ Click on the secondary adventure button to begin your adventure journey!<br>
 	proc/deselected()
 
 
-/obj/screen/buildmode/buildadventure
+/atom/movable/screen/buildmode/buildadventure
 	name = "Click to set adventure settings"
 	density = 1
 	anchored = 1

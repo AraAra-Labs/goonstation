@@ -25,16 +25,18 @@ var/global/runtime_count = 0
 	)
 
 	//Output formatted runtime to the usual error.log
+#ifndef RUNTIME_CHECKING
 	if (invalid)
 		world.log << "\[[timestamp]\] Invalid exception in error handler: [E]"
 	else
 		world.log << "\[[timestamp]\] [E.file],[E.line]: [E.name]"
 		if (E.desc)
 			world.log << "[E.desc]"
+#endif
 
 
 /client/proc/cmd_view_runtimes()
-	set category = "Debug"
+	SET_ADMIN_CAT(ADMIN_CAT_DEBUG)
 	set name = "View Runtimes"
 	set desc = "View a detailed list of the runtimes during this round"
 	set popup_menu = 0

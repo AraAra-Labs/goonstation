@@ -23,12 +23,12 @@
 			using = null
 
 		if(using && using != user)
-			boutput(user, "<span style=\"color:red\">Somebody is already using that machine.</span>")
+			boutput(user, "<span class='alert'>Somebody is already using that machine.</span>")
 			return
 
 		using = user
 
-		user.machine = src
+		src.add_dialog(user)
 		add_fingerprint(user)
 		user.Browse(grabResource("html/quantumTelescope.html"), "window=telescope;size=800x435;can_resize=0;can_minimize=0;can_close=1;override_setting=1")
 
@@ -57,7 +57,7 @@
 						newHtml += {"<script>$(function(){$( "#event[E.id]" ).click(function() {if(window.scanRunning){return;} callByond("trackId", \["id=[E.id]"\]);});});</script>"}
 			if("Starmap")
 				var/foundlocs = ""
-				if(tele_man && tele_man.events_found.len)
+				if(length(tele_man?.events_found))
 					for(var/A in tele_man.events_found)
 						var/datum/telescope_event/E = tele_man.events_found[A] //Clicking on the icons doesnt work.
 						foundlocs += {"<div id="iconclick[E.id]" style="z-index:4;border: [A == tracking_id ? "2px":"0px"] solid;border-color: #ffffff;width:32px;height:32px;position: absolute;left:[E.loc_x-16]px;top:[E.loc_y-16]px;padding:0px;margin:0px;"><img src="[resource("images/radioTelescope/[E.icon]")]" style="padding:0px;margin:0px;border:0px;"></div>"}

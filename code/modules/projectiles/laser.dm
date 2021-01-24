@@ -9,7 +9,7 @@
 //How much of a punch this has, tends to be seconds/damage before any resist
 	power = 45
 //How much ammo this costs
-	cost = 25
+	cost = 31.25
 //How fast the power goes away
 	dissipation_rate = 5
 //How many tiles till it starts to lose power
@@ -60,7 +60,7 @@ toxic - poisons
 	name = "4 lasers"
 	icon_state = "laser"
 	power = 240
-	cost = 100
+	cost = 125
 	dissipation_rate = 250
 	dissipation_delay = 0
 
@@ -102,7 +102,7 @@ toxic - poisons
 	power = 75
 	cost = 65
 	dissipation_delay = 5
-	dissipation_rate = 10
+	dissipation_rate = 5
 	sname = "assault laser"
 	shot_sound = 'sound/weapons/Laser.ogg'
 	color_red = 0
@@ -255,6 +255,7 @@ toxic - poisons
 	color_green = 0
 	color_blue = 1
 	icon_turf_hit = "burn2"
+	projectile_speed = 32
 
 /datum/projectile/laser/precursor // for precursor traps
 	name = "energy bolt"
@@ -285,7 +286,7 @@ toxic - poisons
 // These are for custom antique laser guns repaired with high-quality components.
 // See displaycase.dm for details (Convair880).
 /datum/projectile/laser/old
-	icon = 'icons/obj/gun.dmi'
+	icon = 'icons/obj/items/gun.dmi'
 	icon_state = "proj_thermal"
 	name = "pulse laser"
 	sname = "pulse laser"
@@ -299,7 +300,7 @@ toxic - poisons
 	color_blue = 0
 
 /datum/projectile/laser/old_burst
-	icon = 'icons/obj/gun.dmi'
+	icon = 'icons/obj/items/gun.dmi'
 	icon_state = "proj_sing"
 	name = "burst laser"
 	sname = "burst laser"
@@ -466,45 +467,42 @@ toxic - poisons
 		else
 			L.changeStatus("burning", 35)
 
-
-
-
-/datum/projectile/laser/wasp
-	icon = 'icons/obj/foodNdrink/food_ingredient.dmi'
-	icon_state = "critter_egg"
-	name = "space wasp egg"
-	brightness = 0
-	sname = "space wasp egg"
-	shot_sound = null
-	shot_number = 1
-	silentshot = 1 //any noise will be handled by the egg splattering anyway
-	hit_ground_chance = 0
-	damage_type = D_KINETIC
+/datum/projectile/laser/signifer_lethal
+	name = "signifer bolt"
+	icon = 'icons/obj/projectiles.dmi'
 	power = 15
-	dissipation_delay = 30
-	dissipation_rate = 1
-	ks_ratio = 1.0
-	cost = 10
-	window_pass = 0
-	var/egged = 0 //have we made an egg splat yet?
+	cost = 25
+	sname = "lethal"
+	shot_sound = 'sound/weapons/SigLethal.ogg'
+	hit_ground_chance = 30
+	brightness = 1
+	icon_state = "signifer2_burn"
+	damage_type = D_ENERGY
+	color_red = 0.1
+	color_green = 0.1
+	color_blue = 0.8
 
-	proc/throw_egg(var/turf/T)
-		if (T && egged == 0)
-			var/obj/item/reagent_containers/food/snacks/ingredient/egg/critter/wasp/angry/W = new(T)
-			W.throw_impact(T)
-			egged = 1
+	disruption = 8
 
-	on_hit(atom/hit)
-		var/turf/T = get_turf(hit)
-		if (T)
-			throw_egg(T)
-
-	on_end(obj/projectile/O)
-		if (O && egged == 0)
-			var/turf/T = get_turf(O)
-			if (T)
-				throw_egg(T)
-		else if (O)
-			egged = 0
+	shot_number = 2
+	ie_type = "E"
+	hit_mob_sound = 'sound/effects/sparks6.ogg'
 
 
+	on_hit(atom/hit, angle, var/obj/projectile/O)
+		hit.setStatus("signified")
+		..()
+
+	brute
+		icon_state = "signifer2_brute"
+		damage_type = D_KINETIC
+		color_red = 0.8
+		color_green = 0.1
+		color_blue = 0.1
+
+		on_hit(var/atom/hit)
+			if(hit.hasStatus("signified"))
+				elecflash(get_turf(hit),radius=0, power=4, exclude_center = 0)
+				random_brute_damage(hit, rand(5,10), 0)
+				hit.delStatus("signified")
+			..()

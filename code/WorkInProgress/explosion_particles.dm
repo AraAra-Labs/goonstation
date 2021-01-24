@@ -8,12 +8,8 @@
 
 /obj/effects/expl_particles/New()
 	..()
-	SPAWN_DBG (10)
+	SPAWN_DBG(1 SECOND)
 		dispose()
-	return
-
-/obj/effects/expl_particles/Move()
-	..()
 	return
 
 /datum/effects/system/expl_particles
@@ -33,7 +29,7 @@
 			var/obj/effects/expl_particles/expl = new /obj/effects/expl_particles(src.location)
 			var/direct = pick(alldirs)
 			for(i=0, i<pick(1;25,2;55,3,4;200), i++)
-				sleep(1)
+				sleep(0.1 SECONDS)
 				step(expl,direct)
 
 /obj/effects/explosion
@@ -62,7 +58,7 @@
 
 /obj/effects/explosion/New()
 	..()
-	SPAWN_DBG (30)
+	SPAWN_DBG(3 SECONDS)
 		dispose()
 	return
 

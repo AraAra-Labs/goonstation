@@ -78,8 +78,8 @@
 /// cogwerks - adding some new bottles for traitor medics
 // haine - I added beedril/royal beedril to these, and my heart-related disease reagents. yolo (remove these if they're a dumb idea, idk)
 /obj/item/reagent_containers/glass/bottle/poison
-	name = "poison bottle"
-	desc = "There is a little skull and crossbones on the label. Yikes."
+	name = "chemical bottle"
+	desc = "A reagent storage bottle. The label seems to have been torn off."
 	initial_volume = 40
 	amount_per_transfer_from_this = 5
 
@@ -93,11 +93,12 @@
 /obj/item/reagent_containers/glass/bottle/syringe_canister
 	name = "poison canister"
 	desc = "A large fluid-filled canister designed to fill a syringe gun."
+	icon_state = "syringe_canister"
 	initial_volume = 90
-	
-	curare 
+
+	curare
 		initial_reagents = "curare"
-	
+
 	neurotoxin
 		initial_reagents = "neurotoxin"
 
@@ -152,6 +153,13 @@
 	amount_per_transfer_from_this = 5
 	initial_reagents = "sulfonal"
 
+/obj/item/reagent_containers/glass/bottle/synaptizine
+	name = "synaptizine bottle"
+	desc = "A small bottle."
+	bottle_style = "3"
+	amount_per_transfer_from_this = 5
+	initial_reagents = "synaptizine"
+
 /obj/item/reagent_containers/glass/bottle/pancuronium
 	name = "pancuronium bottle"
 	desc = "A small bottle."
@@ -181,7 +189,7 @@
 	initial_reagents = "oculine"
 
 /obj/item/reagent_containers/glass/bottle/antirad
-	name = "potassium iodine bottle"
+	name = "potassium iodide bottle"
 	desc = "A small bottle of potassium iodide."
 	bottle_style = "3"
 	amount_per_transfer_from_this = 5
@@ -215,6 +223,14 @@
 	initial_volume = 50
 	amount_per_transfer_from_this = 5
 	initial_reagents = "ethanol"
+
+/obj/item/reagent_containers/glass/bottle/mercury
+	name = "mercury bottle"
+	desc = "A small bottle with a 'Do Not Drink' label on it."
+	bottle_style = "1"
+	initial_volume = 50
+	amount_per_transfer_from_this = 5
+	initial_reagents = "mercury"
 
 /* ========================================================= */
 /* -------------------- Chem Precursors -------------------- */
@@ -315,7 +331,7 @@
 /obj/item/reagent_containers/glass/bottle/bubblebath
 	name = "Cap'n Bubs(TM) Extra-Manly Bubble Bath"
 	desc = "Industrial strength bubblebath with a fat and sassy mascot on the bottle. Neat."
-	icon = 'icons/obj/drink.dmi'
+	icon = 'icons/obj/foodNdrink/drinks.dmi'
 	icon_state = "moonshine"
 	initial_volume = 50
 	initial_reagents = list("fluorosurfactant"=30,"pepperoni"=10,"bourbon"=10)
@@ -325,7 +341,7 @@
 /obj/item/reagent_containers/glass/bottle/icing
 	name = "icing tube"
 	desc = "Used to put icing on cakes."
-	icon = 'icons/obj/food.dmi'
+	icon = 'icons/obj/foodNdrink/food.dmi'
 	icon_state = "icing_tube"
 	initial_volume = 50
 	amount_per_transfer_from_this = 5

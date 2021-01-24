@@ -23,14 +23,15 @@
 	initial_volume = 25
 	initial_reagents = "yuck"
 
-/obj/item/reagent_containers/food/snacks/fry_holder
-	name = "physical manifestation of the very concept of fried foods"
-	desc = "Oh, the power of the deep fryer."
+/obj/item/reagent_containers/food/snacks/shell
+	name = "incinerated embodiment of culinary disaster"
+	desc = "Oh, the might of cooking."
 	heal_amt = 10
 	icon = 'icons/obj/foodNdrink/food_yuck.dmi'
 	icon_state = "fried"
 	food_effects = list("food_warm")
 	use_bite_mask = 0
+	var/charcoaliness = 0 // how long it cooked - can be used to quickly check grill level
 
 	on_finish(mob/eater)
 		..()
@@ -47,29 +48,17 @@
 				I.dispose()
 		..()
 
-/obj/item/reagent_containers/food/snacks/grill_holder
+/obj/item/reagent_containers/food/snacks/shell/deepfry
+	name = "physical manifestation of the very concept of fried foods"
+	desc = "Oh, the power of the deep fryer."
+	icon = 'icons/obj/foodNdrink/food_yuck.dmi'
+	icon_state = "fried"
+
+/obj/item/reagent_containers/food/snacks/shell/grill
 	name = "the charcoal singed essence of grilling itself"
 	desc = "Oh, the magic of a hot grill."
-	heal_amt = 10
-	icon = 'icons/obj/food.dmi'
+	icon = 'icons/obj/foodNdrink/food.dmi'
 	icon_state = "fried" // fix this
-	food_effects = list("food_warm")
-	use_bite_mask = 0
-
-	on_finish(mob/eater)
-		..()
-		if(iscarbon(eater))
-			var/mob/living/carbon/C = eater
-			for(var/atom/movable/MO as mob|obj in src)
-				MO.set_loc(C)
-				C.stomach_contents += MO
-
-	disposing()
-		for (var/mob/M in src)
-			M.ghostize()
-			for (var/obj/item/I in M)
-				I.dispose()
-		..()
 
 /obj/item/reagent_containers/food/snacks/pizza
 	name = "pizza"
@@ -102,9 +91,9 @@
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istool(W, TOOL_CUTTING | TOOL_SAWING))
 			if (src.sliced == 1)
-				boutput(user, "<span style=\"color:red\">This has already been sliced.</span>")
+				boutput(user, "<span class='alert'>This has already been sliced.</span>")
 				return
-			boutput(user, "<span style=\"color:blue\">You cut the pizza into slices.</span>")
+			boutput(user, "<span class='notice'>You cut the pizza into slices.</span>")
 			if (src.name == "cheese keyzza")
 				boutput(user, "<i>You feel as though something of value has been lost...</i>")
 			var/makeslices = src.amount
@@ -132,11 +121,11 @@
 	attack(mob/M as mob, mob/user as mob, def_zone)
 		if (!src.sliced)
 			if (user == M)
-				boutput(user, "<span style=\"color:red\">You can't just cram that in your mouth, you greedy beast!</span>")
+				boutput(user, "<span class='alert'>You can't just cram that in your mouth, you greedy beast!</span>")
 				user.visible_message("<b>[user]</b> stares at [src] in a confused manner.")
 				return
 			else
-				user.visible_message("<span style=\"color:red\"><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
+				user.visible_message("<span class='alert'><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
 				return
 		else
 			..()
@@ -147,7 +136,7 @@
 			I = new /icon('icons/obj/foodNdrink/food_meals.dmi',"pizza_topping_1")
 			I.Blend(topping_color, ICON_ADD)
 			src.overlays += I
-		else if (num == 0 & sliced == 1) // Bad, I know, sorry!
+		else if (num == 0 && sliced == 1) // Bad, I know, sorry!
 			I = new /icon('icons/obj/foodNdrink/food_meals.dmi',"pizza_topping_s1")
 			I.Blend(topping_color, ICON_ADD)
 			src.overlays += I
@@ -205,7 +194,7 @@
 	name = "sugar cookie"
 	desc = "Outside of North America, the Earth's Moon, and certain regions of Europa, these are referred to as biscuits."
 	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "cookie_sugar"
+	icon_state = "cookie-sugar"
 	amount = 1
 	heal_amt = 1
 	var/frosted = 0
@@ -374,6 +363,7 @@
 	w_class = 2
 	initial_volume = 100
 	food_effects = list("food_warm")
+	dropped_item = /obj/item/reagent_containers/food/drinks/bowl
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/tortilla_chip))
@@ -485,7 +475,7 @@
 	food_effects = list("food_sweaty")
 
 	heal(var/mob/M)
-		if (prob(15)) boutput(M, "<span style=\"color:red\">You feel depressed.</span>")
+		if (prob(15)) boutput(M, "<span class='alert'>You feel depressed.</span>")
 
 /obj/item/reagent_containers/food/snacks/soup/porridge
 	name = "porridge"
@@ -520,7 +510,7 @@
 
 		heal(var/mob/M)
 			var/dinosaur = pick("Ohmdenosaurus","Velafrons","Saurophaganax","Bissektipelta","Aardonyx","Tsintaosaurus","Barapasaurus","Rahonavis")
-			boutput(M, "<span style=\"color:blue\">You found a marshmallow [dinosaur] in this bite!</span>")
+			boutput(M, "<span class='notice'>You found a marshmallow [dinosaur] in this bite!</span>")
 			..()
 
 /obj/item/reagent_containers/food/snacks/soup/creamofmushroom
@@ -582,7 +572,7 @@
 		if (user == M)
 			user.visible_message("<b>[user]</b> pours [src] directly into their mouth!", "You eat straight from the box!")
 		else
-			user.visible_message("<span style=\"color:red\"><b>[user]</b> pours [src] into [M]'s mouth!</span>")
+			user.visible_message("<span class='alert'><b>[user]</b> pours [src] into [M]'s mouth!</span>")
 
 		//Hello, here is a dumb hack to get around "you take a bite of cerealbox-'Pope Crunch'!"
 		// apparently there was a runtime error here, i'm guessing someone edited a cereal box's name?
@@ -655,7 +645,7 @@
 	heal(var/mob/M)
 		M.reagents.add_reagent("sugar",15)
 		if(src.dry)
-			boutput(M, "<span style=\"color:red\">It cuts the roof of your mouth! WHY DID YOU TRY EATING THIS DRY?!</span>")
+			boutput(M, "<span class='alert'>It cuts the roof of your mouth! WHY DID YOU TRY EATING THIS DRY?!</span>")
 			random_brute_damage(M, 3)
 			take_bleeding_damage(M, null, 0, DAMAGE_STAB, 0)
 			bleed(M, 3, 1)
@@ -664,13 +654,12 @@
 		if(src.hasPrize && ishuman(M))
 			var/mob/living/carbon/human/H = M
 			var/obj/item/affecting = H.organs["head"]
-			boutput(H, "<span style=\"color:red\">You slash your mouth and tongue open on a piece of jagged rusty metal! Looks like you found the prize inside!</span>")
+			boutput(H, "<span class='alert'>You slash your mouth and tongue open on a piece of jagged rusty metal! Looks like you found the prize inside!</span>")
 			H.changeStatus("weakened", 3 SECONDS)
 			affecting.take_damage(10, 0)
 			take_bleeding_damage(H, null, 0, DAMAGE_STAB, 0)
 			bleed(H, rand(10,30), rand(1,3))
 			H.UpdateDamageIcon()
-			H.updatehealth()
 			src.hasPrize = 0
 			new /obj/item/razor_blade( get_turf(src) )
 		..()
@@ -714,7 +703,7 @@
 		if(src.warm && M.reagents)
 			M.reagents.add_reagent("omnizine",15)
 		else
-			boutput(M, "<span style=\"color:red\">It's just not good enough cold..</span>")
+			boutput(M, "<span class='alert'>It's just not good enough cold..</span>")
 		..()
 
 	temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
@@ -762,7 +751,7 @@
 		if(src.warm && M.reagents)
 			M.reagents.add_reagent("honk_fart",15)
 		else
-			boutput(M, "<span style=\"color:red\">It's just not good enough cold...</span>")
+			boutput(M, "<span class='alert'>It's just not good enough cold...</span>")
 			M.reagents.add_reagent("simethicone",15)
 		..()
 
@@ -821,32 +810,31 @@
 	food_effects = list("food_bad_breath")
 
 	attack(mob/M as mob, mob/user as mob, def_zone)
-		if (src.icon_state == "sursd")
+		if (src.icon_state == "surs")
 			if (user == M)
-				boutput(user, "<span style=\"color:red\">You need to take the lid off first, you greedy beast!</span>")
+				boutput(user, "<span class='alert'>You need to take the lid off first, you greedy beast!</span>")
 				user.visible_message("<b>[user]</b> stares at [src] in a confused manner.")
 				return
 			else
-				user.visible_message("<span style=\"color:red\"><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
+				user.visible_message("<span class='alert'><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
 				return
 		else
 			..()
 
 	New()
 		..()
-		if (!(src in processing_items))
-			processing_items.Add(src)
+		processing_items |= src
 
 	process()
 		if (prob(30) && src.icon_state == "surs-open")
 			for(var/mob/living/carbon/H in viewers(src, null))
 				if (H.bioHolder.HasEffect("accent_swedish"))
 					return
-				boutput(H, "<span style=\"color:red\">[stinkString()]</span>")
+				boutput(H, "<span class='alert'>[stinkString()]</span>")
 				if(prob(30))
 					H.changeStatus("stunned", 2 SECONDS)
-					boutput(H, "<span style=\"color:red\">[stinkString()]</span>")
-					H.visible_message("<span style=\"color:red\">[H] vomits, unable to handle the fishy stank!</span>")
+					boutput(H, "<span class='alert'>[stinkString()]</span>")
+					H.visible_message("<span class='alert'>[H] vomits, unable to handle the fishy stank!</span>")
 					H.vomit()
 
 	disposing()
@@ -856,36 +844,36 @@
 
 	heal(var/mob/M)
 		if (M.bioHolder.HasEffect("accent_swedish"))
-			boutput(M, "<span style=\"color:blue\">It tastes just like the old country!</span>")
+			boutput(M, "<span class='notice'>It tastes just like the old country!</span>")
 			M.reagents.add_reagent("love", 5)
 			..()
 		else
 			var/effect = rand(1,21)
 			switch(effect)
 				if(1 to 5)
-					boutput(M, "<span style=\"color:red\">aaaaaAAAAA<b>AAAAAAAA</b></span>")
-					M.visible_message("<span style=\"color:red\">[M] suddenly and violently vomits!</span>")
+					boutput(M, "<span class='alert'>aaaaaAAAAA<b>AAAAAAAA</b></span>")
+					M.visible_message("<span class='alert'>[M] suddenly and violently vomits!</span>")
 					M.vomit()
 					M.changeStatus("weakened", 4 SECONDS)
 				if(6 to 10)
-					boutput(M, "<span style=\"color:red\">A squirt of some foul-smelling juice gets in your sinuses!!!</span>")
+					boutput(M, "<span class='alert'>A squirt of some foul-smelling juice gets in your sinuses!!!</span>")
 					M.emote("scream")
 					M.emote("sneeze")
 					M.changeStatus("weakened", 4 SECONDS)
 					SPAWN_DBG(0)
 						while(prob(75))
 							sleep(rand(50,75))
-							boutput(M, "<span style=\"color:red\">Some of the horrible juice in your nose drips into the back of your throat!!</span>")
+							boutput(M, "<span class='alert'>Some of the horrible juice in your nose drips into the back of your throat!!</span>")
 							M.emote("sneeze")
 							M.vomit()
 							M.changeStatus("stunned", 2 SECONDS)
 				if(11 to 15)
-					boutput(M, "<span style=\"color:blue\">Huh. That wasn't so bad. <span style=\"color:red\">WAIT NEVERMIND THERE'S THE AFTERTASTE</span></span>")
+					boutput(M, "<span class='notice'>Huh. That wasn't so bad. <span class='alert'>WAIT NEVERMIND THERE'S THE AFTERTASTE</span></span>")
 					M.emote ("cry")
 					M.changeStatus("weakened", 4 SECONDS)
 				if(16 to 20)
-					boutput(M, "<span style=\"color:red\">AGHBGLBLGHLGBGLHGHBLGH</span>")
-					M.visible_message("<span style=\"color:red\">[M] pukes their guts out!</span>")
+					boutput(M, "<span class='alert'>AGHBGLBLGHLGBGLHGHBLGH</span>")
+					M.visible_message("<span class='alert'>[M] pukes their guts out!</span>")
 					playsound(M.loc, "sound/impact_sounds/Slimy_Splat_1.ogg", 50, 1)
 					M.changeStatus("weakened", 4 SECONDS)
 					if (ishuman(M))
@@ -900,55 +888,54 @@
 						if (prob(5) && H.organHolder && H.organHolder.heart)
 							H.organHolder.drop_organ("heart")
 
-							H.visible_message("<span style=\"color:red\"><b>Wait, is that their heart!?</b></span>")
+							H.visible_message("<span class='alert'><b>Wait, is that their heart!?</b></span>")
 				if(21)
 					if (!M.bioHolder.HasEffect("stinky"))
-						boutput(M, "<span style=\"color:red\">Oh God, the stink is <b>inside</b> you now!</span>")
+						boutput(M, "<span class='alert'>Oh God, the stink is <b>inside</b> you now!</span>")
 						M.bioHolder.AddEffect("stinky")
 						M.changeStatus("stunned", 2 SECONDS)
 						return
 					else
-						boutput(M, "<span style=\"color:red\">The stink of the surströmming combines with your inherent body funk to create a stench of BIBLICAL PROPORTIONS!</span>")
+						boutput(M, "<span class='alert'>The stink of the surströmming combines with your inherent body funk to create a stench of BIBLICAL PROPORTIONS!</span>")
 						M.name_suffix("the Stinky")
 						M.UpdateName()
 		..()
 
 
-	examine()
-		..()
-		if (usr.bioHolder.HasEffect("accent_swedish"))
-			if (src.icon_state == "surs_closed")
-				boutput(usr, "Oooh, a can of surströmming! It's been a while since you've seen one of these. It looks like it's ready to eat.")
+	examine(mob/user)
+		. = ..()
+		if (user.bioHolder.HasEffect("accent_swedish"))
+			if (src.icon_state == "surs")
+				. += "Oooh, a can of surströmming! It's been a while since you've seen one of these. It looks like it's ready to eat."
 			else
-				boutput(usr, "Oooh, a can of surströmming! It's been a while since you've seen one of these. It smells heavenly!")
+				. += "Oooh, a can of surströmming! It's been a while since you've seen one of these. It smells heavenly!"
 			return
 		else
-			if (src.icon_state == "surs_closed")
-				boutput(usr, "The fuck is this? The label's written in some sort of gibberish, and you're pretty sure cans aren't supposed to bulge like that.")
+			if (src.icon_state == "surs")
+				. += "The fuck is this? The label's written in some sort of gibberish, and you're pretty sure cans aren't supposed to bulge like that."
 			else
-				boutput(usr, "<b>AAAAAAAAAAAAAAAAUGH AAAAAAAAAAAUGH IT SMELLS LIKE FERMENTED SKUNK EGG BUTTS MAKE IT STOP</b>")
-			return
+				. += "<b>AAAAAAAAAAAAAAAAUGH AAAAAAAAAAAUGH IT SMELLS LIKE FERMENTED SKUNK EGG BUTTS MAKE IT STOP</b>"
 
 	attack_self(var/mob/user as mob)
-		if (src.icon_state == "surs_closed")
-			boutput(user, "<span style=\"color:blue\">You pop the lid off the [src].</span>")
+		if (src.icon_state == "surs")
+			boutput(user, "<span class='notice'>You pop the lid off the [src].</span>")
 			src.icon_state = "surs-open" //todo: get real sprite
 			for(var/mob/living/carbon/M in viewers(user, null))
 				if (M == user)
 					if (user.bioHolder.HasEffect("accent_swedish"))
-						boutput(user, "<span style=\"color:blue\">Ahhh, that smells wonderful!</span>")
+						boutput(user, "<span class='notice'>Ahhh, that smells wonderful!</span>")
 					else
-						boutput(user, "<span style=\"color:red\"><font size=4><B>HOLY FUCK THAT REEKS!!!!!</b></font></span>")
-						user.changeStatus("weakened", 80)
-						user.visible_message("<span style=\"color:red\">[user] suddenly and violently vomits!</span>")
+						boutput(user, "<span class='alert'><font size=4><B>HOLY FUCK THAT REEKS!!!!!</b></font></span>")
+						user.changeStatus("weakened", 8 SECONDS)
+						user.visible_message("<span class='alert'>[user] suddenly and violently vomits!</span>")
 						user.vomit()
 				else
 					if(M.bioHolder.HasEffect("accent_swedish"))
-						boutput(M, "<span style=\"color:blue\">Hey, something smells good!</span>")
+						boutput(M, "<span class='notice'>Hey, something smells good!</span>")
 					else
-						boutput(M, "<span style=\"color:red\"><font size=4><B>WHAT THE FUCK IS THAT SMELL!?</b></font></span>")
+						boutput(M, "<span class='alert'><font size=4><B>WHAT THE FUCK IS THAT SMELL!?</b></font></span>")
 						M.changeStatus("weakened", 4 SECONDS)
-						M.visible_message("<span style=\"color:red\">[M] suddenly and violently vomits!</span>")
+						M.visible_message("<span class='alert'>[M] suddenly and violently vomits!</span>")
 						M.vomit()
 
 /obj/item/reagent_containers/food/snacks/chips
@@ -981,16 +968,16 @@
 
 
 	New()
-		..()
+		. = ..()
 		name = "[random_spaghetti_name()] noodles"
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if(istype(W,/obj/item/reagent_containers/food/snacks/condiment/ketchup) && icon_state == "spag_plain" )// don't forget, other shit inherits this too!
-			boutput(user, "<span style=\"color:blue\">You create [random_spaghetti_name()] with tomato sauce...</span>")
+			boutput(user, "<span class='notice'>You create [random_spaghetti_name()] with tomato sauce...</span>")
 			var/obj/item/reagent_containers/food/snacks/spaghetti/sauce/D
 			if (user.mob_flags & IS_BONER)
 				D = new/obj/item/reagent_containers/food/snacks/spaghetti/sauce/skeletal(W.loc)
-				boutput(user, "<span style=\"color:red\">... whoa, that felt good. Like really good.</span>")
+				boutput(user, "<span class='alert'>... whoa, that felt good. Like really good.</span>")
 				user.reagents.add_reagent("bonerjuice",20)
 			else
 				D = new/obj/item/reagent_containers/food/snacks/spaghetti/sauce(W.loc)
@@ -998,11 +985,27 @@
 			user.put_in_hand_or_drop(D)
 			qdel(W)
 			qdel(src)
-		else return ..()
+
+		// Muppet show EP 111
+		if (istype(W, /obj/item/kitchen/utensil/spoon))
+			if (ishuman(user))
+				var/mob/living/carbon/human/H = user
+				if (H.a_intent == INTENT_HARM && (H.job == "Chef" || H.job == "Sous-Chef") && H.bioHolder?.HasEffect("accent_swedish"))
+					src.visible_message("<span class='alert'><b>[H] hits the [src] with [W]!<b></span>")
+					src.visible_message("<span class='alert'>The [src] barks at [H]!</span>")
+					playsound(get_turf(src), "sound/voice/animal/dogbark.ogg", 40, 1)
+					SPAWN_DBG(0.75 SECONDS)
+						if (src && H)
+							src.visible_message("<span class='alert'>The [src] takes a bite out of [H]!</span>")
+							random_brute_damage(H, 10)
+
+		else
+			return ..()
 
 	heal(var/mob/M) // ditto goddammit - arrabiata is not fuckin bland you dorks
-		if (icon_state == "spag_plain") boutput(M, "<span style=\"color:red\">This is really bland.</span>")
-		..()
+		if (icon_state == "spag_plain")
+			boutput(M, "<span class='alert'>This is really bland.</span>")
+		. = ..()
 
 /obj/item/reagent_containers/food/snacks/spaghetti/sauce/skeletal
 	name = "boneless spaghetti"
@@ -1016,7 +1019,7 @@
 	initial_reagents = list("milk"=50)
 
 	New()
-		..()
+		. = ..()
 		name = "boneless [random_spaghetti_name()]"
 
 	process()
@@ -1033,12 +1036,12 @@
 	food_effects = list("food_energized","food_brute","food_burn")
 
 	New()
-		..()
+		. = ..()
 		name = "[random_spaghetti_name()] with tomato sauce"
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if(istype(W,/obj/item/reagent_containers/food/snacks/condiment/hotsauce))
-			boutput(user, "<span style=\"color:blue\">You create [random_spaghetti_name()] arrabbiata!</span>")
+			boutput(user, "<span class='notice'>You create [random_spaghetti_name()] arrabbiata!</span>")
 			var/obj/item/reagent_containers/food/snacks/spaghetti/spicy/D = new/obj/item/reagent_containers/food/snacks/spaghetti/spicy(W.loc)
 			user.u_equip(W)
 			user.put_in_hand_or_drop(D)
@@ -1046,7 +1049,7 @@
 			qdel(src)
 		else if(istype(W,/obj/item/reagent_containers/food/snacks/pizza))
 			var/obj/item/reagent_containers/food/snacks/pizza/P = W
-			boutput(user, "<span style=\"color:blue\">You create pizza-ghetti!</span>")
+			boutput(user, "<span class='notice'>You create pizza-ghetti!</span>")
 			var/obj/item/reagent_containers/food/snacks/spaghetti/spicy/D = new/obj/item/reagent_containers/food/snacks/spaghetti/pizzaghetti(W.loc)
 			D.food_effects += P.food_effects
 			D.food_effects += src.food_effects
@@ -1068,7 +1071,7 @@
 	food_effects = list("food_energized","food_brute","food_burn")
 
 	New()
-		..()
+		. = ..()
 		name = "[random_spaghetti_name()] arrabbiata"
 
 /obj/item/reagent_containers/food/snacks/spaghetti/meatball
@@ -1083,7 +1086,7 @@
 	food_effects = list("food_energized","food_hp_up","food_brute","food_burn")
 
 	New()
-		..()
+		. = ..()
 		name = "[random_spaghetti_name()] and meatballs"
 
 /obj/item/reagent_containers/food/snacks/spaghetti/pizzaghetti
@@ -1098,12 +1101,12 @@
 	food_effects = list("food_sweaty")
 
 	New()
-		..()
+		. = ..()
 		name = "pizza-ghetti"
 
 	heal(var/mob/M)
-		boutput(M, "<span style=\"color:red\">Tastes like pizza and spaghetti, but way less convenient.</span>")
-		..()
+		boutput(M, "<span class='alert'>Tastes like pizza and spaghetti, but way less convenient.</span>")
+		. = ..()
 
 /obj/item/reagent_containers/food/snacks/donut
 	name = "donut"
@@ -1120,6 +1123,8 @@
 			src.heal_amt *= 2
 			..()
 			src.heal_amt /= 2
+		else
+			..()
 
 	frosted
 		name = "frosted donut"
@@ -1131,6 +1136,14 @@
 		desc = "One of Delectable Dan's seasonal bestsellers."
 		icon_state = "donut3"
 		heal_amt = 3
+
+	robust
+		name = "robust donut"
+		desc = "It's like an energy bar, but in donut form! Contains some chemicals known for partial stun time reduction and boosted stamina regeneration."
+		icon_state = "donut4"
+		amount = 6
+		initial_volume = 36
+		initial_reagents = list("sugar"=12,"synaptizine"=12,"epinephrine"=12)
 
 	random
 		New()
@@ -1146,9 +1159,8 @@
 			user.suiciding = 0
 			return 0
 		user.u_equip(src)
-		user.visible_message("<span style=\"color:red\"><b>[user] accidentally inhales part of a [src], blocking their windpipe!</b></span>")
+		user.visible_message("<span class='alert'><b>[user] accidentally inhales part of a [src], blocking their windpipe!</b></span>")
 		user.take_oxygen_deprivation(123)
-		user.updatehealth()
 		SPAWN_DBG(50 SECONDS)
 			if (user && !isdead(user))
 				user.suiciding = 0
@@ -1213,176 +1225,6 @@
 
 // Foods
 
-/obj/item/reagent_containers/food/snacks/candy
-	name = "candy"
-	desc = "Man, that shit looks good. I bet it's got nougat. Fuck."
-	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "candy"
-	heal_amt = 1
-	real_name = "candy"
-	var/sugar_content = 50
-	var/razor_blade = 0 //Is this BOOBYTRAPPED CANDY?
-	festivity = 1
-
-	New()
-		..()
-		reagents.add_reagent("sugar", sugar_content)
-		return
-
-	attackby(obj/item/W as obj, mob/user as mob)
-		if(istype(W, /obj/item/razor_blade))
-			boutput(user, "You add the razor blade to [src]")
-			qdel(W)
-			src.razor_blade = 1
-			return
-
-		else
-			..()
-		return
-
-	heal(var/mob/M)
-		if(src.razor_blade && ishuman(M))
-			var/mob/living/carbon/human/H = M
-			var/obj/item/affecting = H.organs["head"]
-			boutput(H, "<span style=\"color:red\">You bite down into a razor blade!</span>")
-			H.changeStatus("weakened", 3 SECONDS)
-			affecting.take_damage(10, 0)
-			H.UpdateDamageIcon()
-			H.updatehealth()
-			src.razor_blade = 0
-			new /obj/item/razor_blade( get_turf(src) )
-		..()
-
-/obj/item/reagent_containers/food/snacks/candy/nougat
-	name = "nougat bar"
-	desc = "Whoa, that totally has nougat. Heck yes."
-	real_name = "nougat"
-	icon_state = "nougat0"
-
-	heal(var/mob/M)
-		..()
-		if (icon_state == "nougat0")
-			icon_state = "nougat1"
-
-/obj/item/reagent_containers/food/snacks/candy/caramel
-	name = "Goatze's Caramel Cremes"
-	desc = "You know you've thought of this when reading the name.  Shame on you."
-	real_name = "caramel"
-	icon_state = "caramel"
-	food_effects = list("food_energized")
-
-/obj/item/reagent_containers/food/snacks/candy/candy_cane
-	name = "candy cane"
-	desc = "Holiday treat and aid to limping gingerbread men everywhere."
-	real_name = "candy cane"
-	icon = 'icons/misc/xmas.dmi'
-	icon_state = "candycane"
-	sugar_content = 20
-	food_effects = list("food_energized")
-
-//Special HALLOWEEN snacks
-//Apple + stick creation
-
-//Candied apples!
-/obj/item/reagent_containers/food/snacks/candy/candy_apple
-	name = "candy apple"
-	desc = "An apple covered in a hard sugar coating."
-	icon_state = "candy-apple"
-	heal_amt = 2
-	food_effects = list("food_energized")
-
-	poison
-		name = "delicious candy apple"
-		desc = "A delicious apple covered in a hard sugar coating."
-		icon_state = "candy-poison"
-
-
-		New()
-			..()
-			reagents.add_reagent("capulettium", 10)
-			return
-
-//Candy corn!!
-/obj/item/reagent_containers/food/snacks/candy/candy_corn
-	name = "candy-corn"
-	desc = "A confection resembling a kernel of corn. A Halloween classic."
-	icon_state = "candy-corn"
-	real_name = "candy corn"
-	amount = 1
-	sugar_content = 25
-	food_color = "#FFCC00"
-	initial_reagents = list("badgrease"=5)
-	food_effects = list("food_sweaty")
-
-	heal(var/mob/M)
-		..()
-		boutput(M, "It tastes disappointing.")
-		return
-
-//Candy bar variants
-/obj/item/reagent_containers/food/snacks/candy/negativeonebar
-	name = "-1 Bar"
-	desc = "A candy bar containing '-1 calories.'"
-	amount = 1
-	heal_amt = -1
-	icon_state = "candy-blue"
-	sugar_content = 10
-	food_effects = list("food_sweaty")
-
-/obj/item/reagent_containers/food/snacks/candy/chocolate
-	name = "chocolate bar"
-	desc = "A plain chocolate bar. Is it dark chocolate, milk chocolate? Who knows!"
-	sugar_content = 10
-	real_name = "chocolate"
-	icon_state = "candy-chocolate"
-	food_color = "#663300"
-	initial_reagents = list("chocolate"=10)
-
-/obj/item/reagent_containers/food/snacks/candy/wrapped_pbcup
-	name = "pack of Hetz's Cups"
-	desc = "A package of the popular Hetz's Cups chocolate peanut butter cups."
-	icon_state = "candy-pbcup_w"
-	sugar_content = 20
-	heal_amt = 5
-	food_color = "#663300"
-	real_name = "Hetz's Cup"
-	var/unwrapped = 0
-
-	disposing()
-		unwrapped = 1
-
-	attack(mob/M as mob, mob/user as mob, def_zone)
-		if (user == M)
-			boutput(user, "<span style=\"color:red\">You need to unwrap them first, you greedy beast!</span>")
-			user.visible_message("<b>[user]</b> stares at [src] in a confused manner.")
-			return
-		else
-			user.visible_message("<span style=\"color:red\"><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
-			return
-
-	attack_self(mob/user as mob)
-		if (unwrapped)
-			return
-
-		unwrapped = 1
-		user.visible_message("[user] unwraps the Hetz's Cups!", "You unwrap the Hetz's Cups.")
-		var/turf/T = get_turf(user)
-		new /obj/item/reagent_containers/food/snacks/candy/pbcup(T)
-		new /obj/item/reagent_containers/food/snacks/candy/pbcup(T)
-		new /obj/item/reagent_containers/food/snacks/candy/pbcup(T)
-		qdel(src)
-
-/obj/item/reagent_containers/food/snacks/candy/pbcup
-	name = "Hetz's Cup"
-	desc = "A cup-shaped chocolate candy with a peanut butter filling. Of course, peanuts went extinct back in 2026, so it's really some weird soy paste that supposedly tastes like them."
-	icon_state = "candy-pbcup"
-	sugar_content = 20
-	heal_amt = 5
-	amount = 2
-	food_color = "#663300"
-	real_name = "Hetz's Cup"
-	initial_reagents = list("chocolate"=10)
-
 /obj/item/reagent_containers/food/snacks/ectoplasm
 	name = "ectoplasm"
 	desc = "A luminescent blob of what scientists refer to as \"ghost goo.\""
@@ -1394,18 +1236,18 @@
 	doants = 0
 	food_color = "#B3E197"
 	initial_volume = 15
-	initial_reagents = list("ectoplasm"=10)
+	initial_reagents = list("ectoplasm" = 10)
+	food_effects = list("food_hp_up_small", "food_damage_tox")
+
 	New()
 		..()
 		flick("ectoplasm-a", src)
 		src.setMaterial(getMaterial("ectoplasm"), appearance = 0, setname = 0)
-		return
 
-	heal(var/mob/M)
+	heal(mob/M)
 		..()
 		var/ughmessage = pick("Your mouth feels haunted. Haunted with bad flavors.","It tastes like flavor died.", "It tastes like a ghost fart.", "It has the texture of ham aspic.  From the 1950s.  Left out in the sun.")
-		boutput(M, "<span style=\"color:red\">Ugh, why did you eat that? [ughmessage]</span>")
-		return
+		boutput(M, "<span class='alert'>Ugh, why did you eat that? [ughmessage]</span>")
 
 /obj/item/reagent_containers/food/snacks/corndog
 	name = "corndog"
@@ -1479,7 +1321,7 @@
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/breadslice))
 			if(src.bun)
-				boutput(user, "<span style=\"color:red\">It already has a bun!</span>")
+				boutput(user, "<span class='alert'>It already has a bun!</span>")
 				return
 
 			if(istype(W, /obj/item/reagent_containers/food/snacks/breadslice/banana))
@@ -1545,12 +1387,19 @@
 			user.visible_message("[user] adds a bun to [src].","You add a bun to [src].")
 			src.update_icon()
 
-		else if (istype(W,/obj/item/rods))
+		else if (istype(W,/obj/item/rods) || istype(W,/obj/item/stick))
 			if(!src.bun)
-				boutput(user, "<span style=\"color:red\">You need to bread it first!</span>")
+				boutput(user, "<span class='alert'>You need to bread it first!</span>")
 				return
 
-			boutput(user, "<span style=\"color:blue\">You create a corndog...</span>")
+			// Check for broken sticks
+			if(istype(W,/obj/item/stick))
+				var/obj/item/stick/S = W
+				if(S.broken)
+					boutput(user, __red("You can't use a broken stick!"))
+					return
+
+			boutput(user, "<span class='notice'>You create a corndog...</span>")
 			var/obj/item/reagent_containers/food/snacks/corndog/newdog = null
 			switch(src.bun)
 				if(2)
@@ -1563,10 +1412,15 @@
 					newdog = new /obj/item/reagent_containers/food/snacks/corndog/spooky(get_turf(src))
 				else
 					newdog = new /obj/item/reagent_containers/food/snacks/corndog(get_turf(src))
-			W:amount--
+
+			// Consume a rod or stick
+			if(istype(W,/obj/item/rods)) W.change_stack_amount(-1)
+			if(istype(W,/obj/item/stick)) W.amount--
+
+			// If no rods or sticks left, delete item
 			if(!W:amount) qdel(W)
 
-			if(newdog && newdog.reagents && src.reagents)
+			if(newdog?.reagents && src.reagents)
 				src.reagents.trans_to(newdog, 100)
 
 			if(src.herb)
@@ -1577,10 +1431,10 @@
 
 		else if (istype(W,/obj/item/plant/herb) && !src.herb)
 			if(src.bun)
-				boutput(user, "<span style=\"color:red\">It's too late! This hotdog is already in a bun, you see.</span>")
+				boutput(user, "<span class='alert'>It's too late! This hotdog is already in a bun, you see.</span>")
 				return
 
-			boutput(user, "<span style=\"color:blue\">You create a herbal sausage...</span>")
+			boutput(user, "<span class='notice'>You create a herbal sausage...</span>")
 			src.herb = 1
 			src.icon_state = "sausage"
 			src.name = "herbal sausage"
@@ -1713,8 +1567,8 @@
 		src.reagents.add_reagent("love", 1)*/
 
 	attackby(obj/item/W as obj, mob/user as mob)
-		if(istype(W,/obj/item/kitchen/utensil/knife) && (src.icon_state == "hotdog_octo"))
-			src.visible_message("<span style=\"color:green\">[user.name] carves a cute little face on the [src]!</span>")
+		if(istype(W,/obj/item/kitchen/utensil/knife) && (src.icon_state == "hotdog-octo"))
+			src.visible_message("<span class='success'>[user.name] carves a cute little face on the [src]!</span>")
 			src.icon_state = "hotdog-octo2"
 			src.reagents.add_reagent("love", 1)
 		else
@@ -1744,7 +1598,7 @@
 
 	heal(var/mob/M)
 		if(!src.salsa)
-			boutput(M, "<span style=\"color:red\">Could use sauce...</span>")
+			boutput(M, "<span class='alert'>Could use sauce...</span>")
 		..()
 		return
 
@@ -1760,19 +1614,19 @@
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/ingredient/meat))
 			if(src.stage)
-				boutput(user, "<span style=\"color:red\">It can't hold any more!</span>")
+				boutput(user, "<span class='alert'>It can't hold any more!</span>")
 				return
 			src.stage++
 			src.icon_state = "taco1"
 			src.name = "[W.name] taco"
 			src.heal_amt++
 			desc = "A meat taco. Pretty plain, really."
-			boutput(user, "<span style=\"color:blue\">You add [W] to [src]!</span>")
+			boutput(user, "<span class='notice'>You add [W] to [src]!</span>")
 			food_effects += W:food_effects
 			qdel (W)
 
 		else if(istype(W,/obj/item/reagent_containers/food/snacks/condiment/hotsauce) || istype(W,/obj/item/reagent_containers/food/snacks/condiment/coldsauce))
-			boutput(user, "<span style=\"color:blue\">You add [W] to [src]!</span>")
+			boutput(user, "<span class='notice'>You add [W] to [src]!</span>")
 			if(!src.salsa)
 				src.heal_amt++
 				src.salsa = 1
@@ -1782,9 +1636,9 @@
 		else if (istype(W, /obj/item/reagent_containers/food/snacks/ingredient/cheese))
 			switch(src.stage)
 				if(0)
-					boutput(user, "<span style=\"color:red\">You really should add the meat first.</span>")
+					boutput(user, "<span class='alert'>You really should add the meat first.</span>")
 				if(1)
-					boutput(user, "<span style=\"color:blue\">You add [W] to [src]!</span>")
+					boutput(user, "<span class='notice'>You add [W] to [src]!</span>")
 					qdel (W)
 					src.stage++
 					src.heal_amt++
@@ -1792,7 +1646,7 @@
 					src.desc = "A complete taco. Looks pretty good."
 					food_effects += "food_energized_big"
 				if(2)
-					boutput(user, "<span style=\"color:red\">It can't hold any more!</span>")
+					boutput(user, "<span class='alert'>It can't hold any more!</span>")
 			return
 		else return ..()
 
@@ -1808,7 +1662,7 @@
 /obj/item/reagent_containers/food/snacks/steak_h
 	name = "steak"
 	desc = "Made of people."
-	icon_state = "steak"
+	icon_state = "meat-grilled"
 	amount = 2
 	heal_amt = 3
 	var/hname = null
@@ -1821,7 +1675,7 @@
 /obj/item/reagent_containers/food/snacks/steak_m
 	name = "monkey steak"
 	desc = "You'll go bananas for it."
-	icon_state = "steak"
+	icon_state = "meat-grilled"
 	amount = 2
 	heal_amt = 3
 	food_color = "#999966"
@@ -1832,7 +1686,7 @@
 /obj/item/reagent_containers/food/snacks/steak_s
 	name = "synth-steak"
 	desc = "And they thought processed food was artificial..."
-	icon_state = "steak"
+	icon_state = "meat-plant-grilled"
 	amount = 2
 	heal_amt = 3
 	food_color = "#999966"
@@ -1887,7 +1741,7 @@
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/condiment/syrup))
-			boutput(user, "<span style=\"color:blue\">You add [W] to [src].</span>")
+			boutput(user, "<span class='notice'>You add [W] to [src].</span>")
 			icon_state = "pancake_s"
 			syrup = 1
 			heal_amt = 5
@@ -1899,7 +1753,7 @@
 	heal(var/mob/M)
 		..()
 		if(!syrup)
-			boutput(M, "<span style=\"color:red\">[src] seem a bit dry.</span>")
+			boutput(M, "<span class='alert'>[src] seem a bit dry.</span>")
 
 /obj/item/reagent_containers/food/snacks/mashedpotatoes
 	name ="mashed potatoes"
@@ -1929,10 +1783,10 @@
 			if(ishuman(M))
 				var/mob/living/carbon/human/H = M
 				if(prob(1))
-					boutput(M, "<span style=\"color:red\">You feel dumber.</span>")
+					boutput(M, "<span class='alert'>You feel dumber.</span>")
 					H:bioHolder:RandomEffect("bad")
 				else if(prob(1))
-					boutput(M, "<span style=\"color:blue\">You feel smarter.</span>")
+					boutput(M, "<span class='notice'>You feel smarter.</span>")
 					H:bioHolder:RandomEffect("good")
 
 /obj/item/reagent_containers/food/snacks/meatloaf
@@ -2008,21 +1862,21 @@
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (wrapped)
-			if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife_butcher))
-				user.visible_message("<span style=\"color:red\">[user] performs an act of wonton destruction!</span>","You slice open the wrapper.")
+			if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife/butcher))
+				user.visible_message("<span class='alert'>[user] performs an act of wonton destruction!</span>","You slice open the wrapper.")
 				wrapped.set_loc(get_turf(src))
 				src.reagents = null
 				qdel(src)
 			else
-				boutput(user, "<span style=\"color:red\">That wrapper is already full!</span>")
+				boutput(user, "<span class='alert'>That wrapper is already full!</span>")
 			return
 		else
 			if (istype(W, /obj/item/reagent_containers/food/snacks/wonton_wrapper))
-				boutput(user, "<span style=\"color:red\">A wrapped wrapper? That's ridiculous.</span>")
+				boutput(user, "<span class='alert'>A wrapped wrapper? That's ridiculous.</span>")
 				return
 
 			else if (W.w_class > src.maximum_wrapped_size || istype(W, /obj/item/storage) || istype(W, /obj/item/storage/secure))
-				boutput(user, "<span style=\"color:red\">There is no way that could fit!</span>")
+				boutput(user, "<span class='alert'>There is no way that could fit!</span>")
 				return
 
 			boutput(user, "You wrap \the [W] into a dumpling.")
@@ -2049,7 +1903,7 @@
 		src.pixel_y = rand(-6, 6)
 
 	heal(var/mob/M)
-		boutput(M, "<span style=\"color:red\">Ugh, you really should've cooked that first.</span>")
+		boutput(M, "<span class='alert'>Ugh, you really should've cooked that first.</span>")
 		if(prob(25))
 			M.reagents.add_reagent("salmonella",15)
 		..()
@@ -2084,8 +1938,8 @@
 	food_effects = list("food_brute")
 
 	attackby(obj/item/W as obj, mob/user as mob)
-		if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife_butcher))
-			boutput(user, "<span style=\"color:blue\">You cut [src] into halves</span>")
+		if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife/butcher))
+			boutput(user, "<span class='notice'>You cut [src] into halves</span>")
 			new /obj/item/reagent_containers/food/snacks/emuffin(get_turf(src))
 			new /obj/item/reagent_containers/food/snacks/emuffin(get_turf(src))
 			qdel(src)
@@ -2103,7 +1957,7 @@
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/ingredient/butter))
-			boutput(user, "<span style=\"color:blue\">You butter up the english muffin</span>")
+			boutput(user, "<span class='notice'>You butter up the english muffin</span>")
 			new /obj/item/reagent_containers/food/snacks/emuffin/butter(get_turf(src))
 			qdel(W)
 			qdel(src)
@@ -2111,9 +1965,9 @@
 
 /obj/item/reagent_containers/food/snacks/emuffin/butter
 	name = "buttered english muffin"
-	desc = "Just like the queen intended it."
+	desc = "Just like the Queen intended it."
 	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "emuffin_butter"
+	icon_state = "emuffin-butter"
 	heal_amt = 2
 	food_color = "#6A532D"
 	initial_reagents = list("butter"=3)
@@ -2129,7 +1983,7 @@
 	food_color = "#6A532D"
 
 	heal(var/mob/M)
-		boutput(M, "<span style=\"color:red\">OH GOD! You bite down and break a few teeth!</span>")
+		boutput(M, "<span class='alert'>OH GOD! You bite down and break a few teeth!</span>")
 		random_brute_damage(M, 2)
 		M.emote("scream")
 
@@ -2166,174 +2020,6 @@
 	amount = 1
 	heal_amt = 6
 	initial_reagents = list("enriched_msg"=1)
-
-// boy i wish byond had static members doop doop
-var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
-
-//#ifdef HALLOWEEN
-/obj/item/reagent_containers/food/snacks/candy/everyflavor
-	name = "\improper Farty Snott's Every Flavour Bean"
-	desc = "A favorite halloween sweet worldwide!"
-	icon_state = "bean"
-	amount = 1
-	initial_volume = 100
-	sugar_content = 0 // hacky, I know. but it's necessary for the color!
-
-	New()
-		..()
-		SPAWN_DBG(0)
-			if (src.reagents)
-				if (prob(12))
-					src.reagents.add_reagent(pick("milk", "coffee", "VHFCS", "gravy", "fakecheese", "grease"), 10)
-					src.heal_amt = 1
-				else if (prob(12))
-					src.reagents.add_reagent(pick("bilk", "beff", "vomit", "gvomit", "porktonium", "badgrease"), 10)
-					src.heal_amt = 0
-				else
-					var/flavor = null
-					if (all_functional_reagent_ids.len > 0)
-						flavor = pick(all_functional_reagent_ids)
-					else
-						flavor = "sugar"
-					src.reagents.add_reagent(flavor, 50)
-
-				src.food_color = src.reagents.get_master_color()
-				src.icon += src.food_color // apparently this is a thing you can do?  neat!
-
-				src.reagents.add_reagent("sugar", 50)
-				if (src.reagents.total_volume <= 60)
-					src.reagents.add_reagent("sugar", 40)
-
-	heal(var/mob/M)
-		var/flavor
-		var/phrase
-		var/color
-
-		if(prob(50))
-			flavor = pick("egg", "vomit", "snot", "poo", "urine", "earwax", "wet dog", "belly-button lint", "sweat", "congealed farts", "mold", "armpits", "elbow grease", "sour milk", "WD-40", "slime", "blob", "gym sock", "pants", "brussels sprouts", "feet", "litter box", "durian fruit", "asbestos", "corpse flower", "corpse", "cow dung", "rot", "tar", "ham")
-			phrase = pick("Oh god", "Jeez", "Ugh", "Blecch", "Holy crap that's awful", "What the hell?", "*HURP*", "Phoo")
-			color = "<span style=\"color:red\">"
-		else
-			flavor = pick("egg", "strawberry", "raspberry", "snozzberry", "happiness", "popcorn", "buttered popcorn", "cinnamon", "macaroni and cheese", "pepperoni", "cheese", "lasagna", "pina colada", "tutti frutti", "lemon", "margarita", "coconut", "pineapple", "scotch", "vodka", "root beer", "cotton candy", "Lagavulin 18", "toffee", "vanilla", "coffee", "apple pie", "neapolitan", "orange", "lime", "crotch", "mango", "apple", "grape", "Slurm")
-			phrase = pick("Yum", "Wow", "MMM", "Delicious", "Scrumptious", "Fantastic", "Oh yeah")
-			color = "<span style=\"color:blue\">"
-
-		boutput(M, "[color][phrase]! That tasted like [flavor]...</span>")
-
-/obj/item/kitchen/everyflavor_box
-	amount = 6
-	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "beans"
-	name = "bag of Farty Snott's Every Flavour Beans"
-
-/obj/item/kitchen/everyflavor_box/attack_hand(mob/user as mob, unused, flag)
-	if (flag)
-		return ..()
-	if (user.r_hand == src || user.l_hand == src)
-		if(src.amount == 0)
-			boutput(user, "<span style=\"color:red\">You're out of beans. You feel strangely sad.</span>")
-			return
-		else
-			var/obj/item/reagent_containers/food/snacks/candy/everyflavor/B = new(user)
-			user.put_in_hand_or_drop(B)
-			src.amount--
-			if(src.amount == 0)
-				src.icon_state = "beans-empty"
-				src.name = "empty Farty Snott's bag"
-	else
-		return ..()
-	return
-
-/obj/item/kitchen/everyflavor_box/examine()
-	set src in oview(1)
-	set category = "Local"
-
-	src.amount = round(src.amount)
-	var/n = src.amount
-	for(var/obj/item/reagent_containers/food/snacks/donut/P in src)
-		n++
-	if (n <= 0)
-		n = 0
-		boutput(usr, "There are no beans left in the bag.")
-	else
-		if (n == 1)
-			boutput(usr, "There is one bean left in the bag.")
-		else
-			boutput(usr, "There are [n] beans in the bag.")
-	return
-
-//#endif
-
-/obj/item/reagent_containers/food/snacks/lollipop
-	name = "lollipop"
-	desc = "How many licks does it take to get to the center? No one knows, they just bite the things."
-	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "lpop-0"
-	var/icon_random = 0 // does it just choose from the existing random colors?
-	var/image/image_candy
-	heal_amt = 1
-	amount = 5
-	real_name = "lollipop"
-
-	New()
-		..()
-		if (src.icon_random)
-			src.icon_state = "lpop-[rand(1,6)]"
-		else
-			SPAWN_DBG(0)
-				src.update_icon()
-
-	proc/update_icon()
-		if (src.icon_random)
-			return
-		if (src.reagents)
-			ENSURE_IMAGE(src.image_candy, src.icon, "lpop-w")
-			var/datum/color/average = reagents.get_average_color()
-			src.image_candy.color = average.to_rgba()
-			src.UpdateOverlays(src.image_candy, "candy")
-
-/obj/item/reagent_containers/food/snacks/lollipop/random_medical
-	icon_state = "lpop-"
-	var/list/flavors = list("omnizine", "saline", "salicylic_acid", "epinephrine", "mannitol", "synaptizine", "anti_rad", "oculine", "salbutamol", "charcoal")
-
-	New()
-		..()
-		SPAWN_DBG(0)
-			if (src.icon_state == "lpop-")
-				src.icon_state = "lpop-[rand(1,6)]"
-			if (islist(src.flavors) && src.flavors.len)
-				for (var/i=5, i>0, i--)
-					src.reagents.add_reagent(pick(src.flavors), 1)
-
-/obj/item/reagent_containers/food/snacks/swedish_fish
-	name = "swedish fisk"
-	desc = "A chewy gummy bright red fish. Those crazy Swedes and their fish obesssion."
-	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "swedishfiskfisk"
-	amount = 1
-	heal_amt = 1
-	food_color = "#e50000"
-	initial_volume = 10
-
-	New()
-		if (prob(33))
-			src.initial_reagents = "swedium"
-		..()
-		src.pixel_x = rand(-6, 6)
-		src.pixel_y = rand(-6, 6)
-
-/obj/item/item_box/swedish_bag
-	name = "bag of swedish fisk"
-	desc = "A curious bag of fresh swedish fisk, fresh from the factories in Sweden."
-	contained_item = /obj/item/reagent_containers/food/snacks/swedish_fish
-	icon_state = "swedishfisk"
-	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	item_amount = 8
-	max_item_amount = 8
-	icon_closed = "swedishfisk"
-	icon_closed_empty = "swedishfisk-closedempty"
-	icon_open = "swedishfisk-open"
-	icon_empty = "swedishfisk-empty"
 
 /obj/item/reagent_containers/food/snacks/deviledegg
 	name = "deviled egg"
@@ -2374,21 +2060,23 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istype(W, /obj/item/reagent_containers/food/snacks/condiment/)) src.amount += 1
+		else ..()
 
-	examine()
-		boutput(usr, "This is a [src.name].")
+	examine(mob/user)
+		. = list("This is a [src.name].")
+
 		if(isbutt)
-			boutput(usr, "A dire misunderstanding of how haggis works.")
+			. += "A dire misunderstanding of how haggis works."
 		else
-			if (usr.bioHolder.HasEffect("accent_scots"))
-				boutput(usr, "Fair fa' your honest, sonsie face, great chieftain o the puddin'-race!")
+			if (user.bioHolder.HasEffect("accent_scots"))
+				. += "Fair fa' your honest, sonsie face, great chieftain o the puddin'-race!"
 			else
-				boutput(usr, "A big ol' meat pudding, wrapped up in a synthetic stomach stuffed nearly to bursting. Gusty!")
+				. += "A big ol' meat pudding, wrapped up in a synthetic stomach stuffed nearly to bursting. Gusty!"
 
 	heal(var/mob/M)
 		if (M.bioHolder.HasEffect("accent_scots"))
 			heal_amt *= 2
-			boutput(M, "<span style=\"color:blue\">Och aye! That's th' stuff!</span>")
+			boutput(M, "<span class='notice'>Och aye! That's th' stuff!</span>")
 			..()
 			heal_amt /= 2
 
@@ -2470,9 +2158,9 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (istool(W, TOOL_CUTTING | TOOL_SAWING))
 			if (src.cut == 1)
-				boutput(user, "<span style=\"color:red\">This has already been cut.</span>")
+				boutput(user, "<span class='alert'>This has already been cut.</span>")
 				return
-			boutput(user, "<span style=\"color:blue\">You cut the sushi roll into pieces.</span>")
+			boutput(user, "<span class='notice'>You cut the sushi roll into pieces.</span>")
 			var/makepieces = src.amount
 			while (makepieces > 0)
 				var/obj/item/reagent_containers/food/snacks/sushi_roll/S = new src.type(get_turf(src))
@@ -2489,11 +2177,11 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 	attack(mob/M as mob, mob/user as mob, def_zone)
 		if (!src.cut)
 			if (user == M)
-				boutput(user, "<span style=\"color:red\">You can't just cram that in your mouth, you greedy beast!</span>")
+				boutput(user, "<span class='alert'>You can't just cram that in your mouth, you greedy beast!</span>")
 				user.visible_message("<b>[user]</b> stares at [src] in a confused manner.")
 				return
 			else
-				user.visible_message("<span style=\"color:red\"><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
+				user.visible_message("<span class='alert'><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
 				return
 		else
 			..()
@@ -2504,14 +2192,14 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 	food_color = "#5E6351"
 
 	attackby(obj/item/W as obj, mob/user as mob)
-		if (istool(W, TOOL_CUTTING | TOOL_SAWING))
-			if (src.cut == 1)
-				boutput(user, "<span style=\"color:red\">This has already been cut.</span>")
+		if(istool(W, TOOL_CUTTING | TOOL_SAWING))
+			if(src.cut == 1)
+				boutput(user, "<span class='alert'>This has already been cut.</span>")
 				return
 			if(istype(src.loc,/mob))
 				user.u_equip(src)
 				src.set_loc(user)
-			boutput(user, "<span style=\"color:blue\">You cut the sushi roll into pieces.</span>")
+			boutput(user, "<span class='notice'>You cut the sushi roll into pieces.</span>")
 			var/makepieces = src.amount
 			var/spawnloc = get_turf(src)
 			while (makepieces > 0)
@@ -2535,6 +2223,10 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 				S.set_loc(spawnloc)
 				makepieces--
 			qdel(src)
+		else if(istype(W,/obj/item/kitchen/utensil/fork))
+			src.Eat(user,user)
+		else
+			..()
 
 /obj/item/reagent_containers/food/snacks/nigiri_roll
 	name = "nigiri roll"
@@ -2604,11 +2296,11 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 		if (unwrapped)
 			..()
 		else if (user == M)
-			boutput(user, "<span style=\"color:red\">You need to unwrap it first, you greedy beast!</span>")
+			boutput(user, "<span class='alert'>You need to unwrap it first, you greedy beast!</span>")
 			user.visible_message("<b>[user]</b> stares at [src] in a confused manner.")
 			return
 		else
-			user.visible_message("<span style=\"color:red\"><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
+			user.visible_message("<span class='alert'><b>[user]</b> futilely attempts to shove [src] into [M]'s mouth!</span>")
 			return
 
 	attack_self(mob/user as mob)
@@ -2657,66 +2349,35 @@ var/list/valid_jellybean_reagents = childrentypesof(/datum/reagent)
 		else
 			..()
 
-
-/obj/item/kitchen/peach_rings
-	amount = 6
+/obj/item/reagent_containers/food/snacks/healgoo
+	name = "weird goo"
+	desc = "This goop is released from a dead hallucigenia. It is known for its beneficial anti-radiation and healing properties."
 	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
-	icon_state = "rings-full"
-	name = "bag of peach rings"
-	desc = "A bag of gummy peach rings. A Delectable Dan's favorite."
-
-	attack_hand(mob/user as mob, unused, flag)
-		if (flag)
-			return ..()
-		if (user.r_hand == src || user.l_hand == src)
-			if(src.amount == 0)
-				boutput(user, "<span style=\"color:red\">You're out of peach rings. You feel strangely sad.</span>")
-				return
-			else
-				var/obj/item/reagent_containers/food/snacks/candy/peach_ring/B = new(user)
-				user.put_in_hand_or_drop(B)
-				src.amount--
-				if(src.amount == 0)
-					src.icon_state = "rings-empty"
-					src.name = "empty peach ring bag"
-					src.desc = "A crumpled bag that was once full of gummy peach rings."
-		else
-			return ..()
-		return
-
-/obj/item/reagent_containers/food/snacks/candy/peach_ring
-	name = "peach ring"
-	desc = "A gummy peach ring dusted with sugar."
-	icon_state = "peach-ring"
-	amount = 1
-	sugar_content = 5
+	icon_state = "healgoo"
+	heal_amt = 2
+	amount = 3
+	initial_volume = 28
+	food_effects = list("food_rad_resist")
 
 	New()
 		..()
-		reagents.add_reagent("juice_peach",5)
+		reagents.add_reagent("saline",7)
+		reagents.add_reagent("charcoal",7)
+		reagents.add_reagent("anti_rad",7)
+		reagents.add_reagent("omnnizine",7)
 
-/obj/item/reagent_containers/food/snacks/candy/candyheart
-	name = "candy heart"
-	desc = "Can you find the perfect phrase for that special someone?"
-	icon_state = "heart"
-	amount = 1
-	sugar_content = 5
-	var/phrase
-	var/list/heart_phrases = list("Be Mine", "XOXO", "Kiss Me", "Love", "U Rock", "I <3 U", "i wuv u", "U Leave Me Breathless", "UR my man", "Cutie Pie", "U-R-2 Cute",
-	 "Love Bug", "Hot Lips", "UR A STAR", "ME & U", "UR A QT", "Thank U", "Soul Mate", "Sol Mate", "Awesome", "Bee Mine", "Sweet as Honey", "True Love", "Ooh La La", "I GIB U WUV",
-	 "Change to Love Intent", "Robust Me", "Don't Robust my <3", "Love Transfer Valve", "You're Stunning", "Absorb my Heart", "Owl luv u forever", "We have Chemistry", "Be my Comdom",
-	 "Law 4: Rearrange the alphabet and put U and AI together", "HALP THE CUTIE IS GRIFFIN MEH", "CUTECURITY!!!", "I honk u", "All access to my <3", "Greytide my heart", "Wear my butt as a hat",
-	 "Maecho love", "Love birds", "Bee still my heart", "Get in my clown car", "Meet me in maintenance", "Let's fly into the sun", "Deep fried love")
+
+/obj/item/reagent_containers/food/snacks/greengoo
+	name = "green goo"
+	desc = "This goop is released from a dead pikaia. It acts as a mild stimulant."
+	icon = 'icons/obj/foodNdrink/food_snacks.dmi'
+	icon_state = "greengoo"
+	heal_amt = 1
+	amount = 2
+	initial_volume = 16
+	food_effects = list("food_energized_big")
 
 	New()
 		..()
-		src.icon_state = "heart-[rand(1,5)]"
-		phrase = pick(src.heart_phrases)
-		return
-
-	get_desc(dist)
-		. = "<br><span style='color: blue'>It says: [phrase]</span>"
-
-
-
-
+		reagents.add_reagent("epinephrine",8)
+		reagents.add_reagent("synaptizine",8)

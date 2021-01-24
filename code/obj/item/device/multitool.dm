@@ -10,15 +10,19 @@
 	desc = "You can use this on airlocks or APCs to try to hack them without cutting wires."
 	m_amt = 50
 	g_amt = 20
-	mats = 6
+	mats = list("CRY-1", "CON-2")
 	module_research = list("tools" = 5, "devices" = 2)
+
+
+	New()
+		..()
+		src.setItemSpecial(/datum/item_special/elecflash)
 
 //I don't actually know what I'm doing but hopefully this will cause severe deadly burns. Also electrical puns.
 /obj/item/device/multitool/custom_suicide = 1
 /obj/item/device/multitool/suicide(var/mob/user as mob)
 	if (!src.user_can_suicide(user))
 		return 0
-	user.visible_message("<span style='color:red'><b>[user] connects the wires from the multitool onto [his_or_her(user)] tongue and presses pulse. It's pretty shocking to look at.</b></span>")
+	user.visible_message("<span class='alert'><b>[user] connects the wires from the multitool onto [his_or_her(user)] tongue and presses pulse. It's pretty shocking to look at.</b></span>")
 	user.TakeDamage("head", 0, 160)
-	user.updatehealth()
 	return 1

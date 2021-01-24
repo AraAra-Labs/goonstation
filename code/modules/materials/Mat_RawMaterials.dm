@@ -1,3 +1,4 @@
+/// Material piece
 /obj/item/material_piece
 	name = "bar"
 	desc = "Some sort of processed material bar."
@@ -5,7 +6,8 @@
 	icon_state = "bar"
 	max_stack = INFINITY
 	stack_type = /obj/item/material_piece
-	var/default_material = null // used for prefab bars
+	/// used for prefab bars
+	var/default_material = null
 
 	New()
 		..()
@@ -45,29 +47,29 @@
 		if(istype(W, /obj/item/material_piece) && W.material)
 
 			if(src.stack_item(W))
-				boutput(usr, "<span style=\"color:blue\">You stack \the [W]!</span>")
+				boutput(usr, "<span class='notice'>You stack \the [W]!</span>")
 		return
 
 	MouseDrop(over_object, src_location, over_location) //src dragged onto over_object
 		if (isobserver(usr))
-			boutput(usr, "<span style=\"color:red\">Quit that! You're dead!</span>")
+			boutput(usr, "<span class='alert'>Quit that! You're dead!</span>")
 			return
 
-		if(!istype(over_object, /obj/screen/hud))
+		if(!istype(over_object, /atom/movable/screen/hud))
 			if (get_dist(usr,src) > 1)
-				boutput(usr, "<span style=\"color:red\">You're too far away from it to do that.</span>")
+				boutput(usr, "<span class='alert'>You're too far away from it to do that.</span>")
 				return
 			if (get_dist(usr,over_object) > 1)
-				boutput(usr, "<span style=\"color:red\">You're too far away from it to do that.</span>")
+				boutput(usr, "<span class='alert'>You're too far away from it to do that.</span>")
 				return
 
 		if (istype(over_object,/obj/item/material_piece)) //piece to piece, doesnt matter if in hand or not.
 			var/obj/item/targetObject = over_object
-			targetObject.stack_item(src)
-			usr.visible_message("<span style=\"color:blue\">[usr.name] stacks \the [src]!</span>")
+			if(targetObject.stack_item(src))
+				usr.visible_message("<span class='notice'>[usr.name] stacks \the [src]!</span>")
 		else if(isturf(over_object)) //piece to turf. piece loc doesnt matter.
 			if(src.amount > 1) //split stack.
-				usr.visible_message("<span style=\"color:blue\">[usr.name] splits the stack of [src]!</span>")
+				usr.visible_message("<span class='notice'>[usr.name] splits the stack of [src]!</span>")
 				var/toSplit = round(amount / 2)
 				var/atom/movable/splitStack = split_stack(toSplit)
 				if(splitStack)
@@ -81,9 +83,9 @@
 					if (!src.check_valid_stack(I))
 						continue
 					src.stack_item(I)
-				usr.visible_message("<span style=\"color:blue\">[usr.name] stacks \the [src]!</span>")
-		else if(istype(over_object, /obj/screen/hud))
-			var/obj/screen/hud/H = over_object
+				usr.visible_message("<span class='notice'>[usr.name] stacks \the [src]!</span>")
+		else if(istype(over_object, /atom/movable/screen/hud))
+			var/atom/movable/screen/hud/H = over_object
 			var/mob/living/carbon/human/dude = usr
 			switch(H.id)
 				if("lhand")
@@ -92,12 +94,12 @@
 						else if (istype(dude.l_hand, /obj/item/material_piece))
 							var/obj/item/material_piece/DP = dude.l_hand
 							DP.stack_item(src)
-							usr.visible_message("<span style=\"color:blue\">[usr.name] stacks \the [DP]!</span>")
-					else
+							usr.visible_message("<span class='notice'>[usr.name] stacks \the [DP]!</span>")
+					else if(amount > 1)
 						var/toSplit = round(amount / 2)
 						var/atom/movable/splitStack = split_stack(toSplit)
 						if(splitStack)
-							usr.visible_message("<span style=\"color:blue\">[usr.name] splits the stack of [src]!</span>")
+							usr.visible_message("<span class='notice'>[usr.name] splits the stack of [src]!</span>")
 							splitStack.set_loc(dude)
 							dude.put_in_hand(splitStack, 1)
 				if("rhand")
@@ -106,14 +108,16 @@
 						else if (istype(dude.r_hand, /obj/item/material_piece))
 							var/obj/item/material_piece/DP = dude.r_hand
 							DP.stack_item(src)
-							usr.visible_message("<span style=\"color:blue\">[usr.name] stacks \the [DP]!</span>")
-					else
+							usr.visible_message("<span class='notice'>[usr.name] stacks \the [DP]!</span>")
+					else if(amount > 1)
 						var/toSplit = round(amount / 2)
 						var/atom/movable/splitStack = split_stack(toSplit)
 						if(splitStack)
-							usr.visible_message("<span style=\"color:blue\">[usr.name] splits the stack of [src]!</span>")
+							usr.visible_message("<span class='notice'>[usr.name] splits the stack of [src]!</span>")
 							splitStack.set_loc(dude)
 							dude.put_in_hand(splitStack, 0)
+		else
+			..()
 	block
 		// crystal, rubber
 		name = "block"
@@ -170,6 +174,33 @@
 		src.setMaterial(getMaterial("frozenfart"), appearance = 0, setname = 0)
 		..()
 
+/obj/item/material_piece/steel
+	desc = "A processed bar of Steel, a common metal."
+	default_material = "steel"
+	icon_state = "bar"
+
+	setup_material()
+		src.setMaterial(getMaterial("steel"), appearance = 1, setname = 1)
+		..()
+
+/obj/item/material_piece/glass
+	desc = "A cut block of glass, a common crystalline substance."
+	default_material = "glass"
+	icon_state = "block"
+
+	setup_material()
+		src.setMaterial(getMaterial("glass"), appearance = 1, setname = 1)
+		..()
+
+/obj/item/material_piece/copper
+	desc = "A processed bar of copper, a conductive metal."
+	default_material = "copper"
+	icon_state = "bar"
+
+	setup_material()
+		src.setMaterial(getMaterial("copper"), appearance = 1, setname = 1)
+		..()
+
 /obj/item/material_piece/iridiumalloy
 	icon_state = "iridium"
 	name = "iridium-alloy plate"
@@ -203,21 +234,19 @@
 
 	setup_material()
 		src.setMaterial(getMaterial("latex"), appearance = 0, setname = 0)
-		var/datum/reagents/R = new/datum/reagents(10)
-		reagents = R
-		R.my_atom = src
-		R.add_reagent("rubber", 10)
+		src.create_reagents(10)
+		reagents.add_reagent("rubber", 10)
 		return ..()
 
 /obj/item/material_piece/organic/wood
 	name = "wooden log"
-	desc = "Years of genetic engineering mean timber always comes in perfectly shaped cylindrical logs."
+	desc = "Years of genetic engineering mean timber always comes in mostly perfectly shaped cylindrical logs."
 	icon_state = "log"
 	setup_material()
 		src.setMaterial(getMaterial("wood"), appearance = 0, setname = 0)
 		..()
 	attackby(obj/item/W as obj, mob/user as mob)
-		if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife_butcher))
+		if ((istool(W, TOOL_CUTTING | TOOL_SAWING)))
 			user.visible_message("[user] cuts [src] into a plank.", "You cut the [src] into a plank.")
 			var/obj/item/plankobj = new /obj/item/plank(user.loc)
 			plankobj.setMaterial(getMaterial("wood"), appearance = 0, setname = 0)
@@ -231,7 +260,7 @@
 		src.setMaterial(getMaterial("bamboo"), appearance = 0, setname = 0)
 		..()
 	attackby(obj/item/W as obj, mob/user as mob)
-		if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife_butcher))
+		if (istype(W, /obj/item/axe) || istype(W, /obj/item/circular_saw) || istype(W, /obj/item/kitchen/utensil/knife) || istype(W, /obj/item/scalpel) || istype(W, /obj/item/sword) || istype(W,/obj/item/saw) || istype(W,/obj/item/knife/butcher))
 			user.visible_message("[user] carefully extracts a shoot from [src].", "You carefully cut a shoot from [src].")
 			new /obj/item/reagent_containers/food/snacks/plant/bamboo/(user.loc)
 			qdel (src)
@@ -355,4 +384,12 @@
 	icon_state = "coral"
 	setup_material()
 		src.setMaterial(getMaterial("coral"), appearance = 0, setname = 0)
+		..()
+
+/obj/item/material_piece/neutronium
+	name = "neutronium"
+	desc = "Neutrons condensed into a solid form."
+	icon_state = "bar"
+	setup_material()
+		src.setMaterial(getMaterial("neutronium"), appearance = 0, setname = 0)
 		..()

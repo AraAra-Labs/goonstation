@@ -1,6 +1,3 @@
-/var/global/list/phonelist = list() // Holds all phones
-
-
 /obj/machinery/phone
 	name = "phone"
 	icon = 'icons/obj/machines/phones.dmi'
@@ -43,7 +40,7 @@
 			src.color = "#00aa00"
 		else if(istype(src.location, /area/station/engine) || istype(src.location, /area/station/quartermaster) || istype(src.location, /area/station/mining))
 			src.color = "#aaaa00"
-		else if(istype(src.location, /area/station/science) || istype(src.location, /area/station/chemistry))
+		else if(istype(src.location, /area/station/science))
 			src.color = "#9933ff"
 		else if(istype(src.location, /area/station/medical))
 			src.color = "#0000ff"
@@ -104,7 +101,7 @@
 					phonebook.Subscribe(user.client)
 			else
 				if(user)
-					boutput(user,"<span style=\"color:red\">As you pick up the phone you notice that the cord has been cut!</span>")
+					boutput(user,"<span class='alert'>As you pick up the phone you notice that the cord has been cut!</span>")
 		else
 			answer_phone()
 			if(src.linked)
@@ -167,7 +164,7 @@
 		src.icon_state = "[ringingicon]"
 		if (!src.emagged)
 			if(user)
-				boutput(user, "<span style=\"color:red\">You short out the ringer circuit on the [src].</span>")
+				boutput(user, "<span class='alert'>You short out the ringer circuit on the [src].</span>")
 			src.emagged = 1
 			return 1
 		return 0
@@ -213,8 +210,7 @@
 	proc/call_other(var/obj/machinery/phone/target)
 		// Dial the number
 		src.dialing = 1
-		if(src.handset.holder)
-			src.handset.holder.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
+		src.handset.holder?.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
 		SPAWN_DBG(4 SECONDS)
 			// Is it busy?
 			if(!target.can_be_called())
@@ -238,9 +234,8 @@
 		if (!src.user_can_suicide(user))
 			return 0
 		if (ishuman(user))
-			user.visible_message("<span style='color:red'><b>[user] bashes the [src] into their head repeatedly!</b></span>")
+			user.visible_message("<span class='alert'><b>[user] bashes the [src] into their head repeatedly!</b></span>")
 			user.TakeDamage("head", 150, 0)
-			user.updatehealth()
 			return 1
 
 
@@ -304,7 +299,7 @@
 			qdel(src)
 			return
 		if(src.parent.answered == 1 && get_dist(src,src.parent) > 1)
-			boutput(src.holder,"<span style=\"color:red\">The phone cord reaches it limit and the handset is yanked back to its base!</span>")
+			boutput(src.holder,"<span class='alert'>The phone cord reaches it limit and the handset is yanked back to its base!</span>")
 			src.holder.drop_item(src)
 			src.parent.hang_up()
 			processing_items.Remove(src)
@@ -316,7 +311,7 @@
 			return
 		var/processed = "<span class='game say'><span class='bold'>[M.name] \[<span style=\"color:[src.color]\"> [bicon(src)] [src.parent.phone_id]</span>\] says, </span> <span class='message'>\"[text[1]]\"</span></span>"
 		var/mob/T = src.parent.linked.handset.holder
-		if(T && T.client)
+		if(T?.client)
 			T.show_message(processed, 2)
 			M.show_message(processed, 2)
 
@@ -326,8 +321,7 @@
 	call_other(var/obj/machinery/phone/target)
 		// Dial the number
 		src.dialing = 1
-		if(src.handset.holder)
-			src.handset.holder.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
+		src.handset.holder?.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
 		SPAWN_DBG(4 SECONDS)
 			// Is it busy?
 			if(!target.can_be_called())

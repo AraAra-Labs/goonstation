@@ -51,62 +51,6 @@ Buildable meters
 //called when a turf is attacked with a pipe item
 // place the pipe on the turf, setting pipe level to 1 (underfloor) if the turf is not intact
 
-// rotate the pipe item clockwise
-
-/obj/item/weapon/pipe/verb/rotate()
-	set src in view(1)
-
-	if ( usr.stat || usr.restrained() )
-		return
-
-	switch(pipe_type)
-		if(0)
-			if(icon_state == "straight")
-				pipe_dir = 12
-				icon_state = "straight12"
-			else if (icon_state == "straight12")
-				pipe_dir = 3
-				icon_state = "straight"
-		if(1)
-			if(icon_state == "bend9")
-				icon_state = "bend"
-				pipe_dir = 10
-			else if(icon_state == "bend")
-				icon_state = "bend6"
-				pipe_dir = 6
-			else if(icon_state == "bend6")
-				icon_state = "bend5"
-				pipe_dir = 5
-			else if(icon_state == "bend5")
-				icon_state = "bend9"
-				pipe_dir = 9
-
-		if(2)
-			if(icon_state == "he-straight")
-				icon_state = "he-straight12"
-				pipe_dir = 12
-			else if(icon_state == "he-straight12")
-				icon_state = "he-straight"
-				pipe_dir = 3
-
-		if(3)
-			if(icon_state == "he-bend")
-				icon_state = "he-bend9"
-				pipe_dir = 9
-			else if(icon_state == "he-bend6")
-				icon_state = "he-bend"
-				pipe_dir = 10
-			else if(icon_state == "he-bend5")
-				icon_state = "he-bend6"
-				pipe_dir = 6
-			else if(icon_state == "he-bend9")
-				icon_state = "he-bend5"
-				pipe_dir = 5
-
-		if(4,7,5,6,7,8,9,10)
-			src.dir = turn(src.dir, -90)
-	return
-
 // returns the p_dir from the pipe item type and dir
 
 /obj/item/weapon/pipe/proc/get_pdir()
@@ -158,6 +102,54 @@ Buildable meters
 	return 0
 
 /obj/item/weapon/pipe/attackby(var/obj/item/weapon/W as obj, var/mob/user as mob)
+	if(ispryingtool(W))
+		if(!anchored)
+			switch(pipe_type)
+				if(0)
+					if(icon_state == "straight")
+						pipe_dir = 12
+						icon_state = "straight12"
+					else if (icon_state == "straight12")
+						pipe_dir = 3
+						icon_state = "straight"
+				if(1)
+					if(icon_state == "bend9")
+						icon_state = "bend"
+						pipe_dir = 10
+					else if(icon_state == "bend")
+						icon_state = "bend6"
+						pipe_dir = 6
+					else if(icon_state == "bend6")
+						icon_state = "bend5"
+						pipe_dir = 5
+					else if(icon_state == "bend5")
+						icon_state = "bend9"
+						pipe_dir = 9
+
+				if(2)
+					if(icon_state == "he-straight")
+						icon_state = "he-straight12"
+						pipe_dir = 12
+					else if(icon_state == "he-straight12")
+						icon_state = "he-straight"
+						pipe_dir = 3
+
+				if(3)
+					if(icon_state == "he-bend")
+						icon_state = "he-bend9"
+						pipe_dir = 9
+					else if(icon_state == "he-bend6")
+						icon_state = "he-bend"
+						pipe_dir = 10
+					else if(icon_state == "he-bend5")
+						icon_state = "he-bend6"
+						pipe_dir = 6
+					else if(icon_state == "he-bend9")
+						icon_state = "he-bend5"
+						pipe_dir = 5
+
+				if(4,7,5,6,7,8,9,10)
+					src.set_dir(turn(src.dir, -90))
 	/*
 	if (iswrenchingtool(W))
 
@@ -204,7 +196,7 @@ Buildable meters
 
 			if(4)		// connector
 				var/obj/machinery/connector/C = new( src.loc )
-				C.dir = src.dir
+				C.set_dir(src.dir)
 				C.p_dir = src.dir
 				C.level = level
 
@@ -215,7 +207,7 @@ Buildable meters
 
 			if(5)		//manifold
 				var/obj/machinery/manifold/M = new( src.loc )
-				M.dir = dir
+				M.set_dir(dir)
 				M.p_dir = pipedir
 				M.level = level
 				M.buildnodes()
@@ -225,7 +217,7 @@ Buildable meters
 
 			if(6)		//junctions
 				var/obj/machinery/junction/J = new( src.loc )
-				J.dir = dir
+				J.set_dir(dir)
 				J.p_dir = src.get_pdir()
 				J.h_dir = src.get_hdir()
 				J.level = 2
@@ -236,7 +228,7 @@ Buildable meters
 
 			if(7)		// vent
 				var/obj/machinery/vent/V = new( src.loc )
-				V.dir = src.dir
+				V.set_dir(src.dir)
 				V.p_dir = src.dir
 				V.level = level
 
@@ -246,7 +238,7 @@ Buildable meters
 
 			if(8)		//valve
 				var/obj/machinery/valve/mvalve/V = new( src.loc)
-				V.dir = src.dir
+				V.set_dir(src.dir)
 				switch(dir)
 					if(1, 2)
 						V.p_dir = 3
@@ -259,7 +251,7 @@ Buildable meters
 			if(9)		//Pipe pump
 				var/obj/machinery/oneway/pipepump/PP = new(src.loc)
 
-				PP.dir = src.dir
+				PP.set_dir(src.dir)
 				PP.p_dir = dir|turn(dir, 180)
 
 				PP.buildnodes()
@@ -269,7 +261,7 @@ Buildable meters
 
 			if(10)		//filter inlet
 				var/obj/machinery/inlet/filter/F = new(src.loc)
-				F.dir = src.dir
+				F.set_dir(src.dir)
 				F.p_dir = src.dir
 				F.level = level
 

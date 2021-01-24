@@ -17,7 +17,7 @@
 			logTheThing("station", user, null, "plants a martian biotech seed (<b>Structure:</b> [S.spawn_path]) at [log_loc(src)].")
 			return
 	else
-	 ..()
+		..()
 
 /turf/simulated/martian/wall
 	name = "organic wall"
@@ -30,8 +30,9 @@
 
 	proc/checkhealth()
 		if(src.health <= 0)
-			gib(src.loc)
-			ReplaceWithSpace()
+			SPAWN_DBG(0)
+				gib(src.loc)
+				ReplaceWithSpace()
 
 /turf/simulated/martian/wall/ex_act(severity)
 	switch(severity)

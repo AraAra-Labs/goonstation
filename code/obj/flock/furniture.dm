@@ -15,16 +15,15 @@
 /obj/table/flock
 	name = "humming surface"
 	desc = "A table? An alien supercomputer? Well, it's flat, you can put stuff on it."
-	icon = 'icons/obj/table_flock.dmi'
+	icon = 'icons/obj/furniture/table_flock.dmi'
 	auto_type = /obj/table/flock/auto
 	parts_type = /obj/item/furniture_parts/table/flock
 
 /obj/table/flock/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Storage Surface"
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Storage Surface
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -34,16 +33,15 @@
 /obj/item/furniture_parts/table/flock
 	name = "collapsed disk"
 	desc = "An extendable... <i>thing</i> that can be stretched out to make, uh, probably a table of some kind? Where's the goddamn instructions?!"
-	icon = 'icons/obj/table_flock.dmi'
+	icon = 'icons/obj/furniture/table_flock.dmi'
 	furniture_type = /obj/table/flock/auto
 
 /obj/item/furniture_parts/table/flock/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Storage Surface, Deployable State"
-    special_desc += "<br><span class='bold'>Instructions:</span> Activate within grip tool to deploy."
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Storage Surface, Deployable State
+    <br><span class='bold'>Instructions:</span> Activate within grip tool to deploy.
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -64,30 +62,29 @@
 
 /obj/stool/chair/comfy/flock/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Resting Chamber"
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Resting Chamber
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
 /obj/item/furniture_parts/flock_chair
 	name = "pulsing orb"
 	desc = "It feels dense and like it wants to pop open. If you fumble around, maybe you can find some sort of catch or button."
-	icon = 'icons/obj/chairs.dmi'
+	icon = 'icons/obj/furniture/chairs.dmi'
 	icon_state = "flchair_parts"
-	stamina_damage = 15
-	stamina_cost = 15
+	force = 3
+	stamina_damage = 20
+	stamina_cost = 10
 	furniture_type = /obj/stool/chair/comfy/flock
 	furniture_name = "thrumming alcove"
 
 /obj/item/furniture_parts/flock_chair/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Resting Chamber, Deployable State"
-    special_desc += "<br><span class='bold'>Instructions:</span> Activate within grip tool to deploy."
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Resting Chamber, Deployable State
+    <br><span class='bold'>Instructions:</span> Activate within grip tool to deploy.
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -118,15 +115,14 @@
 /obj/storage/closet/flock/attackby(obj/item/W as obj, mob/user as mob)
 	// handle tools
 	if (istype(W, /obj/item/cargotele))
-		boutput(user, "<span class='text-red'>For some reason, it refuses to budge.</span>")
+		boutput(user, "<span class='alert'>For some reason, it refuses to budge.</span>")
 		return
 	else if (istype(W, /obj/item/satchel/))
-		boutput(user, "<span class='text-red'>It isn't really clear how to make this work.</span>")
+		boutput(user, "<span class='alert'>It isn't really clear how to make this work.</span>")
 		return
-	else if (!src.open && istype(W, /obj/item/weldingtool))
-		var/obj/item/weldingtool/welder = W
-		if (welder.welding)
-			boutput(user, "<span class='text-red'>It doesn't matter what you try, it doesn't seem to keep welded shut.</span>")
+	else if (!src.open && isweldingtool(W))
+		if (W:try_weld(user,0,-1,0,0))
+			boutput(user, "<span class='alert'>It doesn't matter what you try, it doesn't seem to keep welded shut.</span>")
 		return
 	// smack the damn thing if it's closed
 	else if (!src.open && isitem(W))
@@ -165,14 +161,13 @@
 		if (!src.toggle())
 			return src.attackby(null, user)
 	else
-		boutput(user, "<span class='text-red'>Nothing you can do can persuade this thing to either open or close. Bummer.</span>")
+		boutput(user, "<span class='alert'>Nothing you can do can persuade this thing to either open or close. Bummer.</span>")
 
 /obj/storage/closet/flock/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Containment Capsule"
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Containment Capsule
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -203,10 +198,9 @@
 
 /obj/item/furniture_parts/flock_chair/special_desc(dist, mob/user)
   if(isflock(user))
-    var/special_desc = "<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received."
-    special_desc += "<br><span class='bold'>ID:</span> Light Emitter"
-    special_desc += "<br><span class='bold'>###=-</span></span>"
-    return special_desc
+    return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+    <br><span class='bold'>ID:</span> Light Emitter
+    <br><span class='bold'>###=-</span></span>"}
   else
     return null // give the standard description
 
@@ -229,18 +223,23 @@
 
 /obj/lattice/flock/attackby(obj/item/C as obj, mob/user as mob)
 	if (istype(C, /obj/item/tile))
-		C:build(get_turf(src))
-		C:amount--
-		playsound(src.loc, "sound/impact_sounds/Generic_Stab_1.ogg", 50, 1)
-		C.add_fingerprint(user)
+		var/obj/item/tile/T = C
+		if (T.amount >= 1)
+			T.build(get_turf(src))
+			playsound(src.loc, "sound/impact_sounds/Generic_Stab_1.ogg", 50, 1)
+			T.add_fingerprint(user)
+			qdel(src)
+	if (isweldingtool(C) && C:try_weld(user,0,-1,0,0))
+		boutput(user, "<span class='notice'>The fibres burn away in the same way glass doesn't. Huh.</span>")
+		qdel(src)
 
-		if (C:amount < 1)
-			user.u_equip(C)
-			qdel(C)
-		qdel(src)
-	if (istype(C, /obj/item/weldingtool) && C:welding)
-		boutput(user, "<span style=\"color:blue\">The fibres burn away in the same way glass doesn't. Huh.</span>")
-		qdel(src)
+/obj/lattice/flock/special_desc(dist, mob/user)
+	if(isflock(user))
+		return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+		<br><span class='bold'>ID:</span> Structural Foundation
+		<br><span class='bold'>###=-</span></span>"}
+	else
+		return null // give the standard description
 
 /////////////
 // BARRICADE
@@ -253,13 +252,35 @@
 	health = 50
 	health_max = 50
 	shock_when_entered = 0
+	auto = FALSE
 	mat_appearances_to_ignore = list("steel","gnesis")
 	mat_changename = 0
 	mat_changedesc = 0
 
+	update_icon(special_icon_state) //fix for perspective grilles fucking these up
+		if (ruined)
+			return
+
+		if (istext(special_icon_state))
+			icon_state = initial(src.icon_state) + "-" + special_icon_state
+			return
+
+		var/diff = get_fraction_of_percentage_and_whole(health,health_max)
+		switch(diff)
+			if(-INFINITY to 25)
+				icon_state = initial(src.icon_state) + "-3"
+			if(26 to 50)
+				icon_state = initial(src.icon_state) + "-2"
+			if(51 to 75)
+				icon_state = initial(src.icon_state) + "-1"
+			if(76 to INFINITY)
+				icon_state = initial(src.icon_state) + "-0"
+
 /obj/grille/flock/New()
 	..()
 	setMaterial("gnesis")
+	src.update_icon()
+
 
 // flockdrones can always move through
 /obj/grille/flock/CanPass(atom/movable/mover, turf/target)
@@ -267,3 +288,11 @@
 		animate_flock_passthrough(mover)
 		return 1
 	return ..()
+
+/obj/grille/flock/special_desc(dist, mob/user)
+	if(isflock(user))
+		return {"<span class='flocksay'><span class='bold'>###=-</span> Ident confirmed, data packet received.
+		<br><span class='bold'>ID:</span> Reinforced Barricade
+		<br><span class='bold'>###=-</span></span>"}
+	else
+		return null // give the standard description

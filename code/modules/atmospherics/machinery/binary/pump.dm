@@ -18,6 +18,8 @@ obj/machinery/atmospherics/binary/pump
 
 	name = "Gas pump"
 	desc = "A pump"
+	layer = PIPE_MACHINE_LAYER
+	plane = PLANE_NOSHADOW_BELOW
 
 	var/on = 0
 	var/target_pressure = ONE_ATMOSPHERE
@@ -47,14 +49,14 @@ obj/machinery/atmospherics/binary/pump
 		if(!on)
 			return 0
 
-		var/output_starting_pressure = air2.return_pressure()
+		var/output_starting_pressure = MIXTURE_PRESSURE(air2)
 
 		if(output_starting_pressure >= target_pressure)
 			//No need to pump gas if target is already reached!
 			return 1
 
 		//Calculate necessary moles to transfer using PV=nRT
-		if((air1.total_moles() > 0) && (air1.temperature>0))
+		if((TOTAL_MOLES(air1) > 0) && (air1.temperature>0))
 			var/pressure_delta = target_pressure - output_starting_pressure
 			var/transfer_moles = pressure_delta*air2.volume/(air1.temperature * R_IDEAL_GAS_EQUATION)
 
@@ -62,11 +64,9 @@ obj/machinery/atmospherics/binary/pump
 			var/datum/gas_mixture/removed = air1.remove(transfer_moles)
 			air2.merge(removed)
 
-			if(network1)
-				network1.update = 1
+			network1?.update = 1
 
-			if(network2)
-				network2.update = 1
+			network2?.update = 1
 
 			use_power((target_pressure) * (0.10)) // cogwerks: adjust the multiplier if needed
 
@@ -141,7 +141,7 @@ obj/machinery/atmospherics/binary/pump
 		update_icon()
 
 obj/machinery/atmospherics/binary/pump/attackby(obj/item/W as obj, mob/user as mob)
-	if(ispulsingtool(W))
+	if(ispulsingtool(W) || iswrenchingtool(W))
 		ui.show_ui(user)
 
 datum/pump_ui/basic_pump_ui
@@ -154,6 +154,7 @@ datum/pump_ui/basic_pump_ui
 	var/obj/machinery/atmospherics/binary/pump/our_pump
 
 datum/pump_ui/basic_pump_ui/New(obj/machinery/atmospherics/binary/pump/our_pump)
+	..()
 	src.our_pump = our_pump
 	pump_name = our_pump.name
 

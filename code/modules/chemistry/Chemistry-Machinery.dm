@@ -91,7 +91,7 @@
 		if(usr.stat || usr.restrained()) return
 		if(!in_range(src, usr)) return
 
-		usr.machine = src
+		src.add_dialog(usr)
 		if (!beaker)
 			// This should only happen when the UI is out of date - refresh it
 			src.updateUsrDialog()
@@ -156,7 +156,7 @@
 	attack_hand(mob/user as mob)
 		if(status & (NOPOWER|BROKEN))
 			return
-		user.machine = src
+		src.add_dialog(user)
 		var/list/dat = list()
 
 		if(!beaker)
@@ -263,23 +263,23 @@
 
 	MouseDrop(over_object, src_location, over_location)
 		if(!isliving(usr))
-			boutput(usr, "<span style=\"color:red\">Only living mobs are able to set the Reagent Heater/Cooler's output target.</span>")
+			boutput(usr, "<span class='alert'>Only living mobs are able to set the Reagent Heater/Cooler's output target.</span>")
 			return
 
 		if(get_dist(over_object,src) > 1)
-			boutput(usr, "<span style=\"color:red\">The Reagent Heater/Cooler is too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>The Reagent Heater/Cooler is too far away from the target!</span>")
 			return
 
 		if(get_dist(over_object,usr) > 1)
-			boutput(usr, "<span style=\"color:red\">You are too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>You are too far away from the target!</span>")
 			return
 
 		else if (istype(over_object,/turf/simulated/floor/))
 			src.output_target = over_object
-			boutput(usr, "<span style=\"color:blue\">You set the Reagent Heater/Cooler to output to [over_object]!</span>")
+			boutput(usr, "<span class='notice'>You set the Reagent Heater/Cooler to output to [over_object]!</span>")
 
 		else
-			boutput(usr, "<span style=\"color:red\">You can't use that as an output target.</span>")
+			boutput(usr, "<span class='alert'>You can't use that as an output target.</span>")
 		return
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,7 +354,7 @@
 
 		src.add_fingerprint(usr)
 
-		usr.machine = src
+		src.add_dialog(usr)
 
 		if (href_list["close"])
 			usr.Browse(null, "window=chem_master;title=Chemmaster 3000")
@@ -423,7 +423,7 @@
 			var/pillvol = input(usr, "Volume of chemical per pill: (Min/Max 5/100):", "Volume", 5) as null|num
 			if (!pillvol || !src.beaker || !R)
 				return
-			pillvol = CLAMP(pillvol, 5, 100)
+			pillvol = clamp(pillvol, 5, 100)
 			// maths
 			var/pillcount = round(R.total_volume / pillvol) // round with a single parameter is actually floor because byond
 			logTheThing("combat",usr,null,"created [pillcount] [pillname] pills from [log_reagents(R)].")
@@ -512,10 +512,10 @@
 			if (isnull(patchname) || !src.beaker || !R || !length(patchname) || patchname == " " || get_dist(usr, src) > 1)
 				return
 			// get the pill volume from the user
-			var/patchvol = input(usr, "Volume of chemical per patch: (Min/Max 5/40)", "Volume", 5) as null|num
+			var/patchvol = input(usr, "Volume of chemical per patch: (Min/Max 5/30)", "Volume", 5) as null|num
 			if (!patchvol || !src.beaker || !R)
 				return
-			patchvol = CLAMP(patchvol, 5, 40)
+			patchvol = clamp(patchvol, 5, 30)
 			// maths
 			var/patchcount = round(R.total_volume / patchvol) // round with a single parameter is actually floor because byond
 			logTheThing("combat",usr,null,"created [patchcount] [patchname] patches from [log_reagents(R)].")
@@ -531,9 +531,11 @@
 			if (use_box)
 				// create a patchbox
 				var/obj/item/item_box/medical_patches/B = new /obj/item/item_box/medical_patches(src.output_target)
-				B.name = "box of [patchname] [patchvol <= 20 ? "mini-" : null]patches"
+				B.name = "box of [patchname] [patchvol <= 15 ? "mini-" : null]patches"
 				patchloc = B
-				if (!med) // dangerrr
+				if (med)
+					B.build_overlay(average = R.get_average_color())
+				else // dangerrr
 					B.icon_state = "patchbox" // change icon
 					B.icon_closed = "patchbox"
 					B.icon_open = "patchbox-open"
@@ -544,7 +546,7 @@
 			if (patchloc)
 				for (var/i=patchcount, i>0, i--)
 					var/obj/item/reagent_containers/patch/P
-					if (patchvol <= 20)
+					if (patchvol <= 15)
 						P = new /obj/item/reagent_containers/patch/mini(patchloc)
 						P.name = "[patchname] mini-patch"
 					else
@@ -570,7 +572,7 @@
 	attack_hand(mob/user as mob)
 		if (status & BROKEN)
 			return
-		user.machine = src
+		src.add_dialog(user)
 		var/dat = ""
 		if (!beaker)
 			dat = "Please insert beaker.<BR>"
@@ -588,7 +590,7 @@
 				dat += "<BR><A href='?src=\ref[src];createpill=1'>Create pill (100 units max)</A><BR>"
 				dat += "<A href='?src=\ref[src];multipill=1'>Create multiple pills (5 units min)</A> Bottle: <A href='?src=\ref[src];togglepillbottle=1'>[src.pill_bottle ? "Yes" : "No"]</A><BR>"
 				dat += "<A href='?src=\ref[src];createbottle=1'>Create bottle (50 units max)</A><BR>"
-				dat += "<A href='?src=\ref[src];createpatch=1'>Create patch (40 units max)</A><BR>"
+				dat += "<A href='?src=\ref[src];createpatch=1'>Create patch (30 units max)</A><BR>"
 				dat += "<A href='?src=\ref[src];multipatch=1'>Create multiple patches (5 units min)</A> Box: <A href='?src=\ref[src];togglepatchbox=1'>[src.patch_box ? "Yes" : "No"]</A><BR>"
 				dat += "<A href='?src=\ref[src];createampoule=1'>Create ampoule (5 units max)</A>"
 		user.Browse("<TITLE>Chemmaster 3000</TITLE>Chemmaster menu:<BR><BR>[dat]", "window=chem_master;size=575x400;title=Chemmaster 3000")
@@ -623,7 +625,7 @@
 	proc/color_icon(var/obj/item/reagent_containers/pill/P)
 		if (P.reagents)
 			var/datum/color/average = P.reagents.get_average_color()
-			P.color_overlay = image('icons/obj/pills.dmi', "pill0")
+			P.color_overlay = image('icons/obj/items/pills.dmi', "pill0")
 			P.color_overlay.color = average.to_rgb()
 			P.color_overlay.alpha = P.color_overlay_alpha
 			P.overlays += P.color_overlay
@@ -631,23 +633,23 @@
 
 	MouseDrop(over_object, src_location, over_location)
 		if(!isliving(usr))
-			boutput(usr, "<span style=\"color:red\">Only living mobs are able to set the CheMaster 3000's output target.</span>")
+			boutput(usr, "<span class='alert'>Only living mobs are able to set the CheMaster 3000's output target.</span>")
 			return
 
 		if(get_dist(over_object,src) > 1)
-			boutput(usr, "<span style=\"color:red\">The CheMaster 3000 is too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>The CheMaster 3000 is too far away from the target!</span>")
 			return
 
 		if(get_dist(over_object,usr) > 1)
-			boutput(usr, "<span style=\"color:red\">You are too far away from the target!</span>")
+			boutput(usr, "<span class='alert'>You are too far away from the target!</span>")
 			return
 
 		else if (istype(over_object,/turf/simulated/floor/))
 			src.output_target = over_object
-			boutput(usr, "<span style=\"color:blue\">You set the CheMaster 3000 to output to [over_object]!</span>")
+			boutput(usr, "<span class='notice'>You set the CheMaster 3000 to output to [over_object]!</span>")
 
 		else
-			boutput(usr, "<span style=\"color:red\">You can't use that as an output target.</span>")
+			boutput(usr, "<span class='alert'>You can't use that as an output target.</span>")
 		return
 
 datum/chemicompiler_core/stationaryCore
@@ -662,6 +664,7 @@ datum/chemicompiler_core/stationaryCore
 	icon_state = "chemicompiler_st_off"
 	mats = 15
 	flags = NOSPLASH
+	processing_tier = PROCESSING_FULL
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_MULTITOOL
 	var/datum/chemicompiler_executor/executor
 	var/datum/light/light
@@ -696,13 +699,13 @@ datum/chemicompiler_core/stationaryCore
 
 	attack_hand(mob/user as mob)
 		if (status & BROKEN || !powered())
-			boutput( user, "<span style='color:red'>You can't seem to power it on!</span>" )
+			boutput( user, "<span class='alert'>You can't seem to power it on!</span>" )
 			return
-		user.machine = src
+		src.add_dialog(user)
 		executor.panel()
 		onclose(usr, "chemicompiler")
 		return
-	
+
 	attackby(var/obj/item/reagent_containers/glass/B as obj, var/mob/user as mob)
 		if (!istype(B, /obj/item/reagent_containers/glass))
 			return
@@ -729,7 +732,7 @@ datum/chemicompiler_core/stationaryCore
 				icon_state = initial(icon_state)
 				status |= NOPOWER
 				light.disable()
-	
+
 	process()
 		. = ..()
 		if ( src.executor )

@@ -10,7 +10,7 @@
 
 	To-Do:
 	Wall-mounted shotgun racks
-	A cool rack for the barman's shotgun
+	A cool rack for the bartender's shotgun
 */
 
 /obj/machinery/weapon_stand
@@ -76,6 +76,10 @@
 			stand_type = "taser_charge_rack"
 			recharges_contents = 1
 
+			empty
+				icon_state = "taser_rack0"
+				amount = 0
+
 	egun_rack
 		name = "energy gun rack"
 		desc = "A storage rack that fits 4 energy guns. Tidy!"
@@ -107,9 +111,6 @@
 		contained_weapon_name = "riot shotgun"
 		req_access = list(access_security)
 
-		pbr
-			contained_weapon = /obj/item/gun/kinetic/riotgun/pbr
-
 	rifle_rack
 		name = "pulse rifle rack"
 		desc = "A rack that charges up to 3 pulse rifles."
@@ -135,6 +136,7 @@
 				logTheThing("debug", src, null, "has a non-path contained_weapon, \"[src.contained_weapon]\", and is being disposed of to prevent errors")
 				qdel(src)
 				return
+			src.update()
 
 	get_desc(dist)
 		if (dist <= 1)
@@ -206,7 +208,7 @@
 
 			user.Browse(pdat, "window=rackpanel")
 			onclose(user, "rackpanel")
-		
+
 		if(!ishuman(user) || !isliving(user))
 			return
 
@@ -248,7 +250,7 @@
 
 	Topic(href, href_list)
 		if(get_dist(usr,src) > 1 && !issilicon(usr) && !isAI(usr))
-			boutput(usr, "<span style=\"color:red\">You need to be closer to the rack to do that!</span>")
+			boutput(usr, "<span class='alert'>You need to be closer to the rack to do that!</span>")
 			return
 
 		if ((href_list["cutwire"]) && (src.panelopen || isAI(usr)))
@@ -314,7 +316,7 @@
 	emag_act(var/mob/user, var/obj/item/card/emag/E)
 		if (!src.hacked)
 			if(user)
-				boutput(user, "<span style=\"color:blue\">You disable the [src]'s cardlock!</span>")
+				boutput(user, "<span class='notice'>You disable the [src]'s cardlock!</span>")
 			src.hacked = 1
 			src.updateUsrDialog()
 			return 1

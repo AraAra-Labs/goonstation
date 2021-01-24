@@ -102,11 +102,11 @@
 	var/obj/beam/focused_laser/I = new /obj/beam/focused_laser( (src.loc) )
 	I.master = src
 	I.set_density(1)
-	I.dir = opp_dir(src.dir)
+	I.set_dir(opp_dir(src.dir))
 	I.energy = src.energy
 	step(I, I.dir)
 	if (I)
-		I.dir = opp_dir(src.dir)
+		I.set_dir(opp_dir(src.dir))
 		I.set_density(0)
 		src.first = I
 		I.vis_spread(1)
@@ -161,13 +161,13 @@
 	var/obj/beam/focused_laser/I = new /obj/beam/focused_laser( src.loc )
 	I.master = src.master
 	//I.set_density(1)
-	I.dir = src.dir
+	I.set_dir(src.dir)
 	I.energy = src.energy
 	step(I, I.dir)
 
 	if (I)
 		if (!( src.next ) && I)
-			I.dir = src.dir
+			I.set_dir(src.dir)
 			I.set_density(0)
 			I.vis_spread(src.visible)
 			src.next = I
@@ -249,7 +249,7 @@
 	var/obj/beam/engine_laser/I = new /obj/beam/engine_laser( src.loc )
 	I.master = src.master
 	//I.set_density(1)
-	I.dir = src.dir
+	I.set_dir(src.dir)
 	I.energy = src.energy
 	step(I, I.dir)
 
@@ -262,7 +262,7 @@
 			qdel(I)
 			break
 		if (!( src.next ) && I)
-			I.dir = src.dir
+			I.set_dir(src.dir)
 			I.set_density(0)
 			I.vis_spread(src.visible)
 			src.next = I
@@ -321,10 +321,10 @@
 		var/obj/beam/engine_laser/I = new /obj/beam/engine_laser( (src.loc) )
 		I.master = src
 		I.set_density(1)
-		I.dir = src.dir
+		I.set_dir(src.dir)
 		step(I, I.dir)
 		if (I)
-			I.dir = src.dir
+			I.set_dir(src.dir)
 			I.set_density(0)
 			src.first = I
 			I.vis_spread(1)
@@ -347,14 +347,14 @@
 /obj/machinery/engine_laser_spawner/Move()
 	var/t = src.dir
 	..()
-	src.dir = t
+	src.set_dir(t)
 	qdel(src.first)
 	return
 
 /obj/machinery/engine_laser_spawner/verb/rotate()
 	set src in usr
 
-	src.dir = turn(src.dir, 45)
+	src.set_dir(turn(src.dir, 45))
 	return
 
 
@@ -387,7 +387,7 @@
 	interact(user)
 
 /obj/machinery/computer/laser_computer/proc/interact(mob/user)
-	user.machine = src
+	src.add_dialog(user)
 	var/polledemitters
 	for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 		if(M.health < 20)
@@ -412,7 +412,7 @@ text("<A href='?src=\ref[];pattern=1'>[src.pattern]</A>", src))
 
 /obj/machinery/computer/laser_computer/Topic(href, href_list)
 	boutput(world, "Topic, [href_list]")
-	usr.machine = src
+	src.add_dialog(usr)
 	if (href_list["testfire"])
 		if(!src.started)
 			src.testfire()
@@ -437,13 +437,13 @@ text("<A href='?src=\ref[];pattern=1'>[src.pattern]</A>", src))
 		if(src.pattern == "Single")
 			for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 				M.state = 1
-				sleep(30)
+				sleep(3 SECONDS)
 		else if(src.pattern == "Double")
 			var/double = 0
 			for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 				M.state = 1
 				if(double)
-					sleep(20)
+					sleep(2 SECONDS)
 					double = 0
 				else
 					double = 1
@@ -457,20 +457,20 @@ text("<A href='?src=\ref[];pattern=1'>[src.pattern]</A>", src))
 			if(src.pattern == "Single")
 				for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 					M.state = 1
-					sleep(30)
+					sleep(3 SECONDS)
 			else if(src.pattern == "Double")
 				var/double = 0
 				for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 					M.state = 1
 					if(double)
-						sleep(30)
+						sleep(3 SECONDS)
 						double = 0
 					else
 						double = 1
 			else
 				for(var/obj/machinery/engine_laser_spawner/M in src.emitters)
 					M.state = 1
-				sleep(30)
+				sleep(3 SECONDS)
 
 
 /obj/machinery/computer/laser_computer/process()

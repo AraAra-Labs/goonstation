@@ -1,20 +1,25 @@
 /datum/hud/storage
-	var/obj/screen/hud
+	var/atom/movable/screen/hud
 		boxes
 		close
+		sel
 	var/obj/item/storage/master
 	var/list/obj_locs = null // hi, haine here, I'm gunna crap up this efficient code with REGEX BULLSHIT YEAHH!!
+	var/empty_obj_loc = null
 
 	New(master)
+		..()
 		src.master = master
 		src.boxes = create_screen("boxes", "Storage", 'icons/mob/screen1.dmi', "block", ui_storage_area)
 		src.close = create_screen("close", "Close", 'icons/mob/screen1.dmi', "x", ui_storage_close, HUD_LAYER+1)
+		src.sel = create_screen("sel", "sel", 'icons/mob/hud_human_new.dmi', "sel", null, HUD_LAYER+1.2)
 		update()
 
 	disposing()
 		src.master = null
 		src.boxes.dispose()
 		src.close.dispose()
+		src.obj_locs.len = 0
 		src.obj_locs = null
 		..()
 
@@ -85,6 +90,27 @@
 				user.detach_hud(src)
 				user.s_active = null
 
+	//issue below with th4e way we draw boxes : all boxes are one object drawn multiple tiles using screenloc...
+	//I cannot get specific values for one box or find which item is in which box without some maybe-expensive string parsing. Figure out not-slow fix later
+	MouseEntered(var/atom/movable/screen/hud/H, location, control, params)
+		if (!H || H.id != "boxes") return
+		if (usr)
+			var/obj/item/I = usr.equipped()
+			if (src.master && I && src.master.loc == usr && src.master.check_can_hold(I)>0)
+				sel.screen_loc = empty_obj_loc
+
+
+	MouseExited(var/atom/movable/screen/hud/H)
+		if (!H) return
+		sel.screen_loc = null
+
+//idk if i can even use the params of mousedrop for this
+/*
+	MouseDrop(var/atom/movable/screen/hud/H, atom/over_object, src_location, over_location, over_control, params)
+		var/obj/item/I = src.obj_locs[H.screen_loc]
+		if (I)
+			I.MouseDrop(over_object, src_location, over_location, over_control, params)
+*/
 	proc/update()
 		var x = 1
 		var y = 1 + master.slots
@@ -102,13 +128,13 @@
 
 		if (istype(usr,/mob/living/carbon/human))
 			if (usr.client && usr.client.tg_layout) //MBC TG OVERRIDE IM SORTY
-				x = 1 + master.slots
+				x = 11 - round(master.slots / 2)
 				y = 3
 				sx = master.slots + 1
 				sy = 1
 
 				if (turfd) // goddamn BIBLES (prevents conflicting positions within different bibles)
-					x = 7
+					x = 8
 					y = 8
 					sx = (master.slots + 1) / 2
 					sy = 2
@@ -131,7 +157,7 @@
 		close.screen_loc = "[x+sx-1]:[pixel_y_adjust],[y-sy+1]:[pixel_y_adjust]"
 
 		if (!turfd && istype(usr,/mob/living/carbon/human))
-			if (usr && usr.client && usr.client.tg_layout) //MBC TG OVERRIDE IM SORTY
+			if (usr && usr.client?.tg_layout) //MBC TG OVERRIDE IM SORTY
 				boxes.screen_loc = "[x-1],[y]:[pixel_y_adjust] to [x+sx-2],[y-sy+1]:[pixel_y_adjust]"
 				close.screen_loc = "[x-1],[y-sy+1]:[pixel_y_adjust]"
 
@@ -145,6 +171,10 @@
 			I.screen_loc = final_loc
 			src.obj_locs[obj_loc] = I
 			i++
+		empty_obj_loc =  "[x+(i%sx)],[y-round(i/sx)]:[pixel_y_adjust]"
+		if(isitem(master))
+			var/obj/item/I = master
+			I.tooltip_rebuild = 1
 		master.update_icon()
 
 	proc/add_item(obj/item/I)

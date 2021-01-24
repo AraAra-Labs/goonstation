@@ -39,7 +39,7 @@
 
 		var/turf/curr_turf = get_turf(holder.owner)
 
-		P.dir = the_dir
+		P.set_dir(the_dir)
 		P.set_loc(curr_turf)
 		D.set_loc(curr_turf)
 		holder.owner.set_loc(D)
@@ -48,7 +48,7 @@
 			SPAWN_DBG(0)
 				while(P)
 					step(P, the_dir)
-					sleep(2)
+					sleep(0.2 SECONDS)
 
 		SPAWN_DBG(10 SECONDS)
 			holder.owner.set_loc(D.loc)

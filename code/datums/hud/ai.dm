@@ -1,7 +1,7 @@
 /datum/hud/ai
 	var/mob/living/silicon/ai/master
 
-	var/obj/screen/hud
+	var/atom/movable/screen/hud
 		health
 		cell
 		tracking
@@ -11,14 +11,17 @@
 		radio
 		pda
 		laws
+		viewport
+		hologram
 		killswitch
 
 	var/list/spinner = list("/", "-", "\\", "|")
 	var/spinner_num = 1
 
 	New(M)
+		..()
 		master = M
-		
+
 		health = create_screen("health", "Core Health", 'icons/mob/hud_ai.dmi', "health", "EAST, NORTH+0.5", HUD_LAYER)
 		health.underlays += "underlay"
 		health.maptext_width = 96
@@ -57,6 +60,12 @@
 		laws = create_screen("laws", "Show Laws", 'icons/mob/hud_ai.dmi', "laws", "WEST, NORTH-2", HUD_LAYER)
 		laws.underlays += "button"
 
+		viewport = create_screen("viewport", "Create Viewport", 'icons/mob/hud_ai.dmi', "viewport", "WEST, NORTH-2.5", HUD_LAYER)
+		viewport.underlays += "button"
+
+		hologram = create_screen("hologram", "Create Hologram", 'icons/mob/hud_ai.dmi', "hologram", "WEST, NORTH-3", HUD_LAYER)
+		hologram.underlays += "button"
+
 		tracking = create_screen("tracking", "Tracking", 'icons/mob/hud_ai.dmi', "track", "WEST, SOUTH", HUD_LAYER)
 		tracking.underlays += "button"
 		tracking.maptext_width = 32*15
@@ -77,8 +86,11 @@
 
 		update_health()
 			if (master.killswitch)
+				var/timeleft = round((master.killswitch_at - TIME)/10, 1)
+				timeleft = "[(timeleft / 60) % 60]:[add_zero(num2text(timeleft % 60), 2)]"
+
 				killswitch.invisibility = 0
-				killswitch.maptext = "<span class='vga vt c ol' style='color: red;'>KILLSWITCH TIMER\n<span style='font-size: 24px;'>[add_zero(master.killswitch_time - 2,2)]</span></span>"
+				killswitch.maptext = "<span class='vga vt c ol' style='color: red;'>KILLSWITCH TIMER\n<span style='font-size: 24px;'>[timeleft]</span></span>"
 			else
 				killswitch.invisibility = 101
 				killswitch.maptext = ""
@@ -119,11 +131,11 @@
 			if ("health")
 				//output health info
 				boutput(user, "Health: [master.health]/[master.max_health] - Brute: [master.bruteloss] - Burn: [master.fireloss]")
-			
+
 			if ("cell")
 				// Output cell info
 				boutput(user, "Cell: [master.cell.charge]/[master.cell.maxcharge]")
-			
+
 			if ("status")
 				// Change status
 				master.ai_statuschange()
@@ -144,7 +156,7 @@
 				else
 					master.ai_camera_track()
 				update_tracking()
-			
+
 			if ("pda")
 				master.access_internal_pda()
 
@@ -153,3 +165,14 @@
 
 			if ("laws")
 				master.show_laws()
+
+			if ("viewport")
+				if(master.deployed_to_eyecam)
+					master.eyecam.create_viewport()
+				else
+					boutput(master, "Deploy to an AI Eye first to create a viewport.")
+			if ("hologram")
+				if(master.deployed_to_eyecam)
+					master.create_hologram()
+				else
+					boutput(master, "Deploy to an AI Eye first to create a hologram.")

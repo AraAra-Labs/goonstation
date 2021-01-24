@@ -1,6 +1,3 @@
-/var/global/list/phonelist = list() // Holds all phones
-
-
 /obj/machinery/phone
 	name = "phone"
 	icon = 'icons/obj/machines/phones.dmi'
@@ -16,12 +13,12 @@
 	var/obj/machinery/phone/linked = null
 	var/ringing = 0
 	var/answered = 0
-	var/location = null
 	var/last_ring = 0
 	var/connected = 1
 	var/emagged = 0
 	var/dialing = 0
 	var/labelling = 0
+	var/unlisted = FALSE
 	var/obj/item/phone_handset/handset = null
 	var/chui/window/phonecall/phonebook
 	var/phoneicon = "phone"
@@ -35,37 +32,39 @@
 	New()
 		..() // Set up power usage, subscribe to loop, yada yada yada
 		src.icon_state = "[phoneicon]"
-		src.location = get_area(src)
+		var/area/location = get_area(src)
 
 		// Give the phone an appropriate departmental color. Jesus christ thats fancy.
-		if(istype(src.location,/area/station/security))
+		if(istype(location,/area/station/security))
 			src.color = "#ff0000"
-		else if(istype(src.location,/area/station/bridge))
+		else if(istype(location,/area/station/bridge))
 			src.color = "#00aa00"
-		else if(istype(src.location, /area/station/engine) || istype(src.location, /area/station/quartermaster) || istype(src.location, /area/station/mining))
+		else if(istype(location, /area/station/engine) || istype(location, /area/station/quartermaster) || istype(location, /area/station/mining))
 			src.color = "#aaaa00"
-		else if(istype(src.location, /area/station/science) || istype(src.location, /area/station/chemistry))
+		else if(istype(location, /area/station/science))
 			src.color = "#9933ff"
-		else if(istype(src.location, /area/station/medical))
+		else if(istype(location, /area/station/medical))
 			src.color = "#0000ff"
 		else
 			src.color = "#663300"
 		src.overlays += image('icons/obj/machines/phones.dmi',"[dialicon]")
 		// Generate a name for the phone.
-		var/area/my_area = get_area(src)
-		var/base_name = my_area.name // tentative name
-		var/temp_name = base_name
-		var/name_counter = 1
-		for(var/obj/machinery/phone/M in phonelist)
-			if(M.phone_id && M.phone_id == temp_name)
-				name_counter++
-				temp_name = "[base_name] [name_counter]"
 
-		src.phone_id = temp_name
+		if(isnull(src.phone_id))
+			var/temp_name = src.name
+			if(temp_name == initial(src.name) && location)
+				temp_name = location.name
+			var/name_counter = 1
+			for_by_tcl(M, /obj/machinery/phone)
+				if(M.phone_id && M.phone_id == temp_name)
+					name_counter++
+			if(name_counter > 1)
+				temp_name = "[temp_name] [name_counter]"
+			src.phone_id = temp_name
 
-		src.desc += " There is a small label on the phone that reads \"[temp_name]\""
+		src.desc += " There is a small label on the phone that reads \"[src.phone_id]\""
 
-		phonelist.Add(src)
+		START_TRACKING
 
 		return
 
@@ -79,7 +78,7 @@
 			handset.parent = null
 		handset = null
 
-		phonelist.Remove(src)
+		STOP_TRACKING
 		..()
 
 	// Attempt to pick up the handset
@@ -103,7 +102,7 @@
 					phonebook.Subscribe(user.client)
 			else
 				if(user)
-					boutput(user,"<span style=\"color:red\">As you pick up the phone you notice that the cord has been cut!</span>")
+					boutput(user,"<span class='alert'>As you pick up the phone you notice that the cord has been cut!</span>")
 		else
 			src.ringing = 0
 			src.linked.ringing = 0
@@ -159,7 +158,7 @@
 		src.icon_state = "[ringingicon]"
 		if (!src.emagged)
 			if(user)
-				boutput(user, "<span style=\"color:red\">You short out the ringer circuit on the [src].</span>")
+				boutput(user, "<span class='alert'>You short out the ringer circuit on the [src].</span>")
 			src.emagged = 1
 			return 1
 		return 0
@@ -210,8 +209,7 @@
 		if(!src.handset)
 			return
 		src.dialing = 1
-		if(src.handset.holder)
-			src.handset.holder.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
+		src.handset.holder?.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
 		SPAWN_DBG(4 SECONDS)
 			// Is it busy?
 			if(target.answered || target.linked || target.connected == 0)
@@ -227,15 +225,15 @@
 			src.dialing = 0
 			return
 
-	/obj/machinery/phone/custom_suicide = 1
-	/obj/machinery/phone/suicide(var/mob/user as mob)
-		if (!src.user_can_suicide(user))
-			return 0
-		if (ishuman(user))
-			user.visible_message("<span style='color:red'><b>[user] bashes the [src] into their head repeatedly!</b></span>")
-			user.TakeDamage("head", 150, 0)
-			user.updatehealth()
-			return 1
+
+/obj/machinery/phone/custom_suicide = 1
+/obj/machinery/phone/suicide(var/mob/user as mob)
+	if (!src.user_can_suicide(user))
+		return 0
+	if (ishuman(user))
+		user.visible_message("<span class='alert'><b>[user] bashes the [src] into their head repeatedly!</b></span>")
+		user.TakeDamage("head", 150, 0)
+		return 1
 
 
 
@@ -251,7 +249,8 @@
 
 	GetBody()
 		var/html = ""
-		for(var/obj/machinery/phone/P in phonelist)
+		for_by_tcl(P, /obj/machinery/phone)
+			if (P.unlisted) continue
 			html += "[theme.generateButton(P.phone_id, "[P.phone_id]")] <br/>"
 		return html
 
@@ -259,7 +258,7 @@
 		if(src.owner.dialing == 1 || src.owner.linked)
 			return
 		if(owner)
-			for(var/obj/machinery/phone/P in phonelist)
+			for_by_tcl(P, /obj/machinery/phone)
 				if(P.phone_id == id)
 					owner.call_other(P)
 					return
@@ -298,7 +297,7 @@
 			qdel(src)
 			return
 		if(src.parent.answered == 1 && get_dist(src,src.parent) > 1)
-			boutput(src.holder,"<span style=\"color:red\">The phone cord reaches it limit and the handset is yanked back to its base!</span>")
+			boutput(src.holder,"<span class='alert'>The phone cord reaches it limit and the handset is yanked back to its base!</span>")
 			src.holder.drop_item(src)
 			src.parent.hang_up()
 			processing_items.Remove(src)
@@ -310,7 +309,7 @@
 			return
 		var/processed = "<span class='game say'><span class='bold'>[M.name] \[<span style=\"color:[src.color]\"> [bicon(src)] [src.parent.phone_id]</span>\] says, </span> <span class='message'>\"[text[1]]\"</span></span>"
 		var/mob/T = src.parent.linked.handset.holder
-		if(T && T.client)
+		if(T?.client)
 			T.show_message(processed, 2)
 			M.show_message(processed, 2)
 
@@ -335,6 +334,9 @@
 	ringingicon = "wallphone_ringing"
 	answeredicon = "wallphone_answered"
 	dialicon = "wallphone_dial"
+
+/obj/machinery/phone/unlisted
+	unlisted = TRUE
 
 //
 //		----------------- CELL PHONE STUFF STARTS HERE ---------------------

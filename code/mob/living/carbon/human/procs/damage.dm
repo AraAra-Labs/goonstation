@@ -1,94 +1,32 @@
 
 /mob/living/carbon/human/bullet_act(var/obj/projectile/P, mob/meatshield)
-	log_shot(P,src)
-	if (ismob(P.shooter))
-		var/mob/living/M = P.shooter
-		if (P.name != "energy bolt" && M && M.mind)
-			M.mind.violated_hippocratic_oath = 1
+	. = ..()
+	if(!.)
+		return 0 //early return from parent
 
-	if (src.nodamage) return
-	if (src.spellshield)
-		src.visible_message("<span style=\"color:red\">[src]'s shield deflects the shot!</span>")
-		return
-	for (var/obj/item/device/shield/S in src)
-		if (S.active)
-			if (P.proj_data.damage_type == D_KINETIC)
-				src.visible_message("<span style=\"color:red\">[src]'s shield deflects the shot!</span>")
-				return
-			S.active = 0
-			S.icon_state = "shield0"
+	if(istype(/atom, .))
+		return . //meatshielded
 
-	if(src.material) src.material.triggerOnBullet(src, src, P)
-	for (var/atom/A in src)
-		if (A.material)
-			if(src.material) src.material.triggerOnBullet(A, src, P)
-
-	if (!P.proj_data)
-		return
-
-	if (!meatshield && locate(/obj/item/grab, src))
-		var/mob/hostage = null
-		var/obj/item/grab/G = find_type_in_hand(/obj/item/grab)
-		if(G && G.affecting && G.state >= 2 && P.shooter != G.affecting) //If you grab someone they can still shoot you
-			hostage = G.affecting
-		if (hostage)
-			hostage.bullet_act(P, src)
-
-			//moved here so that it displays after the bullet hit message
-			if(prob(20)) //This should probably not be bulletproof, har har
-				hostage.visible_message("<span class='combat bold'>[hostage] is knocked out of [src]'s grip by the force of the [P.name]!</span>")
-				qdel(G)
-
-			return hostage
-	if (!P.proj_data.silentshot && !P.proj_data.nomsg)
-		src.visible_message("<span style=\"color:red\">[src] is hit by the [P.name]!</span>", "<span style=\"color:red\">You are hit by the [P.name]!</span>")
-
-	for (var/mob/V in nervous_mobs)
-		if (get_dist(src,V) > 6)
-			continue
-		if(prob(8) && src)
-			if(src != V)
-				V.emote("scream")
-				V.changeStatus("stunned", 2 SECONDS)
-
-// ahhhh fuck this im just making every shot be a chest shot for now -drsingh
 	var/damage = 0
-	var/stun = 0 //HEY this doesnt actually stun. its the number to reduce stamina. gosh.
 	if (P.proj_data)  //ZeWaka: Fix for null.ks_ratio
 		damage = round((P.power*P.proj_data.ks_ratio), 1.0)
-		if (P.proj_data.ks_ratio > 0 || (src.getStatusDuration("weakened") || src.getStatusDuration("stunned") || src.getStatusDuration("paralysis") )) //only if ks_ratio exceeds 0. we already make stuns and stamina apply in proj_data.on_hit. I dont wanna apply both this effect AND that one
-			stun = round((P.power*(1.0-P.proj_data.ks_ratio)), 1.0)
 
 	var/armor_value_bullet = 1
 
 	if (!(client && client.hellbanned))
 		armor_value_bullet = get_ranged_protection()
-	var/target_organ = pick("left_lung", "right_lung", "left_kidney", "right_kidney", "liver", "stomach", "intestines", "spleen", "pancreas", "appendix")
+	var/target_organ = pick("left_lung", "right_lung", "left_kidney", "right_kidney", "liver", "stomach", "intestines", "spleen", "pancreas", "appendix", "tail")
 	if (P.proj_data) //Wire: Fix for: Cannot read null.damage_type
 		switch(P.proj_data.damage_type)
 			if (D_KINETIC)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
-				if (armor_value_bullet > 1)
-					if (!P.proj_data.nomsg)
-						show_message("<span style=\"color:red\">Your armor softens the hit!</span>", 4)
-					src.TakeDamage("chest", (damage/armor_value_bullet), 0, 0, DAMAGE_BLUNT)
-				else
-					src.TakeDamage("chest", damage, 0, 0, DAMAGE_BLUNT)
+				if (armor_value_bullet <= 1)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(damage, 0, 0, target_organ)
 					src.set_clothing_icon_dirty()
-	//				take_bleeding_damage(src, damage, DAMAGE_BLUNT) // im haine
-
-				if (stat==0) lastgasp()
 
 				if (src.wear_suit && armor_value_bullet >= 2)
 					return
-
 				else
-
 					if (P.implanted)
 						if (istext(P.implanted))
 							P.implanted = text2path(P.implanted)
@@ -115,24 +53,12 @@
 									src.organHolder.damage_organ(0, (damage/armor_value_bullet)*2, 0, target_organ)
 							//implanted.implanted(src, null, min(20, max(0, round(damage / 10) ) ))
 			if (D_PIERCING)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
-				//bleed
 				if (armor_value_bullet > 1)
-					show_message("<span style=\"color:red\">[P] pierces through your armor!</span>", 4)
-					src.TakeDamage("chest", damage/max((armor_value_bullet/3), 1), 0, 0, DAMAGE_STAB)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(damage/max(armor_value_bullet/3), 0, 0, target_organ)
 				else
-					src.TakeDamage("chest", damage / 1, 0, 0, DAMAGE_STAB)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(damage/1, 0, 0, target_organ)
-
-	//			take_bleeding_damage(src, damage, DAMAGE_STAB) // im stupid
-
-				if (stat==0) lastgasp()
 
 				if (P.implanted)
 					if (istext(P.implanted))
@@ -161,88 +87,31 @@
 						//implanted.implanted(src, null, min(20, max(0, round(damage / 10) ) ))
 
 			if (D_SLASHING)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-				//bleed
 				if (armor_value_bullet > 1)
-					show_message("<span style=\"color:red\">Your armor softens the hit!</span>", 4)
-					src.TakeDamage("chest", (damage/armor_value_bullet), 0, 0, DAMAGE_BLUNT)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(damage/armor_value_bullet, 0, 0, target_organ)
 				else
-					src.TakeDamage("chest", (damage*2), 0, 0, DAMAGE_CUT)
-	//				take_bleeding_damage(src, damage, DAMAGE_CUT) // im coder
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(damage*2, 0, 0, target_organ)
 
 			if (D_ENERGY)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
-				if (isalive(src)) lastgasp()
-
-				if (src.stuttering < stun)
-					src.stuttering = stun
-
 				if (armor_value_bullet > 1)
-					show_message("<span style=\"color:red\">Your armor softens the hit!</span>", 4)
-					src.TakeDamage("chest", 0, (damage/armor_value_bullet), 0, DAMAGE_BURN)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(0, damage/armor_value_bullet, 0, target_organ)
-
 				else
-					src.TakeDamage("chest", 0, damage, 0, DAMAGE_BURN)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(0, damage, 0, target_organ)
 
 			if (D_BURNING)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
-				if (src.is_heat_resistant())
-					// fire resistance should probably not let you get hurt by welders
-					src.visible_message("<span style=\"color:red\"><b>[src] seems unaffected by fire!</b></span>")
-					return
-
 				if (armor_value_bullet > 1)
-					show_message("<span style=\"color:red\">Your armor softens the hit!</span>", 4)
-					src.TakeDamage("chest", 0, (damage/armor_value_bullet), 0, DAMAGE_BURN)
-					src.update_burning(damage/armor_value_bullet)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(0, damage/armor_value_bullet, 0, target_organ)
 				else
-					src.TakeDamage("chest", 0, damage, 0, DAMAGE_BURN)
-					src.update_burning(damage)
 					if (src.organHolder && prob(50))
 						src.organHolder.damage_organ(0, damage, 0, target_organ)
 
-			if (D_RADIOACTIVE)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
-				src.changeStatus("radiation", damage SECONDS)
-				if (src.add_stam_mod_regen("projectile", -5))
-					SPAWN_DBG(30 SECONDS)
-						src.remove_stam_mod_regen("projectile")
-
 			if (D_TOXIC)
-				if (stun > 0)
-					src.remove_stamina(min(round(stun/armor_value_bullet) * 30, 125)) //thanks to the odd scaling i have to cap this.
-					src.stamina_stun()
-
 				if (P.proj_data.reagent_payload)
-					if (armor_value_bullet > 1)
-						show_message("<span style=\"color:red\">Your armor softens the hit!</span>", 4)
-						src.TakeDamage("chest", (damage/armor_value_bullet), 0, 0, DAMAGE_STAB)
-					else
-						src.TakeDamage("chest", damage, 0, 0, DAMAGE_STAB)
-
-					if (stat==0) lastgasp()
-
 					if (P.implanted)
 						if (istext(P.implanted))
 							P.implanted = text2path(P.implanted)
@@ -255,22 +124,10 @@
 							src.implant += implanted
 							implanted.setMaterial(P.proj_data.material)
 							implanted.implanted(src, null, 0)
-					src.reagents.add_reagent(P.proj_data.reagent_payload, 15/armor_value_bullet)
-
-				else
-					src.take_toxin_damage(damage)
-					if (src.organHolder && prob(80))
-						src.organHolder.damage_organ(0, 0, damage, target_organ)
-
-	if (ismob(P.shooter))
-		if (P.shooter)
-			src.lastattacker = P.shooter
-			src.lastattackertime = world.time
-
-	return
+	return 1
 
 
-/mob/living/carbon/human/ex_act(severity)
+/mob/living/carbon/human/ex_act(severity, lasttouched, power)
 	..() // Logs.
 	if (src.nodamage) return
 	// there used to be mining radiation check here which increases severity by one
@@ -284,131 +141,75 @@
 
 	else if (isdead(src) && !src.client)
 		var/list/virus = src.ailments
+		var/atom/A = src.loc
 
 		var/bdna = null // For forensics (Convair880).
 		var/btype = null
 		if (src.bioHolder && src.bioHolder.Uid && src.bioHolder.bloodType) //ZeWaka: Fix for null.bioHolder
 			bdna = src.bioHolder.Uid
 			btype = src.bioHolder.bloodType
-		gibs(src.loc, virus, null, bdna, btype)
+		SPAWN_DBG(0)
+			gibs(A, virus, null, bdna, btype)
 
 		qdel(src)
 		return
 
+	if(!power)
+		switch(severity)
+			if(1)
+				power = 9		//gib
+			if(2)
+				power = 5		//100 damage total
+			if(3)
+				power = 3	//50 damage total
+
+	var/exploprot = src.get_explosion_resistance()
+	var/reduction = 0
 	var/shielded = 0
-	var/spellshielded = 0
+
 	for (var/obj/item/device/shield/S in src)
 		if (S.active)
+			exploprot += 0.3
 			shielded = 1
+			reduction += 1
 			break
 
-	var/reduction = 0
-	if (src.energy_shield) reduction = src.energy_shield.protect()
+	if (src.energy_shield) reduction += src.energy_shield.protect()/15
 	if (src.spellshield)
-		reduction += 30
-		spellshielded = 1
-		boutput(src, "<span style=\"color:red\"><b>Your Spell Shield absorbs some blast!</b></span>")
-	var/in_severity = severity
-	if (src.wear_suit && istype(src.wear_suit, /obj/item/clothing/suit/armor/EOD))
-		reduction += rand(10,40)
-		severity++ // let's make this function like mining armor
-		boutput(src, "<span style=\"color:red\"><b>Your armor absorbs some of the blast!</span>")
-		if (src.head && istype(src.head, /obj/item/clothing/head/helmet/EOD))
-			reduction += rand(5,20) // buffed a bit - cogwerks
-			severity++
-		if (client && client.hellbanned)
-			reduction = 0
-			severity = in_severity
-	else if (src.wear_suit && src.wear_suit.getProperty("exploprot"))
-		var/sevmod = max(0,round(src.wear_suit.getProperty("exploprot") / 4))
-		severity += sevmod
-		reduction = rand(src.wear_suit.getProperty("exploprot"), src.wear_suit.getProperty("exploprot") * 4)
-		if (client && client.hellbanned)
-			reduction = 0
-			severity = in_severity
-		boutput(src, "<span style=\"color:red\"><b>Your armor absorbs some of the blast!</span>")
-	else if (src.w_uniform && src.w_uniform.getProperty("exploprot"))
-		var/sevmod = max(0,round(src.w_uniform.getProperty("exploprot") / 4))
-		severity += sevmod
-		reduction = rand(src.w_uniform.getProperty("exploprot"), src.w_uniform.getProperty("exploprot") * 4)
-		if (client && client.hellbanned)
-			reduction = 0
-			severity = in_severity
-		boutput(src, "<span style=\"color:red\"><b>Your jumpsuit absorbs some of the blast!</span>")
+		reduction += 2
+		shielded = 1
+		boutput(src, "<span class='alert'><b>Your Spell Shield absorbs some blast!</b></span>")
 
-	var/b_loss = null
-	var/f_loss = null
+	power *= clamp(1-exploprot, 0, 1)
+	power -= reduction
+	var/b_loss = clamp(power*15, 0, 120)
+	var/f_loss = clamp((power-2.5)*10, 0, 120)
 
-	if (spellshielded)
-		severity++
+	var/delib_chance = b_loss - 20
+	if(src.bioHolder && src.bioHolder.HasEffect("shoot_limb"))
+		delib_chance += 20
 
-	switch (severity)
-		if (1.0)
-			b_loss += max(500 - reduction, 0)
+	if (src.traitHolder && src.traitHolder.hasTrait("explolimbs") || src.getStatusDuration("food_explosion_resist"))
+		delib_chance = round(delib_chance / 2)
+
+	if (prob(delib_chance) && !shielded)
+		src.sever_limb(pick(list("l_arm","r_arm","l_leg","r_leg"))) //max one delimb at once
+
+	switch (power)
+		if (-INFINITY to 0) //blocked
+			boutput(src, "<span class='alert'><b>You are shielded from the blast!</b></span>")
+			return
+		if (6 to INFINITY) //gib
 			SPAWN_DBG(1 DECI SECOND)
 				src.gib(1)
 			return
+	src.apply_sonic_stun(0, 0, 0, 0, 0, round(power*7), round(power*7), power*40)
 
-		if (2.0)
-			if (!shielded)
-				b_loss += max(60 - reduction, 0)
-
-			f_loss += max(60 - reduction, 0)
-			src.apply_sonic_stun(0, 0, 0, 0, 0, 30, 30)
-
-			var/curprob = 30
-			if(src.bioHolder && src.bioHolder.HasEffect("shoot_limb"))
-				curprob += 20
-
-			if (src.traitHolder && src.traitHolder.hasTrait("explolimbs"))
-				curprob = round(curprob / 2)
-
-			for (var/limb in list("l_arm","r_arm","l_leg","r_leg"))
-				if (prob(curprob))
-					src.sever_limb(limb)
-					curprob -= 20 // let's not get too crazy
-
-		if (3.0)
-			b_loss += max(30 - reduction, 0)
-			if (prob(50) && !shielded && !reduction)
-				src.changeStatus("paralysis", 9 SECONDS)
-
-			src.apply_sonic_stun(0, 0, 0, 0, 0, 15, 15)
-			var/curprob = 10
-			if(src.bioHolder && src.bioHolder.HasEffect("shoot_limb"))
-				curprob += 20
-
-			if ((src.traitHolder && src.traitHolder.hasTrait("explolimbs")) || src.getStatusDuration("food_explosion_resist"))
-				curprob = round(curprob / 2)
-
-			for (var/limb in list("l_arm","r_arm","l_leg","r_leg"))
-				if (prob(curprob))
-					src.sever_limb(limb)
-					curprob -= 10 // let's not get too crazy
-
-		if (4.0 to INFINITY)
-			boutput(src, "<span style=\"color:red\"><b>Your armor shields you from the blast!</b></span>")
+	if (prob(b_loss) && !shielded && !reduction)
+		src.changeStatus("paralysis", b_loss DECI SECONDS)
+		src.force_laydown_standup()
 
 	TakeDamage(zone="All", brute=b_loss, burn=f_loss, tox=0, damage_type=0, disallow_limb_loss=1)
-
-	/*
-	for (var/organ in src.organs)
-		var/obj/item/temp = src.organs["[organ]"]
-		if (isitem(temp))
-			switch(temp.name)
-				if ("head")
-					temp.take_damage(b_loss * 0.2, f_loss * 0.2)
-				if ("chest")
-					temp.take_damage(b_loss * 0.4, f_loss * 0.4)
-				if ("l_arm")
-					temp.take_damage(b_loss * 0.05, f_loss * 0.05)
-				if ("r_arm")
-					temp.take_damage(b_loss * 0.05, f_loss * 0.05)
-				if ("l_leg")
-					temp.take_damage(b_loss * 0.05, f_loss * 0.05)
-				if ("r_leg")
-					temp.take_damage(b_loss * 0.05, f_loss * 0.05)
-	*/
 	src.UpdateDamageIcon()
 
 /mob/living/carbon/human/blob_act(var/power)
@@ -432,10 +233,10 @@
 
 		//src.paralysis += 1
 
-	src.show_message("<span style=\"color:red\">The blob attacks you!</span>")
+	src.show_message("<span class='alert'>The blob attacks you!</span>")
 
 	if (src.spellshield)
-		boutput(src, "<span style=\"color:red\"><b>Your Spell Shield absorbs some damage!</b></span>")
+		boutput(src, "<span class='alert'><b>Your Spell Shield absorbs some damage!</b></span>")
 
 	var/list/zones = list("head", "chest", "l_arm", "r_arm", "l_leg", "r_leg")
 
@@ -449,27 +250,27 @@
 				if (temp && prob(45))
 					temp.take_damage(damage, 0)
 				else
-					src.show_message("<span style=\"color:red\">You have been protected from a hit to the head.</span>")
+					src.show_message("<span class='alert'>You have been protected from a hit to the head.</span>")
 				return
 			if (damage > 4.9)
 				changeStatus("weakened", 2 SECONDS)
 				for (var/mob/O in viewers(src, null))
-					O.show_message("<span style=\"color:red\"><B>The blob has weakened [src]!</B></span>", 1, "<span style=\"color:red\">You hear someone fall.</span>", 2)
+					O.show_message("<span class='alert'><B>The blob has weakened [src]!</B></span>", 1, "<span class='alert'>You hear someone fall.</span>", 2)
 			if (temp)
 				temp.take_damage(damage, 0)
 		if ("chest")
 			if ((((src.wear_suit && src.wear_suit.body_parts_covered & TORSO) || (src.w_uniform && src.w_uniform.body_parts_covered & TORSO)) && prob(70)))
-				src.show_message("<span style=\"color:red\">You have been protected from a hit to the chest.</span>")
+				src.show_message("<span class='alert'>You have been protected from a hit to the chest.</span>")
 				return
 			if (damage > 4.9)
 				if (prob(50))
 					src.changeStatus("weakened", 5 SECONDS)
 					for (var/mob/O in viewers(src, null))
-						O.show_message("<span style=\"color:red\"><B>The blob has knocked down [src]!</B></span>", 1, "<span style=\"color:red\">You hear someone fall.</span>", 2)
+						O.show_message("<span class='alert'><B>The blob has knocked down [src]!</B></span>", 1, "<span class='alert'>You hear someone fall.</span>", 2)
 				else
 					changeStatus("stunned", 5 SECONDS)
 					for (var/mob/O in viewers(src, null))
-						if (O.client)	O.show_message("<span style=\"color:red\"><B>The blob has stunned [src]!</B></span>", 1)
+						if (O.client)	O.show_message("<span class='alert'><B>The blob has stunned [src]!</B></span>", 1)
 				if (isalive(src))
 					src.lastgasp() // calling lastgasp() here because we just got knocked out
 			if (temp)
@@ -479,19 +280,19 @@
 			if (temp)
 				temp.take_damage(damage, 0)
 			if (prob(20) && equipped())
-				visible_message("<span style=\"color:red\"><b>The blob has knocked [equipped()] out of [src]'s hand!</b></span>")
+				visible_message("<span class='alert'><b>The blob has knocked [equipped()] out of [src]'s hand!</b></span>")
 				drop_item()
 		if ("r_arm")
 			if (temp)
 				temp.take_damage(damage, 0)
 			if (prob(20) && equipped())
-				visible_message("<span style=\"color:red\"><b>The blob has knocked [equipped()] out of [src]'s hand!</b></span>")
+				visible_message("<span class='alert'><b>The blob has knocked [equipped()] out of [src]'s hand!</b></span>")
 				drop_item()
 		if ("l_leg")
 			if (temp)
 				temp.take_damage(damage, 0)
 			if (prob(5))
-				visible_message("<span style=\"color:red\"><b>The blob has knocked [src] off-balance!</b></span>")
+				visible_message("<span class='alert'><b>The blob has knocked [src] off-balance!</b></span>")
 				drop_item()
 				if (prob(50))
 					src.changeStatus("weakened", 1 SECOND)
@@ -499,7 +300,7 @@
 			if (temp)
 				temp.take_damage(damage, 0)
 			if (prob(5))
-				visible_message("<span style=\"color:red\"><b>The blob has knocked [src] off-balance!</b></span>")
+				visible_message("<span class='alert'><b>The blob has knocked [src] off-balance!</b></span>")
 				drop_item()
 				if (prob(50))
 					src.changeStatus("weakened", 1 SECOND)
@@ -512,6 +313,8 @@
 /mob/living/carbon/human/TakeDamage(zone, brute, burn, tox, damage_type, disallow_limb_loss)
 	if (src.nodamage) return
 
+	hit_twitch(src)
+
 	if (src.traitHolder && src.traitHolder.hasTrait("reversal"))
 		brute *= -1
 		burn *= -1
@@ -521,7 +324,20 @@
 		burn *= 2
 		//tox *= 2
 
+	if(src.traitHolder?.hasTrait("athletic"))
+		brute *=1.33
+
 	if (src.mutantrace)
+		var/typemult
+		if(islist(src.mutantrace.typevulns))
+			typemult = src.mutantrace.typevulns[DAMAGE_TYPE_TO_STRING(damage_type)]
+		if(!typemult)
+			typemult = 1
+		if(damage_type == DAMAGE_BURN)
+			burn *= typemult
+		else
+			brute *= typemult
+
 		brute *= src.mutantrace.brutevuln
 		burn *= src.mutantrace.firevuln
 		tox *= src.mutantrace.toxvuln
@@ -546,8 +362,6 @@
 		tox = max(0, tox)
 		take_toxin_damage(tox)
 
-	hit_twitch(src)
-
 	if (zone == "All")
 		var/organCount = 0
 		for (var/organName in src.organs)
@@ -567,13 +381,18 @@
 
 		if (update)
 			src.UpdateDamageIcon()
-			src.UpdateDamage()
+			health_update_queue |= src
 	else
-		var/obj/item/E = src.organs[zone]
+		var/obj/item/E = null
+		try
+			E = src.organs[zone]
+		catch
+			logTheThing("debug", null, null, "<b>ORGAN/INDEX_DMG</b> Invalid index: [zone]")
+			return 0
 		if (isitem(E))
 			if (E.take_damage(brute, burn, 0/*tox*/, damage_type))
 				src.UpdateDamageIcon()
-				src.UpdateDamage()
+				health_update_queue |= src
 		else
 			return 0
 		return
@@ -585,7 +404,7 @@
 	if (a_zone in list("l_leg", "r_arm", "l_leg", "r_leg"))
 		a_zone = "chest"
 
-	armor_mod = get_melee_protection(zone)
+	armor_mod = get_melee_protection(zone, damage_type)
 	/*switch (zone)
 		if ("l_arm")
 			z_name = "left arm"
@@ -600,9 +419,9 @@
 	burn = max(0, burn - armor_mod)
 	/*
 	if (brute + burn == 0)
-		show_message("<span style='color:blue'>You have been completely protected from damage on your [z_name]!</span>")
+		show_message("<span class='notice'>You have been completely protected from damage on your [z_name]!</span>")
 	else if (armor_mod != 0)
-		show_message("<span style='color:blue'>You have been partly protected from damage on your [z_name]!</span>")
+		show_message("<span class='notice'>You have been partly protected from damage on your [z_name]!</span>")
 	*///Begone, message spam. Nobody asked for this
 	TakeDamage(zone, max(brute, 0), max(burn, 0), 0, damage_type)
 
@@ -674,14 +493,14 @@
 
 		if (update)
 			src.UpdateDamageIcon()
-			src.UpdateDamage()
+			health_update_queue |= src
 		return 1
 	else
 		var/obj/item/E = src.organs["[zone]"]
 		if (isitem(E))
 			if (E.heal_damage(brute, burn, tox))
 				src.UpdateDamageIcon()
-				src.UpdateDamage()
+				health_update_queue |= src
 				return 1
 		else
 			return 0
@@ -819,14 +638,24 @@
 	if (!themob || !ismob(themob))
 		return //???
 	var/list/zones = themob.get_valid_target_zones()
-	if (!zones || !zones.len)
-		themob.TakeDamageAccountArmor("All", damage, 0, 0, DAMAGE_BLUNT)
-	else
-		if (prob(100 / zones.len + 1))
+	if(checkarmor)
+		if (!zones || !zones.len)
 			themob.TakeDamageAccountArmor("All", damage, 0, 0, DAMAGE_BLUNT)
 		else
-			var/zone=pick(zones)
-			themob.TakeDamageAccountArmor(zone, damage, 0, 0, DAMAGE_BLUNT)
+			if (prob(100 / zones.len + 1))
+				themob.TakeDamageAccountArmor("All", damage, 0, 0, DAMAGE_BLUNT)
+			else
+				var/zone=pick(zones)
+				themob.TakeDamageAccountArmor(zone, damage, 0, 0, DAMAGE_BLUNT)
+	else
+		if (!zones || !zones.len)
+			themob.TakeDamage("All", damage, 0, 0, DAMAGE_BLUNT)
+		else
+			if (prob(100 / zones.len + 1))
+				themob.TakeDamage("All", damage, 0, 0, DAMAGE_BLUNT)
+			else
+				var/zone=pick(zones)
+				themob.TakeDamage(zone, damage, 0, 0, DAMAGE_BLUNT)
 
 /proc/random_burn_damage(var/mob/themob, var/damage) // do burn damage to a random organ
 	if (!themob || !ismob(themob))
@@ -858,24 +687,22 @@
 	if (!isnum(amount) || amount == 0)
 		return 1
 
-	//old way that has damage attached to var on /mob/living/carbon/human not on /obj/item/organ/brain
-	// src.brainloss = max(0,min(src.brainloss + amount,120))
-
 	if (src.organHolder && src.organHolder.brain)
 		if (amount > 0)
 			src.organHolder.damage_organ(amount, 0, 0, "brain")
 		else
 			src.organHolder.heal_organ(abs(amount), 0, 0, "brain")
 
-	if (src.organHolder && src.organHolder.brain && src.organHolder.brain.get_damage() >= 120)
-		src.visible_message("<span style=\"color:red\"><b>[src.name]</b> goes limp, their facial expression utterly blank.</span>")
-		src.death()
-		return
-	return
-
+	if (src.organHolder && src.organHolder.brain && src.organHolder.brain.get_damage() >= 120 && isalive(src))
+		src.visible_message("<span class='alert'><b>[src.name]</b> goes limp, their facial expression utterly blank.</span>")
+		INVOKE_ASYNC(src, /mob/living/carbon/human.proc/death)
 
 /mob/living/carbon/human/get_brain_damage()
 	if (src.organHolder && src.organHolder.brain)
 		return src.organHolder.brain.get_damage()
 	//leaving this just in case, should never be called I assume
 	..()
+
+/mob/living/carbon/human/UpdateDamage()
+	..()
+	src.hud.update_health_indicator()

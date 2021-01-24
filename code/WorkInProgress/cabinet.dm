@@ -3,7 +3,7 @@
 	desc = "Cabinet for storing various things."
 	anchored = 1
 	density = 1
-	icon = 'icons/obj/cabinet.dmi'
+	icon = 'icons/obj/furniture/cabinet.dmi'
 	icon_state = "cabinet"
 	flags = NOSPLASH
 	bound_height = 32
@@ -20,7 +20,7 @@
 
 	RawClick(location,control,params)
 		var/mob/user = usr
-		if (ismobcritter(user))
+		if (ismobcritter(user) || issilicon(user) || isobserver(user))
 			return
 		if(can_act(user) && can_reach(user, src))
 			var/list/paramList = params2list(params)
@@ -54,7 +54,7 @@
 					slotItem.set_loc(user.loc)
 					slots["[slotNum]"] = null
 					user.put_in_hand(slotItem, user.hand)
-					boutput(user, "<span style=\"color:blue\"><B>You take the [slotItem] out of the cabinet.</B></span>")
+					boutput(user, "<span class='notice'><B>You take the [slotItem] out of the cabinet.</B></span>")
 					rebuildOverlays()
 					return
 			else
@@ -62,10 +62,10 @@
 					if(canHold(I))
 						takeItem(user, I, "[slotNum]") //aaaah.
 					else
-						boutput(user, "<span style=\"color:red\"><B>You can't put that item in the cabinet.</B></span>")
+						boutput(user, "<span class='alert'><B>You can't put that item in the cabinet.</B></span>")
 
 	proc/takeItem(var/mob/user, var/obj/item/I, var/slotNum = null)
-		if (ismobcritter(user))
+		if (!ishuman(user))
 			return
 		if(!slotNum) //Didnt pass in a slot number, find next free slot.
 			for(var/X in slots)
@@ -74,7 +74,7 @@
 					break
 
 		if(!slotNum) //Still no free slot number, we're full.
-			boutput(user, "<span style=\"color:red\"><B>The cabinet is full.</B></span>")
+			boutput(user, "<span class='alert'><B>The cabinet is full.</B></span>")
 			return
 
 		if(I && I == user.equipped())
@@ -82,10 +82,14 @@
 			I.set_loc(src)
 			slots[slotNum] = I
 			rebuildOverlays()
-			boutput(user, "<span style=\"color:blue\"><B>You put the [I] into the cabinet.</B></span>")
+			boutput(user, "<span class='notice'><B>You put the [I] into the cabinet.</B></span>")
 		return
 
 	proc/canHold(var/obj/item/I)
+		if(isnull(I))
+			return null
+		if(I.cant_drop)
+			return 0
 		for(var/X in deniedTypes)
 			if(istype(I, X))
 				return 0
@@ -123,7 +127,7 @@
 				var/image/A = null
 
 				if(istype(I,/obj/item/reagent_containers/glass/bottle)) //Add your other icon states here.
-					A = image('icons/obj/cabinet.dmi',"slot_bottle")
+					A = image('icons/obj/furniture/cabinet.dmi',"slot_bottle")
 				else
 					A = image(cabinetGlassIcon(I))
 
@@ -132,7 +136,7 @@
 				A.mouse_opacity = 0
 				underlays.Add(A)
 			else
-				var/image/A = image('icons/obj/cabinet.dmi',src,"slot_empty")
+				var/image/A = image('icons/obj/furniture/cabinet.dmi',src,"slot_empty")
 				A.pixel_x = offsetX
 				A.pixel_y = offsetY
 				A.mouse_opacity = 0
@@ -160,12 +164,14 @@
 /obj/cabinet/pathology
 
 	New()
+		#ifdef CREATE_PATHOGENS //PATHOLOGY REMOVAL
 		slots["1"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
 		slots["2"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
 		slots["3"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
 		slots["4"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
 		slots["5"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
 		slots["6"] = new/obj/item/reagent_containers/glass/vial/prepared(src)
+		#endif
 		rebuildOverlays()
 		return ..()
 
@@ -238,5 +244,29 @@
 		slots["4"] = new/obj/item/reagent_containers/mender/burn(src)
 		slots["5"] = new/obj/item/reagent_containers/mender/burn(src)
 		slots["6"] = new/obj/item/reagent_containers/mender/burn(src)
+		rebuildOverlays()
+		return ..()
+
+/obj/cabinet/psychiatry
+
+	New()
+		slots["1"] = new /obj/item/device/audio_log(src)
+		slots["2"] = new /obj/item/paper_bin(src)
+		slots["3"] = new /obj/item/storage/box/crayon(src)
+		slots["4"] = new /obj/item/storage/box/cookie_tin/sugar(src)
+		slots["5"] = new /obj/item/item_box/gold_star(src)
+		slots["6"] = new /obj/item/toy/plush/small/stress_ball(src)
+		rebuildOverlays()
+		return ..()
+
+/obj/cabinet/taffy // for psychiatrists to prescribe
+
+	New()
+		slots["1"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/cherry(src)
+		slots["2"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/watermelon(src)
+		slots["3"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/blueraspberry(src)
+		slots["4"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/cherry(src)
+		slots["5"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/watermelon(src)
+		slots["6"] = new /obj/item/reagent_containers/food/snacks/candy/taffy/blueraspberry(src)
 		rebuildOverlays()
 		return ..()
