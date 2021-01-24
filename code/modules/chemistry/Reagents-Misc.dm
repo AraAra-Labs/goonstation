@@ -3767,7 +3767,7 @@ datum
 					world.log << ("This Kudzuperson has GrassGro inside them")
 					var/datum/abilityHolder/kudzu/KAH = M.abilityHolder
 					if (KAH.points < KAH:MAX_POINTS)
-						KAH.points += 10
+						KAH.points += 100
 				M.updatehealth()
 				..()
 				return
